@@ -1,0 +1,17 @@
+# 注意:生产构建需要配置 mac.codeSign / win.codeSign,本文件只覆盖开发期
+appId: com.galide.app
+productName: Galide
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Development
