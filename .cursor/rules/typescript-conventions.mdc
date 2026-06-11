@@ -1,0 +1,57 @@
+---
+description: TypeScript 编码规范
+alwaysApply: false
+---
+<!-- 注:本文件镜像 `.style-spec/languages/typescript/conventions.yaml`,修改请同步源文件,避免双份规约漂移。 -->
+# TypeScript 编码规范
+
+本项目 TypeScript 必须严格遵循以下约定:
+
+## 严格模式
+
+- `strict: true` 必须开启
+- `noImplicitAny: true`
+- `noImplicitReturns: true`
+- `strictNullChecks: true`
+- **禁止 `any`,必须用 `unknown` 代替**
+
+## 命名
+
+| 类别 | 风格 | 示例 |
+|------|------|------|
+| 变量 / 函数 | camelCase | `createCharacter()` |
+| 类型 / 接口 / 枚举 | PascalCase | `CharacterCard` |
+| 常量 | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
+| 文件 | kebab-case.ts | `script-parser.ts` |
+| React 组件 | PascalCase.tsx | `CharacterCardEditor.tsx` |
+
+## 类型定义
+
+- 优先使用 `interface`,而非 `type`(除非需要联合或映射)
+- 所有 API 返回类型必须声明,禁止隐式推断
+- IPC 返回类型使用 `Result<T, E>` 模式
+
+```typescript
+// ✅ 正确
+type Result<T, E = string> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
+// ❌ 错误
+function parseScript(text: string): any { ... }
+```
+
+## 错误处理
+
+- 业务错误用 `Result<T>` 而非抛异常
+- 异步操作用 `try/catch`,返回 `Result`
+- `catch` 中禁止忽略错误(至少 `log`)
+
+## 导入排序
+
+1. React
+2. 外部库
+3. 内部模块
+4. 类型
+
+禁止 barrel re-export(`index.ts`),直接 import 具体路径。

@@ -1,0 +1,27 @@
+---
+description: AI 调用与流式规约(从 core/conventions.yaml 沉淀)
+globs: ["src/main/ai/**/*.ts", "src/renderer/src/features/ai-panel/**/*"]
+alwaysApply: false
+---
+
+# AI 集成规约
+
+## 核心约束
+- API Key 永远不离开 main process;renderer 通过 IPC 调用
+- Key 存储走 `electron-store` 加密(见 main/ai/key-store.ts)
+- 所有 AI 调用经 `src/main/ai/ai-proxy.ts`,不在 renderer 直连
+
+## 流式
+- 流式响应通过 IPC 事件 `ai:stream` 推送,payload 为 `{ taskId, delta: string }`
+- renderer 端通过 `useAiStream(taskId)` hook 订阅
+- 事件流以 `ai:status` `{ status: 'done' | 'error' }` 收尾
+
+## 任务队列
+- 任务入队,不阻塞编辑器;并发 = 1
+- 状态机: pending → running → done | error
+- 状态变化通过 `ai:status` 事件推送
+- `useAiTaskStatus(taskId)` / `useAiTaskList()` 是订阅入口
+
+## 错误
+- 错误用 `AiError { code, message, provider? }` 结构,通过 `Result<T, AiError>` 传递
+- 不抛异常;业务错误返回 Result

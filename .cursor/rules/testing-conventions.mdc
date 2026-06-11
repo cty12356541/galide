@@ -1,0 +1,29 @@
+---
+description: 测试规约(vitest + RTL)
+globs: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]
+alwaysApply: false
+---
+
+# 测试规约
+
+## 框架
+- 单元测试: vitest
+- React 组件测试: @testing-library/react + vitest
+
+## 文件命名
+- 与被测文件同级:`foo.ts` → `foo.test.ts`
+- 集成测试放 `__tests__/` 目录
+
+## 覆盖率
+- shared/dsl/ 必测(决策树核心)
+- main/ipc/*-handlers.ts 推荐覆盖
+- renderer 组件可选
+
+## 跑测
+- `pnpm test` 跑全部
+- `pnpm test:watch` 增量
+
+## Mock
+- IPC 通道用 vi.mock 替换
+- simple-git 用 mock 函数替换
+- 禁止 mock fs,改用 memfs

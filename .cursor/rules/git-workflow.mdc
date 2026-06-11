@@ -1,0 +1,20 @@
+---
+description: Git 工作流规约(从 core/conventions.yaml + main-process/conventions.yaml 沉淀)
+globs: ["src/main/git/**/*.ts", "src/main/ipc/git-handlers.ts", "src/main/ipc/project-handlers.ts", "src/main/ipc/script-handlers.ts"]
+alwaysApply: false
+---
+
+# Git 工作流规约
+
+## 实现位置
+- 所有 git 操作经 `src/main/git/git-service.ts`
+- IPC handler `src/main/ipc/git-handlers.ts` 仅为薄壳,转发到 gitService
+- 禁止 `child_process.exec('git ...')`,全部走 `simple-git` API
+
+## 触发点
+- 新建项目: `project-handlers.ts:create` 成功后自动 `gitService.init()` + `createInitialCommit()`
+- 保存脚本: `script-handlers.ts:write` 写完文件后,若偏好 `git.autoCommitOnSave === true`,自动 `gitService.addAndCommit()`
+
+## 错误语义
+- git 操作失败不抛异常,返回 `Result<T, GitError>`
+- 初始化失败不阻塞项目创建(只不回写 `manifest.git.initialized` 字段)

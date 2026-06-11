@@ -1,0 +1,46 @@
+---
+description: gal DSL 语言规范
+globs: **/*.gal
+alwaysApply: false
+---
+<!-- 注:本文件镜像 `.style-spec/layers/dsl/conventions.yaml`,修改请同步源文件,避免双份规约漂移。 -->
+
+# gal DSL 语言规范
+
+## 设计约束
+
+- **纯文本行级语义**:每行要么是元数据、要么是对白、要么是控制流
+- **禁止多行块语法**:JSON/YAML 的多行字符串会破坏 `git diff` 线性
+- **显式符号标记层级**:不需要缩进来表达嵌套
+- 资产引用必须使用相对于项目根的相对路径
+
+## 行类型速查
+
+```
+# 章节标题
+## 场景元数据
+背景: assets/backgrounds/xxx.png
+BGM: assets/bgm/xxx.mp3
+[角色:名字 | 立绘:asset.png | 位置:左]
+角色名: "对白内容"
+* "选项文本" -> 目标节点
+=== 节点名 ===
+[跳转:目标节点]
+// 注释
+```
+
+## AST 节点类型
+
+解析器必须输出以下 AST 节点类型:
+
+- `ScriptNode`: `{ type: 'script', children: Node[] }`
+- `SceneNode`: `{ type: 'scene', id, background?, bgm?, children }`
+- `DialogueNode`: `{ type: 'dialogue', character, sprite?, position?, lines }`
+- `ChoiceNode`: `{ type: 'choice', options: { text, target }[] }`
+- `GotoNode`: `{ type: 'goto', target }`
+
+## 解析器约定
+
+- 词法分析器输出 `Token[]`,包含 `type + value + line + column`
+- 解析失败返回结构化 `ParseError`(含 `line/column`),不抛异常
+- 必须包含 `errors: ParseError[]` 字段
