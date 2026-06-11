@@ -1,0 +1,47 @@
+# .style-spec/core/conventions.yaml
+# 项目级技术约定
+
+project_structure:
+  canonical_artifact: ".gal 文件是决策树的 Canonical 表示"
+  git_root: "项目根目录即 Git 仓库根目录"
+  assets_dir: "资产统一放在 assets/ 下，按 type 子目录分类"
+  project_files:
+    ".gal": "决策树 Canonical 表示,所有导出从此派生"
+    ".galproj": "项目元数据(角色卡 CharacterCard、资产路径 AssetIndex、git 配置);决策树不在此处"
+    "electron-store": "全局 UI 状态(偏好、API Key、最近项目列表);与 .galproj 解耦"
+
+tech_stack:
+  desktop_shell: "Electron (main: Node.js/TS, renderer: React/TS)"
+  state_management: "Zustand (renderer) + React Query (AI tasks)"
+  ui_framework: "shadcn/ui + Tailwind CSS"
+  editor: "CodeMirror 6 + Lezer"
+  node_graph: "@xyflow/react (React Flow)"
+  game_runtime: "PixiJS v8"
+  persistence: "sql.js (WASM) 仅存 UI 状态；决策树在 .gal 文件中"
+
+ai_integration:
+  proxy_layer: "所有 AI 调用经由 main process IPC，renderer 不直连 AI API"
+  api_key_handling: "API Key 存在 electron-store 加密存储，不暴露给 renderer"
+  streaming: "AI 响应使用 SSE (Server-Sent Events)，renderer 端打字机展示"
+  task_queue: "AI 任务入队，UI 显示排队状态，不阻塞编辑器操作"
+
+git_integration:
+  library: "simple-git npm 包"
+  operations:
+    - "init: 新建项目时自动 git init"
+    - "commit: 保存时自动 add + commit"
+    - "diff: 内置 diff viewer 显示剧本变更"
+    - "status: 显示当前工作区状态"
+  no_cli: "不使用 git 命令行，全部通过 simple-git API"
+
+export:
+  philosophy: "给定同一份 .gal，导出到任意目标语义完全一致"
+  pipeline: "gal AST → TargetAST → TargetFile"
+  target_order: "web(单HTML) → renpy → ink → json → electron-desktop"
+
+code_style:
+  typescript: "strict mode，禁止 any，优先 interface 而非 type"
+  react: "函数组件 + Hooks，无 class 组件"
+  css: "Tailwind class 优先，scoped CSS 仅用于无法用 Tailwind 表达的复杂样式"
+  file_naming: "kebab-case: script-parser.ts, character-card.tsx"
+
