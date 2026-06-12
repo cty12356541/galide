@@ -1,0 +1,30 @@
+# .style-spec/domain/voice/naming.yaml
+# 语音系统领域命名规约
+
+terms:
+  - term: "语音"
+    type: VoiceLine
+    description: "角色对白的配音音频文件"
+
+  - term: "音色配置"
+    type: VoiceConfig
+    description: "角色的 TTS 音色设置"
+
+  - term: "TTS"
+    type: TextToSpeech
+    description: "文字转语音服务"
+
+component_naming:
+  - "VoiceLineItem"         # 语音行项目
+  - "VoiceConfigPanel"       # 音色配置面板
+  - "TtsProviderSelect"      # TTS 提供商选择
+  - "VoicePreviewPlayer"     # 语音预览播放器
+  - "BatchVoiceGenerate"      # 批量生成按钮
+
+ai_behaviors:
+  - term: "生成语音"
+    description: "AI 将对白文字转为语音"
+
+  - term: "批量生成"
+    description: "AI 批量将场景内所有对白转为语音"
+

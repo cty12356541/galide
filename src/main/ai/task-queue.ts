@@ -46,10 +46,75 @@ const sendStatus = (sender: WebContents, taskId: string, status: AiTaskStatus, e
   sender.send(IPC.ai.status, error ? { taskId, status, error } : { taskId, status })
 }
 
+/**
+ * Stream 缓冲器 — 累积 provider 吐来的小 delta,定时 / 定量 flush 一次
+ *
+ * 目的:provider (尤其 OpenAI SDK + minimaxi / deepseek) 经常一次吐一大坨
+ * (几十字符 burst),如果直接逐 IPC 转发,renderer 端 `text` 一次性 +N,
+ * 字符级 typewriter 来不及逐字展开,用户视觉上"一下子冒出来"。
+ *
+ * 策略:
+ *  - 累积同一个 taskId 的 delta 字符进 buffer
+ *  - 满足任一条件就 flush:
+ *    (a) buffer 长度 >= FLUSH_CHARS (12 字符)
+ *    (b) 自上次 flush 起 >= FLUSH_MS (25ms)
+ *    (c) 流结束 / 错误 / cancel (立即 flush 剩余)
+ *  - flush 时合并 buffer 一次 IPC.send
+ *
+ * 这样保证:provider burst 几十字符 → 多个小批 (12 chars / 25ms) → renderer
+ * typewriter 能逐字展开。视觉上"AI 在思考 / 写作"感。
+ */
+const FLUSH_CHARS = 12
+const FLUSH_MS = 25
+
+const streamBuffers = new Map<string, { buffer: string; timer: NodeJS.Timeout | null }>()
+
+const flushStream = (sender: WebContents, taskId: string): void => {
+  const entry = streamBuffers.get(taskId)
+  if (!entry || entry.buffer.length === 0) return
+  const payload = entry.buffer
+  entry.buffer = ''
+  if (entry.timer !== null) {
+    clearTimeout(entry.timer)
+    entry.timer = null
+  }
+  if (isSenderAlive(sender)) {
+    sender.send(IPC.ai.stream, { taskId, delta: payload })
+  }
+}
+
+const scheduleFlush = (sender: WebContents, taskId: string): void => {
+  const entry = streamBuffers.get(taskId)
+  if (!entry) return
+  if (entry.timer !== null) return
+  entry.timer = setTimeout(() => {
+    flushStream(sender, taskId)
+  }, FLUSH_MS)
+}
+
 const sendDelta = (sender: WebContents, taskId: string, delta: string): void => {
   if (!delta) return
   if (!isSenderAlive(sender)) return
-  sender.send(IPC.ai.stream, { taskId, delta })
+  let entry = streamBuffers.get(taskId)
+  if (!entry) {
+    entry = { buffer: '', timer: null }
+    streamBuffers.set(taskId, entry)
+  }
+  entry.buffer += delta
+  // 定量阈值:够了立刻 flush
+  if (entry.buffer.length >= FLUSH_CHARS) {
+    flushStream(sender, taskId)
+    return
+  }
+  // 否则按时间阈值 schedule
+  scheduleFlush(sender, taskId)
+}
+
+/**
+ * 流结束 / 错误 / 取消时调用,确保 buffer 残余全 flush。
+ */
+export const flushStreamImmediate = (sender: WebContents, taskId: string): void => {
+  flushStream(sender, taskId)
 }
 
 export const aiTaskQueue = {
@@ -160,6 +225,8 @@ const drain = async (): Promise<void> => {
             return
           }
           if (chunk.type === 'error' && chunk.error) {
+            // 错误:把 buffer 残余先 flush,再发 status
+            flushStreamImmediate(record.sender, record.taskId)
             sendStatus(
               record.sender,
               record.taskId,
@@ -168,6 +235,8 @@ const drain = async (): Promise<void> => {
             )
           }
         })
+        // 流结束 — flush buffer 残余,renderer 端会看到完整 text
+        flushStreamImmediate(record.sender, record.taskId)
         // give a tiny yield so cancel() between chunks is observed promptly
         await sleep(0)
 
@@ -175,6 +244,8 @@ const drain = async (): Promise<void> => {
           cancelRequested.delete(record.taskId)
           record.status = 'error'
           record.error = 'cancelled'
+          // cancel 时也 flush(剩余 buffer 仍到达 UI)
+          flushStreamImmediate(record.sender, record.taskId)
           sendStatus(record.sender, record.taskId, 'error', 'cancelled')
         } else {
           record.status = 'done'
@@ -183,8 +254,15 @@ const drain = async (): Promise<void> => {
       } catch (err) {
         record.status = 'error'
         record.error = err instanceof Error ? err.message : String(err)
+        flushStreamImmediate(record.sender, record.taskId)
         sendStatus(record.sender, record.taskId, 'error', record.error)
       } finally {
+        // 清理 stream 缓冲器
+        const entry = streamBuffers.get(record.taskId)
+        if (entry?.timer !== null && entry?.timer !== undefined) {
+          clearTimeout(entry.timer)
+        }
+        streamBuffers.delete(record.taskId)
         activeTasks.delete(record.taskId)
         archive(record)
       }

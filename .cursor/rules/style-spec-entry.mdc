@@ -1,0 +1,46 @@
+---
+description: galide 项目风格规约入口
+alwaysApply: true
+---
+
+# galide 项目风格规约
+
+本项目使用 `.style-spec/` 渐进式语义规约系统。
+
+## 核心原则
+
+处理本项目任何代码前,必须先阅读 `.style-spec/core/` 下的所有文件:
+
+- [core/naming.yaml](../.style-spec/core/naming.yaml) — 业务实体 → 代码类型映射
+- [core/patterns.yaml](../.style-spec/core/patterns.yaml) — 通用代码模式
+- [core/conventions.yaml](../.style-spec/core/conventions.yaml) — 项目技术约定
+
+## 按需读取
+
+| 任务涉及 | 额外阅读 |
+|---------|---------|
+| 剧本编辑器 / 分支预览 | `.style-spec/domain/script-editor/naming.yaml` |
+| 角色系统 / 立绘 | `.style-spec/domain/character/naming.yaml` |
+| 场景 / 背景 / BGM | `.style-spec/domain/scene/naming.yaml` |
+| 语音 / TTS | `.style-spec/domain/voice/naming.yaml` |
+| 导出功能 | `.style-spec/domain/export/naming.yaml` |
+| React 组件 / UI | `.style-spec/layers/renderer/conventions.yaml` |
+| Electron 主进程 / IPC | `.style-spec/layers/main-process/conventions.yaml` |
+| gal DSL 解析器 | `.style-spec/layers/dsl/conventions.yaml` |
+
+## 本项目核心哲学
+
+**文字游戏 = 语言意义选项的决策树**
+
+- `.gal` 文件是 Canonical artifact,所有导出从它派生
+- 项目根目录即 Git 仓库根目录
+- SQLite 仅存 UI 临时状态,不存决策树
+- AI 是工作流的一等公民
+
+## 规则优先级
+
+`core/` > `layers/` > `languages/`,冲突时以 `core/` 为准。
+
+## 发现新模式
+
+发现反复出现的模式,提案到 `.auto-update/pending-proposals/`。

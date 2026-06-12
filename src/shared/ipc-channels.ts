@@ -49,7 +49,9 @@ export const IPC = {
     get: 'preferences:get',
     set: 'preferences:set',
     reset: 'preferences:reset',
-    sectionReset: 'preferences:sectionReset'
+    sectionReset: 'preferences:sectionReset',
+    cacheDir: 'preferences:cacheDir',
+    clearCache: 'preferences:clearCache'
   },
   shortcuts: {
     get: 'shortcuts:get',
@@ -71,6 +73,9 @@ export const IPC = {
   store: {
     get: 'store:get',
     set: 'store:set'
+  },
+  dialog: {
+    chooseDirectory: 'dialog:chooseDirectory'
   }
 } as const
 
@@ -85,3 +90,4 @@ export type IpcChannel =
   | (typeof IPC)['character'][keyof (typeof IPC)['character']]
   | (typeof IPC)['voice'][keyof (typeof IPC)['voice']]
   | (typeof IPC)['store'][keyof (typeof IPC)['store']]
+  | (typeof IPC)['dialog'][keyof (typeof IPC)['dialog']]

@@ -1,0 +1,32 @@
+# .style-spec/domain/export/naming.yaml
+# 导出系统领域命名规约
+
+terms:
+  - term: "导出器"
+    type: Exporter
+    description: "将 .gal AST 转为特定目标格式的模块"
+
+  - term: "导出目标"
+    type: ExportTarget
+    description: "导出的目标平台：web, renpy, ink, json, electron-desktop"
+
+  - term: "导出产物"
+    type: ExportArtifact
+    description: "导出生成的最终文件或包"
+
+component_naming:
+  - "ExportDialog"           # 导出对话框
+  - "ExportTargetCard"       # 导出目标卡片
+  - "ExportProgressBar"      # 导出进度条
+  - "ExportPreviewPane"      # 导出预览窗
+  - "RenPyExporter"
+  - "InkExporter"
+  - "WebExporter"
+  - "JsonExporter"
+  - "DesktopExporter"
+
+export_pipeline:
+  - "parse: .gal text → gal AST"
+  - "transform: gal AST → TargetAST"
+  - "emit: TargetAST → Target files"
+

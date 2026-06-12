@@ -141,8 +141,9 @@ export class WebComposer implements Composer<WebAst, MultiFileOutput> {
     const assetsSrcDir = join(ctx.request.projectPath, 'assets')
     try {
       await fs.cp(assetsSrcDir, assetsOutDir, { recursive: true })
-    } catch {
-      // assets dir may not exist
+    } catch (err) {
+      // P1-6 修复: 资源目录可能不存在 — 留 warn 便于排错
+      console.warn(`[galide export] assets 目录复制失败: ${assetsSrcDir}`, err)
     }
     const html = buildHtmlShell(galFilenames)
     return { html, galFiles }

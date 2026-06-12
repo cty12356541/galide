@@ -1,0 +1,61 @@
+# .style-spec/core/patterns.yaml
+# 通用代码模式
+
+structural_patterns:
+
+  - name: "Parser-Composer Pipeline"
+    description: "解析器将文本转为 AST，Composer 将 AST 转为目标格式。两者正交。"
+    code_example: |
+      // 解析方向
+      scriptText: string → ScriptAST
+
+      // 组合方向
+      ScriptAST → RenPyComposer → .rpy files
+      ScriptAST → InkComposer → .ink file
+      ScriptAST → WebComposer → single HTML file
+
+  - name: "Asset Reference by Relative Path"
+    description: "所有资产引用在 .gal 文件中使用相对于项目根的相对路径。"
+    code_example: |
+      // 正确
+      const path = resolveAssetPath(projectRoot, 'assets/characters/xiaoxue.png')
+
+      // 错误: 绝对路径或无路径
+      // const path = '/Users/me/.../x.png'  ← 禁止
+
+  - name: "AST Nodevisitor"
+    description: "遍历决策树 AST 时使用 Visitor 模式，支持深度遍历和状态累积。"
+    code_example: |
+      interface ScriptVisitor<T> {
+        visitScript(node: ScriptNode): T
+        visitDialogue(node: DialogueNode): T
+        visitChoice(node: ChoiceNode): T
+        visitGoto(node: GotoNode): T
+      }
+
+naming_conventions:
+  component_suffixes:
+    - "Editor"      # UI 编辑器组件
+    - "Panel"       # 侧边栏面板
+    - "Canvas"      # 画布/预览区
+    - "Tree"        # 树形结构
+    - "Toolbar"     # 工具栏
+    - "Dialog"      # 对话框/弹窗
+
+  handler_suffixes:
+    - "Handler"     # 事件处理器
+    - "Command"    # IPC 命令
+    - "Middleware"  # 中间件
+
+  type_suffixes:
+    - "AST"         # 抽象语法树
+    - "Token"       # 词法记号
+    - "Node"        # AST 节点
+    - "Context"     # 上下文对象
+
+error_handling:
+  - rule: "所有异步操作必须 try/catch"
+  - rule: "IPC 调用必须处理 error channel 返回的错误"
+  - rule: "解析失败返回结构化 ParseError，包含 line/column/message"
+  - rule: "资产加载失败不抛异常，返回 null + warning log"
+

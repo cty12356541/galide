@@ -13,17 +13,26 @@ export type CharacterCard = {
   name: string
   description: string
   personality: string
-  spriteSet: SpriteEntry[]
+  /** 角色立绘集(spec core/naming.yaml: CharacterSprite) */
+  spriteSet: CharacterSprite[]
   voiceConfig?: VoiceConfig
 }
 
-// 历史名;spec 命名为 CharacterSprite,作为 alias 保留以兼容旧实现
-export type SpriteEntry = {
+/**
+ * 角色立绘(spec core/naming.yaml: 角色立绘 → CharacterSprite)
+ * 包含表情状态(state)和资产相对路径(path)。
+ */
+export type CharacterSprite = {
   state: string
   path: string
 }
-/** 角色立绘(spec 命名;实现等同 SpriteEntry) */
-export type CharacterSprite = SpriteEntry
+
+/**
+ * @deprecated 使用 CharacterSprite(spec 命名)。保留 1-2 个 release
+ * 用于兼容外部 plugin / 旧 manifest JSON。
+ * @see CharacterSprite
+ */
+export type SpriteEntry = CharacterSprite
 
 export type VoiceConfig = {
   provider: 'elevenlabs' | 'openai' | 'edge' | 'local'

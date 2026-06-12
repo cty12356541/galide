@@ -1,0 +1,21 @@
+node_modules/
+out/
+dist/
+build/
+.vite/
+*.log
+.DS_Store
+.env
+.env.local
+exports/
+
+# Secrets & credentials (NEVER commit)
+*.pem
+*.key
+id_*
+*.pub
+secrets/
+.credentials/
+
+# TypeScript build cache
+*.tsbuildinfo

@@ -1,0 +1,39 @@
+# .style-spec/domain/scene/naming.yaml
+# 场景系统领域命名规约
+
+terms:
+  - term: "场景"
+    type: Scene
+    description: "一个叙事单元，有背景、BGM，可包含多段对白"
+
+  - term: "场景背景"
+    type: SceneBackground
+    description: "场景的背景图资产"
+
+  - term: "场景描述"
+    type: SceneDescription
+    description: "场景的文字描述，用于 AI 生成背景图"
+
+  - term: "BGM"
+    type: SceneBGM
+    description: "场景的背景音乐"
+
+  - term: "转场"
+    type: Transition
+    description: "场景切换时的动画效果，如 淡入淡出、滑动"
+
+component_naming:
+  - "SceneListPanel"        # 场景列表侧栏
+  - "SceneBackgroundPicker"  # 背景选择器
+  - "BgmPicker"             # BGM 选择器
+  - "TransitionSelector"     # 转场效果选择器
+  - "ScenePreviewThumb"      # 场景缩略图
+  - "AiSceneSuggest"         # AI 场景建议面板
+
+ai_behaviors:
+  - term: "生成场景描述"
+    description: "AI 根据剧本上下文生成场景描述"
+
+  - term: "生成背景图"
+    description: "AI 根据场景描述生成背景图"
+

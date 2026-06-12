@@ -1,0 +1,81 @@
+# .style-spec/core/naming.yaml
+# 业务实体与代码符号的命名约定
+
+entities:
+  # 决策树相关
+  - term: "剧本"
+    type: Script
+    related:
+      - "剧本文件" → ScriptFile
+      - "剧本节点" → ScriptNode
+      - "剧本解析器" → ScriptParser
+
+  - term: "角色"
+    type: Character
+    related:
+      - "角色卡" → CharacterCard
+      - "角色立绘" → CharacterSprite
+      - "角色资产" → CharacterAsset
+
+  - term: "场景"
+    type: Scene
+    related:
+      - "场景背景" → SceneBackground
+      - "场景资产" → SceneAsset
+
+  - term: "对话"
+    type: Dialogue
+    related:
+      - "对话节点" → DialogueNode
+      - "对话选项" → DialogueChoice
+
+  - term: "选项"
+    type: Choice
+    related:
+      - "玩家选项" → PlayerChoice
+      - "分支" → Branch
+
+  - term: "项目"
+    type: Project
+    related:
+      - "项目文件" → ProjectFile
+      - "项目清单" → ProjectManifest
+
+  - term: "导出"
+    type: Export
+    related:
+      - "导出器" → Exporter
+      - "导出目标" → ExportTarget
+
+  - term: "资产"
+    type: Asset
+    related:
+      - "资产文件" → AssetFile
+      - "资产索引" → AssetIndex
+
+actions:
+  - term: "创建"
+    implications:
+      - "用于工厂函数或构造函数，返回新实例"
+      - "如: createCharacter() → Character"
+
+  - term: "解析"
+    implications:
+      - "用于将一种格式转为 AST/对象"
+      - "如: parseScript(text) → ScriptAST"
+
+  - term: "序列化"
+    implications:
+      - "用于将 AST/对象转为目标格式"
+      - "如: serializeScript(ast) → string"
+
+  - term: "导出"
+    implications:
+      - "用于将决策树渲染为特定目标格式"
+      - "如: exportToRenPy(script) → RenPyProject"
+
+  - term: "预览"
+    implications:
+      - "用于实时预览相关功能"
+      - "如: PreviewCanvas, startPreview(), stopPreview()
+

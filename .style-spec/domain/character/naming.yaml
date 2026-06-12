@@ -1,0 +1,43 @@
+# .style-spec/domain/character/naming.yaml
+# 角色系统领域命名规约
+
+terms:
+  - term: "角色卡"
+    type: CharacterCard
+    description: "角色的结构化元数据：名字、描述、性格、立绘提示词"
+
+  - term: "角色立绘"
+    type: CharacterSprite
+    description: "角色的一张图片资产，如 正面微笑.png"
+
+  - term: "立绘集"
+    type: SpriteSet
+    description: "同一角色的所有立绘表情/姿态集合"
+
+  - term: "立绘状态"
+    type: SpriteState
+    description: "立绘的当前状态，如 微笑、哭泣、惊讶"
+
+  - term: "角色关系"
+    type: CharacterRelation
+    description: "两角色间的关系，如 恋人、朋友、敌人"
+
+component_naming:
+  - "CharacterCardEditor"    # 角色卡编辑器
+  - "CharacterListPanel"     # 角色列表侧栏
+  - "CharacterAvatar"        # 角色头像/缩略图
+  - "SpriteSetGrid"          # 立绘集网格
+  - "SpriteStatePicker"      # 立绘状态选择器
+  - "RelationGraph"           # 角色关系图
+  - "AiCharacterAssist"       # AI 角色助手面板
+
+ai_behaviors:
+  - term: "生成立绘提示词"
+    description: "AI 根据角色描述生成 Stable Diffusion 提示词"
+
+  - term: "批量生成立绘"
+    description: "AI 批量生成角色的多个表情立绘"
+
+  - term: "推断关系"
+    description: "AI 根据剧本内容推断角色间关系"
+

@@ -14,10 +14,15 @@ tech_stack:
   desktop_shell: "Electron (main: Node.js/TS, renderer: React/TS)"
   state_management: "Zustand (renderer) + React Query (AI tasks)"
   ui_framework: "shadcn/ui + Tailwind CSS"
-  editor: "CodeMirror 6 + Lezer"
+  editor: "CodeMirror 6 + Lezer (首选) / CodeMirror 6 + StreamLanguage(graceful degradation,见下)"
   node_graph: "@xyflow/react (React Flow)"
   game_runtime: "PixiJS v8"
   persistence: "sql.js (WASM) 仅存 UI 状态；决策树在 .gal 文件中"
+  # Graceful degradation: 工具链中任何工具若遇 renderer 集成困难,允许降级到等效
+  # 实现,但必须在 docs 标 P0 issue 并保留恢复路径。当前已知降级:
+  # - CodeMirror 语法高亮从 LRParser 降级到 StreamParser (因 @lezer/generator 在 Vite
+  #   renderer dep optimization 阶段报 import.meta.url worker 错误,见 lezer-parser.ts 顶部)
+  graceful_degradation: "Lezer LR parser → StreamParser"
 
 ai_integration:
   proxy_layer: "所有 AI 调用经由 main process IPC，renderer 不直连 AI API"
@@ -33,6 +38,37 @@ git_integration:
     - "diff: 内置 diff viewer 显示剧本变更"
     - "status: 显示当前工作区状态"
   no_cli: "不使用 git 命令行，全部通过 simple-git API"
+
+repository_credentials:
+  # 远程仓库 push 认证的元信息记录。**绝不存储私钥或 token**。
+  # 私钥/token 本机存放位置:macOS Keychain / ~/.ssh/ (600 权限) — 不进 git。
+  primary_remote:
+    url: "git@github.com:cty12356541/galide.git"
+    hosting: "GitHub"
+    owner: "cty12356541"
+    visibility: "public"
+    purpose: "项目 Canonical 仓库,与本地决策树/.galproj/资产 1:1 镜像"
+  ssh_key: # 用于 git push/pull 认证
+    algorithm: "ED25519"
+    public_fingerprint: "SHA256:hMiQHvZg8XfJpXihfKLBYCDLGWpYlh98tlci7fBP5Fw"
+    local_path: "~/.ssh/id_ed25519_galide"
+    ssh_config_host: "github.com"
+    passphrase: "(无)"
+    rotation_policy: "无 passphrase → 仅依赖 600 文件权限 + macOS Keychain 加密存储"
+    notes:
+      - "公钥已注册到 GitHub 账号 cty12356541 → https://github.com/settings/keys"
+      - "本机 ~/.ssh/config 已配置 Host github.com → IdentityFile ~/.ssh/id_ed25519_galide"
+      - "私钥已通过 ssh-add --apple-use-keychain 加入 Apple Keychain,跨重启保留"
+  rotation_procedure:
+    - "新机器: ssh-keygen -t ed25519 -C '<owner>@galide-push' -f ~/.ssh/id_ed25519_galide -N ''"
+    - "把 .pub 贴到 GitHub Settings → SSH and GPG keys → New SSH key"
+    - "更新本文件 public_fingerprint 与 last_rotated"
+    - "从旧机器删除 ~/.ssh/id_ed25519_galide* 并从 Keychain 移除"
+  git_user:
+    name: "cty12356541"
+    email: "cty12356541@users.noreply.github.com"
+    note: "用 noreply 邮箱避免暴露个人邮箱;若需真名显示,在 GitHub Settings → Emails 添加并改为该邮箱"
+  last_rotated: "2026-06-12"
 
 export:
   philosophy: "给定同一份 .gal，导出到任意目标语义完全一致"

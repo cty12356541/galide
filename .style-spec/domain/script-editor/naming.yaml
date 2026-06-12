@@ -1,0 +1,48 @@
+# .style-spec/domain/script-editor/naming.yaml
+# 剧本编辑器领域命名规约
+
+terms:
+  - term: "剧本编辑器"
+    type: ScriptEditor
+    description: "CodeMirror 6 实例，用于编辑 .gal 文件"
+
+  - term: "分支预览"
+    type: FlowView
+    description: "React Flow 节点图，以可视化方式展示决策树分支结构"
+
+  - term: "对话块"
+    type: DialogueBlock
+    description: "一段连续的对白，属于同一角色"
+
+  - term: "选项块"
+    type: ChoiceBlock
+    description: "玩家选择项列表，每项指向一个分支"
+
+  - term: "场景块"
+    type: SceneBlock
+    description: "场景元数据块，包含背景、BGM 等"
+
+component_naming:
+  - "ScriptEditor"      # 主编辑器组件
+  - "FlowView"          # 分支预览组件
+  - "FlowNode"          # 自定义 Flow 节点
+  - "DialogueLine"      # 单行对白
+  - "ChoiceOption"      # 单个选项
+  - "LineNumberGutter"  # 行号区
+  - "DiagnosticsPanel"  # 错误诊断面板
+  - "CompletionTooltip" # 自动补全浮层
+  - "AiInlineEdit"      # AI 行内编辑浮层
+
+editor_behaviors:
+  - term: "续写"
+    description: "AI 在光标处续写对白"
+    trigger: "Ctrl+K → 续写"
+
+  - term: "改写"
+    description: "AI 改写选中段落"
+    trigger: "Ctrl+K → 改写"
+
+  - term: "生成选项"
+    description: "AI 根据当前上下文生成玩家选项"
+    trigger: "在选项位置输入 /*"
+

@@ -1,0 +1,33 @@
+# .style-spec/languages/typescript/conventions.yaml
+# TypeScript 语言约定
+
+strictness:
+  - "strict: true，必须开启"
+  - "noImplicitAny: true"
+  - "noImplicitReturns: true"
+  - "strictNullChecks: true"
+  - "禁止使用 any，必须用 unknown 代替"
+
+naming:
+  - "变量/函数: camelCase"
+  - "类型/接口/枚举: PascalCase"
+  - "常量: UPPER_SNAKE_CASE"
+  - "文件: kebab-case.ts"
+  - "React 组件: PascalCase.tsx"
+
+type_definition:
+  - "优先使用 interface，而非 type（除非需要联合或映射）"
+  - "所有 API 返回类型必须声明，不推断"
+  - "IPC 返回类型使用 Result<T, E> 模式"
+  - "AST 节点使用 Discriminated Union"
+
+imports:
+  - "排序: React → 外部库 → 内部模块 → 类型"
+  - "禁止 barrel re-export（index.ts），直接 import 具体路径"
+  - "相对路径最多三级，超过则重构模块"
+
+error_handling:
+  - "业务错误用 Result<T> = { ok: true, value: T } | { ok: false, error: E }"
+  - "异步操作用 try/catch，返回 Result"
+  - "禁止 catch 中忽略错误（至少 log）
+

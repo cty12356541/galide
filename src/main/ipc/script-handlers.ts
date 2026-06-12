@@ -41,7 +41,13 @@ export const registerScriptHandlers = (): void => {
     try {
       const files = await fs.readdir(dir)
       return files.filter((f) => f.endsWith('.gal'))
-    } catch {
+    } catch (err) {
+      // P1-6 修复: 区分 ENOENT(项目刚建,正常)与真实 IO 错误
+      const isNotFound =
+        err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT'
+      if (!isNotFound) {
+        console.warn(`[galide script] 列出 ${dir} 失败`, err)
+      }
       return []
     }
   })

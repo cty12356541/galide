@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --bg-elevated: #f5f5f4;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    /* light theme 调深 text-muted (#57534e 替代 #78716c),浅底+浅灰对比度不足 */
+    --text-muted: #57534e;
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --accent-soft: #ede9fe;
+    --gradient: linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fafaf9 100%);
+  }
+
+  .dark {
+    --bg: #0c0a09;
+    --surface: #1c1917;
+    --bg-elevated: #292524;
+    --border: #292524;
+    --text: #fafaf9;
+    --text-muted: #a8a29e;
+    --accent: #a78bfa;
+    --accent-hover: #8b5cf6;
+    --accent-soft: #2e1065;
+    --gradient: linear-gradient(135deg, #0c0a09 0%, #1c1917 50%, #0c0a09 100%);
+  }
+
+  body {
+    font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: var(--text);
+    background-color: var(--bg);
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-text-muted;
+  }
+}
+
+@layer components {
+  /* 字符淡入:每个字符入场时 opacity 0→1,平滑无突兀 */
+  .animate-char-fade-in {
+    opacity: 0;
+    transform: translateY(2px);
+    animation: char-fade-in 280ms ease-out forwards;
+  }
+}
+
+@keyframes char-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 尊重用户系统级 prefers-reduced-motion:不淡入,直接显 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-char-fade-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

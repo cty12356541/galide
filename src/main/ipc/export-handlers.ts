@@ -12,20 +12,36 @@ import {
   type ExportContext
 } from '../export/index.js'
 
+/**
+ * 规约: layers/main-process/conventions.yaml:34-37
+ *   "导出任务入队,避免阻塞;进度通过 IPC RendererEvent 实时推送"
+ *   "导出产物写入 exports/ 目录(不在 Git 内)"
+ *
+ * 任务隔离:每次 export:start 分配 jobId,与 cancel 配套;progress 事件携带 jobId
+ * 让 renderer 端能区分多任务/过期事件。
+ */
+
+const activeJobs = new Map<string, { cancelled: boolean }>()
+
 export const registerExportHandlers = (): void => {
   ipcMain.handle(
     IPC.export.start,
     async (
       _e,
       req: ExportRequest
-    ): Promise<{ ok: boolean; error?: string; code?: string; paths?: readonly string[] }> => {
+    ): Promise<{ ok: boolean; error?: string; code?: string; jobId?: string; paths?: readonly string[] }> => {
       const win = BrowserWindow.getFocusedWindow()
+      const jobId = `export-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const job = { cancelled: false }
+      activeJobs.set(jobId, job)
       const progress = (p: ExportProgress): void => {
-        win?.webContents.send(IPC.export.progress, p)
+        if (job.cancelled || win?.isDestroyed()) return
+        win.webContents.send(IPC.export.progress, { ...p, jobId })
       }
       try {
         const composer = getExportComposer(req.target)
         if (!composer) {
+          activeJobs.delete(jobId)
           return { ok: false, code: 'UNKNOWN_TARGET', error: `Unknown export target: ${req.target}` }
         }
         const scriptsDir = join(req.projectPath, 'scripts')
@@ -39,6 +55,10 @@ export const registerExportHandlers = (): void => {
         const asts: AstEntry[] = []
         let i = 0
         for (const file of galFiles) {
+          if (job.cancelled) {
+            activeJobs.delete(jobId)
+            return { ok: false, code: 'CANCELLED', error: 'export cancelled' }
+          }
           const content = await fs.readFile(join(scriptsDir, file), 'utf-8')
           const result = parse(content)
           if (result.ok) {
@@ -63,11 +83,24 @@ export const registerExportHandlers = (): void => {
           progress: 1,
           message: `Export complete: ${paths.length} files written to ${req.outputPath}`
         })
-        return { ok: true, paths }
+        activeJobs.delete(jobId)
+        return { ok: true, jobId, paths }
       } catch (err) {
+        activeJobs.delete(jobId)
         const message = err instanceof Error ? err.message : String(err)
         return { ok: false, error: message }
       }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.export.cancel,
+    async (_e, jobId: string): Promise<{ ok: boolean; cancelled: boolean }> => {
+      const job = activeJobs.get(jobId)
+      if (!job) return { ok: false, cancelled: false }
+      job.cancelled = true
+      activeJobs.delete(jobId)
+      return { ok: true, cancelled: true }
     }
   )
 }

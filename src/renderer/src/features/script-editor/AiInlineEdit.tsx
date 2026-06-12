@@ -32,7 +32,9 @@ export const AiInlineEdit = ({
       const lastLine = content.split('\n').filter((l) => l.trim()).slice(-3).join('\n')
       const response = await window.galide.ai.generate({
         prompt: `[${action}] ${lastLine}`,
-        context: '你是 galgame 剧本作家,延续文字游戏风格的自然对话。',
+        context:
+          '你是 galgame 剧本作家,延续文字游戏风格的自然对话。\n' +
+          '输出格式:用空行 \\n\\n 分段(开场白 / 实际剧本 / 引导性提问)。',
         provider: 'openai'
       })
       // generate 立即返回 { taskId, status: 'pending' };实际文本由 useAiStream 订阅 ai:stream 累积

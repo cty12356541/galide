@@ -10,6 +10,7 @@ export type AiGenerateRequest = {
   context: string
   provider: AiProvider
   model?: string
+  baseUrl?: string
 }
 
 export type AiGenerateResponse = {

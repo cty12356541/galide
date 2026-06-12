@@ -80,10 +80,12 @@ const api = {
       ipcRenderer.invoke(IPC.git.diff, projectPath, filePath)
   },
   export: {
-    start: (req: { projectPath: string; target: string; outputPath: string }): Promise<{ ok: boolean; error?: string }> =>
+    start: (req: { projectPath: string; target: string; outputPath: string }): Promise<{ ok: boolean; error?: string; code?: string; jobId?: string; paths?: readonly string[] }> =>
       ipcRenderer.invoke(IPC.export.start, req),
-    onProgress: (callback: (progress: { stage: string; progress: number; message: string }) => void): (() => void) => {
-      const listener = (_e: unknown, progress: { stage: string; progress: number; message: string }): void =>
+    cancel: (jobId: string): Promise<{ ok: boolean; cancelled: boolean }> =>
+      ipcRenderer.invoke(IPC.export.cancel, jobId),
+    onProgress: (callback: (progress: { stage: string; progress: number; message: string; jobId?: string }) => void): (() => void) => {
+      const listener = (_e: unknown, progress: { stage: string; progress: number; message: string; jobId?: string }): void =>
         callback(progress)
       ipcRenderer.on(IPC.export.progress, listener)
       return () => ipcRenderer.removeListener(IPC.export.progress, listener)
@@ -95,6 +97,7 @@ const api = {
       context: string
       provider: string
       model?: string
+      baseUrl?: string
     }): Promise<{ taskId: string; status: 'pending' }> => ipcRenderer.invoke(IPC.ai.generate, req),
     cancel: (taskId: string): Promise<{ ok: boolean; cancelled: boolean }> =>
       ipcRenderer.invoke(IPC.ai.cancel, taskId),
@@ -135,7 +138,9 @@ const api = {
       context: string
       provider: 'openai' | 'claude' | 'ollama'
       model?: string
-    }): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.ai.connectionTest, req)
+      baseUrl?: string
+    }): Promise<{ taskId: string; status: 'pending' } | { ok: false; error: string }> =>
+      ipcRenderer.invoke(IPC.ai.connectionTest, req)
   },
   preferences: {
     get: <K extends string>(key: K): Promise<unknown> => ipcRenderer.invoke(IPC.preferences.get, key),
@@ -143,7 +148,10 @@ const api = {
       ipcRenderer.invoke(IPC.preferences.set, key, value),
     reset: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.preferences.reset),
     sectionReset: (section: string): Promise<{ ok: boolean }> =>
-      ipcRenderer.invoke(IPC.preferences.sectionReset, section)
+      ipcRenderer.invoke(IPC.preferences.sectionReset, section),
+    getCacheDir: (): Promise<string> => ipcRenderer.invoke(IPC.preferences.cacheDir),
+    clearCache: (): Promise<{ ok: boolean; removed: number; error?: string }> =>
+      ipcRenderer.invoke(IPC.preferences.clearCache)
   },
   shortcuts: {
     get: (): Promise<Record<string, string>> => ipcRenderer.invoke(IPC.shortcuts.get),
@@ -176,6 +184,10 @@ const api = {
       ipcRenderer.invoke(IPC.store.get, key),
     set: <T = unknown>(key: string, value: T): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.store.set, key, value)
+  },
+  dialog: {
+    chooseDirectory: (opts?: { title?: string; defaultPath?: string }): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke(IPC.dialog.chooseDirectory, opts ?? {})
   }
 }
 

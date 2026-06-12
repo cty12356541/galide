@@ -58,7 +58,9 @@ export const AiPanel = (): JSX.Element => {
         })
       )
       if (evt.status === 'done' || evt.status === 'error') {
-        setBusy((b) => (b ? false : b))
+        // P1-7 修复: 原版 `setBusy((b) => (b ? false : b))` 永远写 false 但绕了一下,
+        // 改为显式。listener 在 AiPanel 卸载时由 useEffect cleanup 移除(无累积)。
+        setBusy(false)
       }
     })
     return off
@@ -75,6 +77,10 @@ export const AiPanel = (): JSX.Element => {
     return off
   }, [])
 
+  // 从 stored config 派生 baseUrl/model,跟测试连接走同一组值
+  const storedBaseUrl = config.data?.baseUrl
+  const storedModel = config.data?.model
+
   const send = async (text: string): Promise<void> => {
     if (!text.trim() || busy) return
     const userId = crypto.randomUUID()
@@ -84,10 +90,20 @@ export const AiPanel = (): JSX.Element => {
     setBusy(true)
 
     try {
+      // model/baseUrl 透传:用 stored config(用户在偏好里设的那个)
+      // 不传时 main 端会从 aiConfig 读 fallback
       const result = await ai.generate({
         prompt: text,
-        context: '你是 Galide 的 AI 助手,帮助用户创作 galgame 剧本。',
-        provider
+        context:
+          '你是 Galide 的 AI 编剧助手,温柔、体贴、懂 galgame。\n' +
+          '回复时按以下结构分段(用空行 \\n\\n 隔开):\n' +
+          '  1) 一句温暖的回应或开场白(短,1-2 句)\n' +
+          '  2) 实际建议/示例剧本片段(用对话或场景描述,自然分段)\n' +
+          '  3) 一个引导性问题(让用户继续)\n' +
+          '段落之间必须有 \\n\\n,不要堆在一起。',
+        provider,
+        model: storedModel,
+        baseUrl: storedBaseUrl
       })
       if (!result) {
         setBusy(false)
@@ -187,13 +203,26 @@ const AiMessageBubbleWithStatus = ({ message }: { message: Message }): JSX.Eleme
   if (message.role === 'user') {
     return <AiMessageBubble message={message} />
   }
+  // 状态文案:
+  //  - pending:任务入队,等 provider 握手 → "连接中..."
+  //  - running:provider 已发首个 token,正在流 → "输出中..."
+  //  - done / error:不显示
+  const statusHint = ((): { icon: JSX.Element; text: string } | null => {
+    if (message.status === 'pending') {
+      return { icon: <Clock className="w-3 h-3" />, text: '连接中...' }
+    }
+    if (message.status === 'running') {
+      return { icon: <Sparkles className="w-3 h-3" />, text: '输出中...' }
+    }
+    return null
+  })()
   return (
     <div className="space-y-1">
       <AiMessageBubble message={message} />
-      {message.status === 'pending' && (
+      {statusHint && (
         <div className="flex items-center gap-1 pl-8 text-[10px] text-text-muted">
-          <Clock className="w-3 h-3" />
-          <span>排队中...</span>
+          {statusHint.icon}
+          <span>{statusHint.text}</span>
         </div>
       )}
     </div>

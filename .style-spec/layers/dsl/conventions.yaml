@@ -1,0 +1,31 @@
+# .style-spec/layers/dsl/conventions.yaml
+# gal DSL 语言层约定
+
+design_principles:
+  - "纯文本行级语义：每行要么是元数据、要么是对白、要么是控制流"
+  - "无多行块语法：不用 JSON/YAML 的多行字符串，保护 git diff 线性"
+  - "显式符号标记层级：=== 用于章节，-> 用于跳转，* 用于选项"
+  - "UTF-8 字符集，无隐藏控制符"
+  - "资产引用用相对路径，不允许内联二进制"
+
+line_types:
+  - "元数据行: # 章节, ## 场景, 背景:, BGM:"
+  - "对白行: 角色名: \"内容\""
+  - "选项行: * \"选项文本\" -> 目标节点"
+  - "控制行: === 节点名 ===, [跳转:节点名]"
+  - "立绘行: [角色:名字 | 立绘:asset.png | 位置:左]"
+  - "注释行: // 注释内容"
+
+parser_requirements:
+  - "词法分析器(Lexer)输出 Token[]，包含 type + value + line + column"
+  - "语法分析器(Parser)输出 AST，必须包含：nodes(Node[]), errors(ParseError[])"
+  - "解析失败不抛异常，返回结构化错误（含 line/column）"
+  - "AST 节点类型：ScriptNode, DialogueNode, ChoiceNode, SceneNode, GotoNode"
+
+ast_node_types:
+  - "ScriptNode: { type: 'script', children: Node[] }"
+  - "SceneNode: { type: 'scene', id: string, background?: string, bgm?: string, children: Node[] }"
+  - "DialogueNode: { type: 'dialogue', character: string, sprite?: string, position?: string, lines: string[] }"
+  - "ChoiceNode: { type: 'choice', options: { text: string, target: string }[] }"
+  - "GotoNode: { type: 'goto', target: string }"
+

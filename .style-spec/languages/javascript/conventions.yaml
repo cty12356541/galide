@@ -1,0 +1,15 @@
+# .style-spec/languages/javascript/conventions.yaml
+# JavaScript 语言约定（仅用于 renderer 中无法避免的场景）
+
+usage_constraint:
+  - "renderer 层默认使用 TypeScript"
+  - "仅在以下场景使用 JavaScript："
+  - "  1. CodeMirror 插件/扩展需要 .js（如 Lezer grammar 编译产物）"
+  - "  2. 已有的第三方库无 TypeScript 类型且无法替代"
+
+conventions_when_js_required:
+  - "启用 JSDoc 类型标注"
+  - "变量使用 const/let，禁止 var"
+  - "使用 ESM (import/export)，禁止 CommonJS"
+  - "文件扩展名为 .js，类型标注写在 JSDoc 中
+

@@ -1,0 +1,38 @@
+# .style-spec/layers/main-process/conventions.yaml
+# Main Process 层（Electron 主进程）约定
+
+responsibilities:
+  - "文件系统和项目目录管理"
+  - "AI API 调用代理（隐藏 Key，限流，缓存）"
+  - "Git 操作（通过 simple-git）"
+  - "sql.js 数据库管理"
+  - "导出任务队列"
+  - "窗口管理"
+
+ipc_channel_naming:
+  - "命名空间: module:action"
+  - "示例: project:open, project:save, script:parse, ai:generate, git:commit"
+  - "禁止 renderer 直接 import fs、child_process 等 Node 模块"
+
+error_propagation:
+  - "所有 IPC 错误通过 error channel 返回，包含 code + message"
+  - "业务错误（如解析失败）返回结构化 Result 类型，不抛异常"
+  - "异步操作统一用 Promise，async/await 风格"
+
+ai_proxy:
+  - "所有 AI 请求经过 src/main/ai/ai-proxy.ts"
+  - "Provider（OpenAI/Claude/本地）通过策略模式切换"
+  - "流式响应通过 IPC 的 RendererEvent 推送"
+  - "API Key 通过 electron-store 加密存储"
+
+git_operations:
+  - "所有操作通过 src/main/git/git-service.ts"
+  - "不支持的命令（如 git bisect）不暴露"
+  - "新建项目时自动 git init + initial commit"
+  - "每次保存自动 add . + commit"
+
+export_pipeline:
+  - "导出任务入队，避免阻塞"
+  - "进度通过 IPC RendererEvent 实时推送"
+  - "导出产物写入 exports/ 目录（不在 Git 内）"
+
