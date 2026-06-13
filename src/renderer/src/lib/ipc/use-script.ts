@@ -30,6 +30,34 @@ const wrap = async <T>(source: string, fn: () => Promise<T>): Promise<T | undefi
   }
 }
 
+/**
+ * script.write 现在返回 { ok, error?, code? }(P1 修复后),
+ * 失败时不能再被当作"成功"。这里明确处理。
+ */
+type WriteResult = { ok: boolean; error?: string; code?: string }
+const wrapWrite = async (
+  fn: () => Promise<WriteResult>
+): Promise<{ ok: true } | { ok: false; code?: string; error: string }> => {
+  try {
+    const r = await fn()
+    if (r.ok) return { ok: true }
+    useErrorStore.getState().push({
+      code: r.code === 'INVALID_FILENAME' ? 'INVALID_FILENAME' : 'SAVE_FAILED',
+      message: r.error ?? 'unknown',
+      source: 'script:write'
+    })
+    return { ok: false, code: r.code, error: r.error ?? 'unknown' }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    useErrorStore.getState().push({
+      code: 'IPC_ERROR',
+      message,
+      source: 'script:write'
+    })
+    return { ok: false, error: message }
+  }
+}
+
 export const useScript = () => {
   return {
     read: useCallback(
@@ -39,7 +67,7 @@ export const useScript = () => {
     ),
     write: useCallback(
       (projectPath: string, fileName: string, content: string) =>
-        wrap('script:write', () => window.galide.script.write(projectPath, fileName, content)),
+        wrapWrite(() => window.galide.script.write(projectPath, fileName, content)),
       []
     ),
     parse: useCallback((source: string) => wrapParse(source), []),

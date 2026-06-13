@@ -8,7 +8,6 @@ import { Separator } from '../../components/ui/separator'
 import { useUiStore } from '../../lib/store'
 import { useScript } from '../../lib/ipc/use-script'
 import { toast } from '../../components/ui/toast'
-import { useErrorStore } from '../../lib/store'
 import { DiagnosticsPanel } from './DiagnosticsPanel'
 import { AiInlineEdit } from './AiInlineEdit'
 import { galLanguage } from '../../lib/codemirror/gal-language'
@@ -47,7 +46,6 @@ export const ScriptEditor = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
   const activeScript = useUiStore((s) => s.activeScriptFile)
   const script = useScript()
-  const pushError = useErrorStore((s) => s.push)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [showAi, setShowAi] = useState(false)
@@ -146,15 +144,17 @@ export const ScriptEditor = (): JSX.Element => {
     const text = view.state.doc.toString()
     setSaving(true)
     try {
-      await script.write(projectPath, activeScript, text)
-      setDirty(false)
-      toast({ message: '已保存', variant: 'success' })
-    } catch (err) {
-      pushError({
-        code: 'SAVE_FAILED',
-        message: err instanceof Error ? err.message : String(err),
-        source: 'script:write'
-      })
+      const r = await script.write(projectPath, activeScript, text)
+      if (r && r.ok === true) {
+        setDirty(false)
+        toast({ message: '已保存', variant: 'success' })
+      } else if (r && r.ok !== true) {
+        // wrapWrite 已经 pushError,这里只补充一行红 toast
+        toast({
+          message: r.code === 'COMMIT_FAILED' ? '保存成功,但 git commit 失败' : '保存失败',
+          variant: 'error'
+        })
+      }
     } finally {
       setSaving(false)
     }

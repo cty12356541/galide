@@ -6,26 +6,54 @@ import { parse } from '../../shared/dsl/parser.js'
 import type { Result, ScriptNode, ParseError } from '../../shared/dsl/types.js'
 import { gitService } from '../git/git-service.js'
 import { getPreference } from '../preferences/preferences-store.js'
+import {
+  readScript,
+  writeScript,
+  listScripts,
+  type ScriptFs,
+  type ScriptGit
+} from './script-service.js'
+
+/**
+ * P1 修复:
+ * - 把 fs / git 依赖通过接口注入 service,本文件只做 IPC 薄壳。
+ * - service 层已含 fileName 白名单 + write/commit 错误处理。
+ */
+const fsAdapter: ScriptFs = {
+  readFile: (path) => fs.readFile(path, 'utf-8'),
+  writeFile: (path, content) => fs.writeFile(path, content, 'utf-8'),
+  readDir: (path) => fs.readdir(path)
+}
+
+const gitAdapter: ScriptGit = {
+  addAndCommit: (projectPath, files, message) => gitService.addAndCommit(projectPath, files, message)
+}
 
 export const registerScriptHandlers = (): void => {
   ipcMain.handle(
     IPC.script.read,
     async (_e, projectPath: string, fileName: string): Promise<string> => {
-      const content = await fs.readFile(join(projectPath, 'scripts', fileName), 'utf-8')
-      return content
+      const r = await readScript(projectPath, fileName, { fs: fsAdapter })
+      if (r.ok !== true) throw new Error(r.error.message)
+      return r.value
     }
   )
 
   ipcMain.handle(
     IPC.script.write,
-    async (_e, projectPath: string, fileName: string, content: string): Promise<void> => {
-      await fs.writeFile(join(projectPath, 'scripts', fileName), content, 'utf-8')
-      // 自动 commit(规约 core/conventions.yaml:28;preferences.git.autoCommitOnSave)
-      const gitPrefs = getPreference('git')
-      if (gitPrefs.autoCommitOnSave) {
-        const relPath = join('scripts', fileName)
-        await gitService.addAndCommit(projectPath, [relPath], `update: ${fileName}`)
-      }
+    async (
+      _e,
+      projectPath: string,
+      fileName: string,
+      content: string
+    ): Promise<{ ok: boolean; error?: string; code?: string }> => {
+      const r = await writeScript(projectPath, fileName, content, {
+        fs: fsAdapter,
+        git: gitAdapter,
+        gitPrefs: getPreference('git')
+      })
+      if (r.ok !== true) return { ok: false, error: r.error.message, code: r.error.code }
+      return { ok: true }
     }
   )
 
@@ -37,18 +65,11 @@ export const registerScriptHandlers = (): void => {
   )
 
   ipcMain.handle(IPC.script.list, async (_e, projectPath: string): Promise<string[]> => {
-    const dir = join(projectPath, 'scripts')
-    try {
-      const files = await fs.readdir(dir)
-      return files.filter((f) => f.endsWith('.gal'))
-    } catch (err) {
-      // P1-6 修复: 区分 ENOENT(项目刚建,正常)与真实 IO 错误
-      const isNotFound =
-        err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT'
-      if (!isNotFound) {
-        console.warn(`[galide script] 列出 ${dir} 失败`, err)
-      }
+    const r = await listScripts(projectPath, { fs: fsAdapter })
+    if (r.ok !== true) {
+      console.warn(`[galide script] 列出 ${join(projectPath, 'scripts')} 失败: ${r.error.message}`)
       return []
     }
+    return r.value
   })
 }
