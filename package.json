@@ -49,6 +49,7 @@
     "simple-git": "^3.20.0",
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.3.0",
+    "zod": "^4.4.3",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

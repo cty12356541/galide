@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.104.1
-        version: 0.104.1
+        version: 0.104.1(zod@4.4.3)
       '@codemirror/language':
         specifier: ^6.10.0
         version: 6.12.3
@@ -79,7 +79,7 @@ importers:
         version: 0.453.0(react@18.3.1)
       openai:
         specifier: ^4.67.0
-        version: 4.67.0
+        version: 4.67.0(zod@4.4.3)
       pixi.js:
         specifier: ^8.0.0
         version: 8.19.0
@@ -101,6 +101,9 @@ importers:
       tailwind-merge:
         specifier: ^2.3.0
         version: 2.6.1
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
       zustand:
         specifier: ^4.5.0
         version: 4.5.7(@types/react@18.3.31)(react@18.3.1)
@@ -117,9 +120,6 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^3.0.0
         version: 3.0.0(electron@30.5.1)
-      '@lezer/generator':
-        specifier: ^1.7.0
-        version: 1.8.0
       '@rollup/rollup-darwin-arm64':
         specifier: ^4.61.1
         version: 4.61.1
@@ -602,10 +602,6 @@ packages:
   '@lezer/common@1.5.2':
     resolution: {integrity: sha512-sxQE460fPZyU3sdc8lafxiPwJHBzZRy/udNFynGQky1SePYBdhkBl1kOagA9uT3pxR8K09bOrmTUqA9wb/PjSQ==}
 
-  '@lezer/generator@1.8.0':
-    resolution: {integrity: sha512-/SF4EDWowPqV1jOgoGSGTIFsE7Ezdr7ZYxyihl5eMKVO5tlnpIhFcDavgm1hHY5GEonoOAEnJ0CU0x+tvuAuUg==}
-    hasBin: true
-
   '@lezer/highlight@1.2.3':
     resolution: {integrity: sha512-qXdH7UqTvGfdVBINrgKhDsVTJTxactNNxLk7+UMwZhU13lMHaOBlJe9Vqp907ya56Y3+ed2tlqzys7jDkTmW0g==}
 
@@ -1033,7 +1029,6 @@ packages:
 
   '@rollup/rollup-darwin-arm64@4.61.1':
     resolution: {integrity: sha512-0F1L/Z3Eqv8mT2n3dCpeO8GcTvHvVqkP5/t6DMsn0KzhYVcg+s7Ncl5DS8qjKYEeio6Az0Gt6nyBORay5qIlCA==}
-    cpu: [arm64]
     os: [darwin]
 
   '@rollup/rollup-darwin-x64@4.61.1':
@@ -3570,6 +3565,9 @@ packages:
     resolution: {integrity: sha512-9qv4rlDiopXg4E69k+vMHjNN63YFMe9sZMrdlvKnCjlCRWeCBswPPMPUfx+ipsAWq1LXHe70RcbaHdJJpS6hyQ==}
     engines: {node: '>= 10'}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
@@ -3593,10 +3591,12 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@anthropic-ai/sdk@0.104.1':
+  '@anthropic-ai/sdk@0.104.1(zod@4.4.3)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.0.0
+    optionalDependencies:
+      zod: 4.4.3
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:
@@ -4017,11 +4017,6 @@ snapshots:
   '@kwsites/promise-deferred@1.1.1': {}
 
   '@lezer/common@1.5.2': {}
-
-  '@lezer/generator@1.8.0':
-    dependencies:
-      '@lezer/common': 1.5.2
-      '@lezer/lr': 1.4.10
 
   '@lezer/highlight@1.2.3':
     dependencies:
@@ -6274,7 +6269,7 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@4.67.0:
+  openai@4.67.0(zod@4.4.3):
     dependencies:
       '@types/node': 18.11.18
       '@types/node-fetch': 2.6.13
@@ -6283,6 +6278,8 @@ snapshots:
       form-data-encoder: 1.7.2
       formdata-node: 4.4.1
       node-fetch: 2.7.0
+    optionalDependencies:
+      zod: 4.4.3
     transitivePeerDependencies:
       - encoding
 
@@ -7099,6 +7096,8 @@ snapshots:
       archiver-utils: 3.0.4
       compress-commons: 4.1.2
       readable-stream: 3.6.2
+
+  zod@4.4.3: {}
 
   zustand@4.5.7(@types/react@18.3.31)(react@18.3.1):
     dependencies:
