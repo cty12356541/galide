@@ -2,16 +2,55 @@ import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { IPC } from '../../shared/ipc-channels.js'
-import type { ProjectManifest, ProjectOpenResult } from '../../shared/types'
+import type { ProjectManifest, ProjectOpenResult } from '../../shared/types.js'
 import { getStore } from '../store/store.js'
 import { gitService } from '../git/git-service.js'
 import { getPreference } from '../preferences/preferences-store.js'
+import { parseManifest } from '../../shared/manifest-schema.js'
+import {
+  createProject,
+  type ProjectFs,
+  type ProjectGit,
+  type ProjectDialog
+} from './project-service.js'
 
-const ensureProjectLayout = async (projectPath: string): Promise<void> => {
-  await fs.mkdir(join(projectPath, 'scripts'), { recursive: true })
-  await fs.mkdir(join(projectPath, 'assets', 'characters'), { recursive: true })
-  await fs.mkdir(join(projectPath, 'assets', 'backgrounds'), { recursive: true })
-  await fs.mkdir(join(projectPath, 'assets', 'bgm'), { recursive: true })
+/**
+ * P1 修复:
+ * - git init/commit 失败时回滚 .git + manifest.git 标记正确
+ * - name 走 sanitize(trim + 长度上限 + 控制字符过滤)
+ * - 写操作通过 project-service,本文件做 IPC 薄壳 + legacy read/save 兼容
+ */
+const fsAdapter: ProjectFs = {
+  mkdir: (path, opts) => fs.mkdir(path, opts).then(() => undefined),
+  writeFile: (path, content) => fs.writeFile(path, content, 'utf-8'),
+  readFile: (path) => fs.readFile(path, 'utf-8'),
+  rm: (path, opts) => fs.rm(path, opts),
+  exists: async (path) => {
+    try {
+      await fs.access(path)
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
+const gitAdapter: ProjectGit = {
+  init: (projectPath) => gitService.init(projectPath),
+  createInitialCommit: (projectPath, message) => gitService.createInitialCommit(projectPath, message)
+}
+
+const readManifest = async (projectPath: string): Promise<ProjectManifest> => {
+  const raw = await fs.readFile(join(projectPath, '.galproj'), 'utf-8')
+  const r = parseManifest(raw)
+  if (r.ok !== true) {
+    throw new Error(`[galide] 打开项目失败: ${r.error.message}`)
+  }
+  return r.value
+}
+
+const writeManifest = async (projectPath: string, manifest: ProjectManifest): Promise<void> => {
+  await fs.writeFile(join(projectPath, '.galproj'), JSON.stringify(manifest, null, 2))
 }
 
 const openProjectAtPath = async (projectPath: string): Promise<ProjectOpenResult> => {
@@ -24,56 +63,29 @@ const openProjectAtPath = async (projectPath: string): Promise<ProjectOpenResult
   }
 }
 
-const readManifest = async (projectPath: string): Promise<ProjectManifest> => {
-  const raw = await fs.readFile(join(projectPath, '.galproj'), 'utf-8')
-  return JSON.parse(raw) as ProjectManifest
-}
-
-const writeManifest = async (projectPath: string, manifest: ProjectManifest): Promise<void> => {
-  await fs.writeFile(join(projectPath, '.galproj'), JSON.stringify(manifest, null, 2))
-}
-
 export const registerProjectHandlers = (): void => {
   ipcMain.handle(IPC.project.create, async (_e, name: string): Promise<ProjectOpenResult> => {
     const win = BrowserWindow.getFocusedWindow()
-    if (!win) return { ok: false, error: 'No focused window' }
-    const result = await dialog.showOpenDialog(win, {
-      title: '选择项目目录',
-      properties: ['openDirectory', 'createDirectory']
-    })
-    if (result.canceled || result.filePaths.length === 0) {
-      return { ok: false, error: 'canceled' }
-    }
-    const projectPath = result.filePaths[0]!
-    await ensureProjectLayout(projectPath)
-    const manifest: ProjectManifest = {
-      version: '0.1.0',
-      name,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      characters: [],
-      assets: {
-        characters: 'assets/characters',
-        backgrounds: 'assets/backgrounds',
-        bgm: 'assets/bgm'
-      },
-      git: { initialized: false }
-    }
-    await writeManifest(projectPath, manifest)
-    await fs.writeFile(join(projectPath, 'scripts', 'chapter1.gal'), '', 'utf-8')
-
-    // 自动 git init + initial commit(规约 core/conventions.yaml:24-31)
-    const gitPrefs = getPreference('git')
-    if (gitPrefs.autoInit) {
-      const initRes = await gitService.init(projectPath)
-      if (initRes.ok) {
-        await gitService.createInitialCommit(projectPath, gitPrefs.initialCommitMessage)
-        manifest.git = { initialized: true }
-        await writeManifest(projectPath, manifest)
+    const dialogAdapter: ProjectDialog = {
+      showOpenDialog: async () => {
+        if (!win) return { canceled: true, filePaths: [] }
+        const result = await dialog.showOpenDialog(win, {
+          title: '选择项目目录',
+          properties: ['openDirectory', 'createDirectory']
+        })
+        return { canceled: result.canceled, filePaths: result.filePaths }
       }
     }
-
-    return { ok: true, projectPath, manifest }
+    const r = await createProject(name, {
+      fs: fsAdapter,
+      git: gitAdapter,
+      dialog: dialogAdapter,
+      gitPrefs: getPreference('git')
+    })
+    if (r.ok === true) {
+      return { ok: true, projectPath: r.value.projectPath, manifest: r.value.manifest }
+    }
+    return { ok: false, error: r.error.message }
   })
 
   ipcMain.handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
