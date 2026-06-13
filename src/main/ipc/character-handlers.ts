@@ -1,75 +1,68 @@
 import { ipcMain } from 'electron'
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
 import { IPC } from '../../shared/ipc-channels.js'
-import type { ProjectManifest } from '../../shared/types.js'
+import { gitService } from '../git/git-service.js'
+import { getPreference } from '../preferences/preferences-store.js'
+import {
+  createCharacter,
+  updateCharacter,
+  deleteCharacter,
+  listCharacters,
+  type CharacterFs,
+  type CharacterGit,
+  type CharacterInput
+} from './character-service.js'
 
-type CharacterInput = {
-  id: string
-  name: string
-  description: string
-  personality: string
-  spriteSet: { state: string; path: string }[]
+/**
+ * P2 修复:角色 CRUD 走 service,统一 git autoCommitOnSave。
+ */
+const fsAdapter: CharacterFs = {
+  readFile: (path) => fs.readFile(path, 'utf-8'),
+  writeFile: (path, content) => fs.writeFile(path, content, 'utf-8')
 }
 
-const readManifest = async (projectPath: string): Promise<ProjectManifest> => {
-  const raw = await fs.readFile(join(projectPath, '.galproj'), 'utf-8')
-  return JSON.parse(raw) as ProjectManifest
-}
-
-const writeManifest = async (projectPath: string, manifest: ProjectManifest): Promise<void> => {
-  await fs.writeFile(join(projectPath, '.galproj'), JSON.stringify(manifest, null, 2))
+const gitAdapter: CharacterGit = {
+  addAndCommit: (projectPath, files, message) => gitService.addAndCommit(projectPath, files, message)
 }
 
 export const registerCharacterHandlers = (): void => {
   ipcMain.handle(
     IPC.character.create,
     async (_e, projectPath: string, character: CharacterInput) => {
-      try {
-        const manifest = await readManifest(projectPath)
-        manifest.characters = [...manifest.characters.filter((c) => c.id !== character.id), character]
-        manifest.updatedAt = new Date().toISOString()
-        await writeManifest(projectPath, manifest)
-        return { ok: true }
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
-      }
+      const r = await createCharacter(projectPath, character, {
+        fs: fsAdapter,
+        git: gitAdapter,
+        gitPrefs: getPreference('git')
+      })
+      if (r.ok === true) return { ok: true }
+      return { ok: false, error: r.error.message }
     }
   )
 
   ipcMain.handle(
     IPC.character.update,
     async (_e, projectPath: string, character: CharacterInput) => {
-      try {
-        const manifest = await readManifest(projectPath)
-        manifest.characters = manifest.characters.map((c) => (c.id === character.id ? character : c))
-        manifest.updatedAt = new Date().toISOString()
-        await writeManifest(projectPath, manifest)
-        return { ok: true }
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
-      }
+      const r = await updateCharacter(projectPath, character, {
+        fs: fsAdapter,
+        git: gitAdapter,
+        gitPrefs: getPreference('git')
+      })
+      if (r.ok === true) return { ok: true }
+      return { ok: false, error: r.error.message }
     }
   )
 
   ipcMain.handle(IPC.character.list, async (_e, projectPath: string) => {
-    try {
-      const manifest = await readManifest(projectPath)
-      return { ok: true, characters: manifest.characters }
-    } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : String(err) }
-    }
+    return listCharacters(projectPath, { fs: fsAdapter })
   })
 
   ipcMain.handle(IPC.character.delete, async (_e, projectPath: string, id: string) => {
-    try {
-      const manifest = await readManifest(projectPath)
-      manifest.characters = manifest.characters.filter((c) => c.id !== id)
-      manifest.updatedAt = new Date().toISOString()
-      await writeManifest(projectPath, manifest)
-      return { ok: true }
-    } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : String(err) }
-    }
+    const r = await deleteCharacter(projectPath, id, {
+      fs: fsAdapter,
+      git: gitAdapter,
+      gitPrefs: getPreference('git')
+    })
+    if (r.ok === true) return { ok: true }
+    return { ok: false, error: r.error.message }
   })
 }
