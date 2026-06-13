@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initKeyStore } from './ai/key-store.js'
+import { warmUpStore } from './store/store.js'
 import { registerProjectHandlers } from './ipc/project-handlers.js'
 import { registerScriptHandlers } from './ipc/script-handlers.js'
 import { registerGitHandlers } from './ipc/git-handlers.js'
@@ -44,12 +45,15 @@ const createWindow = (): void => {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.galide.app')
 
   // P0-4: 优先初始化 KeyStore(派生 encryptionKey from OS keychain),
   // 失败立即阻断进程启动,避免静默退化到无加密状态。
   initKeyStore()
+
+  // P0-2: 启动期 warm up 通用 store,处理 hot-reload 偶发的 ELIFECYCLE 锁冲突
+  await warmUpStore()
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

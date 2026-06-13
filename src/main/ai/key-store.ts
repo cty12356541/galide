@@ -40,8 +40,12 @@ const keychainPath = (): string => {
   return `${userData}/${KEYCHAIN_FILE}`
 }
 
-const deriveEncryptionKey = (): string => {
-  const path = keychainPath()
+/**
+ * 纯函数版本:从给定路径读取/生成 token。
+ * 拆出来便于 vitest 注入 tmp 目录。
+ */
+export const deriveEncryptionKeyFromFs = (opts: { keychainPath: string }): string => {
+  const path = opts.keychainPath
   mkdirSync(dirname(path), { recursive: true })
 
   let token: string | null = null
@@ -55,12 +59,17 @@ const deriveEncryptionKey = (): string => {
   }
 
   if (!token) {
-    // 首次启动或损坏:生成 32 字节随机 token,落盘
     token = randomBytes(32).toString('base64')
     writeFileSync(path, token, { mode: 0o600 })
   }
   return token
 }
+
+/**
+ * 适配器:用 electron app.getPath('userData') 作为根目录。
+ */
+export const deriveEncryptionKey = (): string =>
+  deriveEncryptionKeyFromFs({ keychainPath: keychainPath() })
 
 let keyStore: Store | null = null
 
