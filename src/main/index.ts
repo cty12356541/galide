@@ -10,9 +10,11 @@ import { registerExportHandlers } from './ipc/export-handlers.js'
 import { registerAiHandlers } from './ipc/ai-handlers.js'
 import { registerCharacterHandlers } from './ipc/character-handlers.js'
 import { registerVoiceHandlers } from './ipc/voice-handlers.js'
+import { registerAssetHandlers } from './ipc/asset-handlers.js'
 import { registerStoreHandlers } from './ipc/store-handlers.js'
 import { registerPreferencesHandlers } from './ipc/preferences-handlers.js'
 import { registerDialogHandlers } from './ipc/dialog-handlers.js'
+import { registerWorkspaceHandlers } from './ipc/workspace-handlers.js'
 
 const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
@@ -33,8 +35,19 @@ const createWindow = (): void => {
 
   mainWindow.on('ready-to-show', () => mainWindow.show())
 
+  // T3/T6 P0-1 / F-02 修复(2026-06-14): setWindowOpenHandler URL 白名单
+  // 仅 https: / http: 走 OS 默认 handler,其他 scheme(file://, smb://, javascript:, mailto: 等)被 deny。
+  // 防止 XSS 后触发本地应用、钓鱼 URL。
+  const ALLOWED_EXTERNAL_SCHEMES = new Set(['https:', 'http:'])
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    try {
+      const u = new URL(url)
+      if (ALLOWED_EXTERNAL_SCHEMES.has(u.protocol)) {
+        shell.openExternal(url)
+      }
+    } catch {
+      // 解析失败的 URL 一律 deny
+    }
     return { action: 'deny' }
   })
 
@@ -66,9 +79,11 @@ app.whenReady().then(async () => {
   registerAiHandlers()
   registerCharacterHandlers()
   registerVoiceHandlers()
+  registerAssetHandlers()
   registerStoreHandlers()
   registerPreferencesHandlers()
   registerDialogHandlers()
+  registerWorkspaceHandlers()
 
   createWindow()
 
