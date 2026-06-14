@@ -76,6 +76,15 @@ export const IPC = {
   },
   dialog: {
     chooseDirectory: 'dialog:chooseDirectory'
+  },
+  asset: {
+    list: 'asset:list'
+  },
+  workspace: {
+    readProject: 'workspace:readProject',
+    writeProject: 'workspace:writeProject',
+    readGlobal: 'workspace:readGlobal',
+    writeGlobal: 'workspace:writeGlobal'
   }
 } as const
 
@@ -91,3 +100,5 @@ export type IpcChannel =
   | (typeof IPC)['voice'][keyof (typeof IPC)['voice']]
   | (typeof IPC)['store'][keyof (typeof IPC)['store']]
   | (typeof IPC)['dialog'][keyof (typeof IPC)['dialog']]
+  | (typeof IPC)['asset'][keyof (typeof IPC)['asset']]
+  | (typeof IPC)['workspace'][keyof (typeof IPC)['workspace']]
