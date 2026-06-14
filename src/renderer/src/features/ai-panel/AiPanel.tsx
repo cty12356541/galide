@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { useUiStore } from '../../lib/store'
 import { useErrorStore } from '../../lib/store'
+import { getGalide } from '../../lib/ipc/galide-safe'
 import { AiShortcutToolbar } from './AiShortcutToolbar'
 import { AiMessageBubble } from './AiMessageBubble'
 import { useAiConfig, useAiProviders } from '../../lib/ipc/use-ai-task'
@@ -44,7 +45,9 @@ export const AiPanel = (): JSX.Element => {
 
   // Subscribe to status events for any active assistant message
   useEffect(() => {
-    const off = window.galide.ai.onStatus((evt) => {
+    const g = getGalide()
+    if (!g?.ai?.onStatus) return
+    const off = g.ai.onStatus((evt) => {
       setMessages((prev) =>
         prev.map((m) => {
           if (m.taskId !== evt.taskId) return m
@@ -68,7 +71,9 @@ export const AiPanel = (): JSX.Element => {
 
   // Subscribe to stream events for any active assistant message
   useEffect(() => {
-    const off = window.galide.ai.stream((chunk) => {
+    const g = getGalide()
+    if (!g?.ai?.stream) return
+    const off = g.ai.stream((chunk) => {
       if (!chunk.delta) return
       setMessages((prev) =>
         prev.map((m) => (m.taskId === chunk.taskId ? { ...m, text: m.text + chunk.delta } : m))

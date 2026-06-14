@@ -1,26 +1,33 @@
 /**
- * JSON Composer (stub)
+ * JSON Composer (真实现)
  *
- * TODO: 实现 gal AST 的 JSON 序列化
- * 目标格式: .json 文件
- * 用途: 调试 / 中间表示 / 第三方工具链
+ * 规约依据: .style-spec/core/patterns.yaml#Parser-Composer
+ *           "gal AST → TargetAST → TargetFile"
  *
- * 当前实现返回空字符串占位,不抛异常
+ * 输出: { project: { projectPath, exportedAt }, scripts: AstEntry[] }
+ * 用途: 调试 / 中间表示 / 第三方工具链。
  */
 
-import type { Composer, ExportContext } from './composer.js'
+import type { Composer, ExportContext, JsonAst } from './composer.js'
 
-export class JsonComposer implements Composer<null, string> {
+export class JsonComposer implements Composer<JsonAst, string> {
   readonly name = 'json' as const
   readonly defaultFilename = 'script.json'
 
-  transform(_ctx: ExportContext): null {
-    // TODO: ctx.asts 已 parse 好,直接 JSON.stringify 即可
-    return null
+  transform(ctx: ExportContext): JsonAst {
+    return {
+      project: {
+        projectPath: ctx.request.projectPath,
+        exportedAt: new Date().toISOString()
+      },
+      scripts: ctx.asts.map((entry) => ({
+        file: entry.file,
+        ast: entry.ast
+      }))
+    }
   }
 
-  emit(_target: null, _ctx: ExportContext): string {
-    // TODO: 输出 JSON.stringify(ctx.asts, null, 2)
-    return ''
+  emit(target: JsonAst, _ctx: ExportContext): string {
+    return JSON.stringify(target, null, 2)
   }
 }

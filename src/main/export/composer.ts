@@ -39,6 +39,18 @@ export interface AstEntry {
 }
 
 /**
+ * JsonComposer 专属 AST: { project: {...}, scripts: AstEntry[] }
+ * 调试 / 中间表示用途(不参与 renpy/ink/web 等 runtime 实际消费)
+ */
+export interface JsonAst {
+  readonly project: {
+    readonly projectPath: string
+    readonly exportedAt: string
+  }
+  readonly scripts: readonly AstEntry[]
+}
+
+/**
  * 单文件输出结果。filename 为相对 outputDir 的文件名。
  * 内容即文件正文(UTF-8 字符串)。
  */
