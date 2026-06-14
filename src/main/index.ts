@@ -72,18 +72,29 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  registerProjectHandlers()
-  registerScriptHandlers()
-  registerGitHandlers()
-  registerExportHandlers()
-  registerAiHandlers()
-  registerCharacterHandlers()
-  registerVoiceHandlers()
-  registerAssetHandlers()
-  registerStoreHandlers()
-  registerPreferencesHandlers()
-  registerDialogHandlers()
-  registerWorkspaceHandlers()
+  // 防御性注册(2026-06-15 修复): 个别 handler 内部对 IPC 字段强引用
+  // (IPC.asset.list / IPC.workspace.*),如 ipc-channels.ts 漏声明会导致
+  // TypeError 抛出,阻断 whenReady 回调后续 createWindow。
+  // 每个 handler 包 try/catch 隔离失败,任一 handler 失败不阻断主流程。
+  const tryRegister = (name: string, fn: () => void): void => {
+    try {
+      fn()
+    } catch (err) {
+      console.error(`[galide] ${name} 注册失败:`, err)
+    }
+  }
+  tryRegister('project', registerProjectHandlers)
+  tryRegister('script', registerScriptHandlers)
+  tryRegister('git', registerGitHandlers)
+  tryRegister('export', registerExportHandlers)
+  tryRegister('ai', registerAiHandlers)
+  tryRegister('character', registerCharacterHandlers)
+  tryRegister('voice', registerVoiceHandlers)
+  tryRegister('asset', registerAssetHandlers)
+  tryRegister('store', registerStoreHandlers)
+  tryRegister('preferences', registerPreferencesHandlers)
+  tryRegister('dialog', registerDialogHandlers)
+  tryRegister('workspace', registerWorkspaceHandlers)
 
   createWindow()
 
