@@ -21,7 +21,15 @@ type PrefKey = (typeof PREF_KEYS)[number]
 export const usePreference = <K extends PrefKey>(key: K) => {
   return useQuery({
     queryKey: ['preferences', key] as const,
-    queryFn: () => window.galide.preferences.get(key) as Promise<unknown>
+    // P0-10 修复(2026-06-15): 通过 Window.galide 强类型 + PrefKey 泛型让 data
+    //   自动收窄到具体 preference 类型(appearance / ai / editor / ...),
+    //   而不是 unknown — use-appearance-effect 才能 access .accent 等字段
+    queryFn: () => {
+      const g = window.galide
+      // 无 window.galide 时(SSR/test)返回 null
+      if (!g) return Promise.resolve(null)
+      return g.preferences.get(key)
+    }
   })
 }
 

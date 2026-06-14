@@ -21,13 +21,24 @@ export const TitleBar = (): JSX.Element => {
   return (
     <div
       className="h-11 bg-surface border-b border-border flex items-center justify-between px-4 select-none"
-      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      // P3 #11 修复(2026-06-15): 顶层不再设 drag,只在 logo 区域(纯显示)设 drag
+      // 否则 hiddenInset 下整个 TitleBar 是 macOS drag region,WorkspacePresetSelector
+      // 等按钮被吞点击
+      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
     >
-      <div className="flex items-center gap-2.5">
-        <div className="w-6 h-6 rounded-lg bg-accent flex items-center justify-center">
-          <Sparkles className="w-3.5 h-3.5 text-white" />
+      <div
+        className="flex items-center gap-3"
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        <div
+          className="flex items-center gap-2.5"
+          style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        >
+          <div className="w-6 h-6 rounded-lg bg-accent flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="text-sm font-semibold text-text">Galide</span>
         </div>
-        <span className="text-sm font-semibold text-text">Galide</span>
       </div>
       <div
         className="flex items-center gap-1"

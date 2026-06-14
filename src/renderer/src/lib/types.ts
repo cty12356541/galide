@@ -1,5 +1,5 @@
 import type { ProjectManifest, CharacterCard } from '../../../shared/types'
-import type { SceneNode, DialogueNode } from '../../../shared/dsl/types'
+import type { SceneNode, DialogueNode, MarkerNode } from '../../../shared/dsl/types'
 
 export type EditorLayout = {
   sidebar: number
@@ -22,7 +22,7 @@ export type ErrorEntry = {
   timestamp: number
 }
 
-export type SelectedNode = SceneNode | DialogueNode | null
+export type SelectedNode = SceneNode | DialogueNode | MarkerNode | null
 
 export type ProjectSnapshot = {
   projectPath: string

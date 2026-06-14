@@ -6,8 +6,9 @@ import { useUiStore } from '../../lib/store'
 import { useCharacter } from '../../lib/ipc/use-character'
 import { useErrorStore } from '../../lib/store'
 import { CharacterCardEditor } from './CharacterCardEditor'
-import { ScriptFileTree } from '../script-editor/ScriptFileTree'
-import { VoicePanel } from '../voice/VoicePanel'
+// P0-10 修复(2026-06-15): in-flight 之前 CharacterListPanel 嵌套了 ScriptFileTree + VoicePanel
+// (P2 #4 button-clickability 老测试断言不嵌套),规约 Rule 1 一个 panel = 一个 feature,
+// 嵌套导致 ActivityBar 同时开 characters + scripts 时内容重复。删除嵌套。
 import type { CharacterCard } from '../../../../shared/types'
 import { CharacterAvatar } from './CharacterAvatar'
 import { toast } from '../../components/ui/toast'
@@ -64,8 +65,6 @@ export const CharacterListPanel = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-surface border-r border-border">
-      <ScriptFileTree />
-      <VoicePanel />
       <div className="h-10 px-3 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-2">
           <User className="w-4 h-4 text-text-muted" />

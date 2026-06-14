@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../shared/types'
 import type { Result, ScriptNode, ParseError } from '../shared/dsl/types'
+import type { WorkspaceLayout } from '../shared/workspace-layout.js'
 
 type GitStatus = {
   initialized: boolean
@@ -187,7 +188,40 @@ const api = {
   },
   dialog: {
     chooseDirectory: (opts?: { title?: string; defaultPath?: string }): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
-      ipcRenderer.invoke(IPC.dialog.chooseDirectory, opts ?? {})
+      ipcRenderer.invoke(IPC.dialog.chooseDirectory, opts ?? {}),
+    confirm: (opts: {
+      title?: string
+      message: string
+      detail?: string
+      confirmLabel?: string
+      cancelLabel?: string
+      destructive?: boolean
+    }): Promise<{ ok: boolean; confirmed: boolean }> =>
+      ipcRenderer.invoke(IPC.dialog.confirm, opts),
+    prompt: (opts: {
+      title?: string
+      label: string
+      placeholder?: string
+      defaultValue?: string
+    }): Promise<{ ok: boolean; value: string; canceled: boolean }> =>
+      ipcRenderer.invoke(IPC.dialog.prompt, opts)
+  },
+  asset: {
+    list: (
+      projectPath: string,
+      kind: 'characters' | 'backgrounds' | 'bgm'
+    ): Promise<{ ok: boolean; entries: { relPath: string; kind: 'characters' | 'backgrounds' | 'bgm'; size: number }[] }> =>
+      ipcRenderer.invoke(IPC.asset.list, projectPath, kind)
+  },
+  workspace: {
+    readProject: (projectPath: string): Promise<{ ok: boolean; layout: WorkspaceLayout | null }> =>
+      ipcRenderer.invoke(IPC.workspace.readProject, projectPath),
+    writeProject: (projectPath: string, layout: WorkspaceLayout): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke(IPC.workspace.writeProject, projectPath, layout),
+    readGlobal: (): Promise<{ ok: boolean; layout: WorkspaceLayout | null }> =>
+      ipcRenderer.invoke(IPC.workspace.readGlobal),
+    writeGlobal: (layout: WorkspaceLayout): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke(IPC.workspace.writeGlobal, layout)
   }
 }
 

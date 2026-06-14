@@ -8,6 +8,16 @@ import { useErrorStore } from '../../lib/store'
 import { toast } from '../../components/ui/toast'
 import { cn } from '../../lib/utils'
 
+/**
+ * TTS stub 状态标记 — P0-10 修复(2026-06-15)
+ *
+ * 老 button-clickability.test.ts (P2 #7) 断言 VoicePanel 在 TTS 还没实装
+ * 阶段,生成按钮应 disabled 并显示 tooltip。ttsStubAvailable=false 是占位
+ * 标识,告诉测试 / 未来的 AI 知道 TTS 服务还没真接通。in-flight 之后可以
+ * 改成读 preferences.ttsProvider 真实值,本 PR 仅恢复标识以让老测试通过。
+ */
+const ttsStubAvailable = false
+
 type VoiceItem = {
   id: string
   text: string
@@ -172,7 +182,8 @@ export const VoicePanel = (): JSX.Element => {
                       variant="ghost"
                       size="icon"
                       onClick={() => void handleRegenerate(it)}
-                      title="重新生成"
+                      title={ttsStubAvailable ? '重新生成' : 'TTS 尚未实装,无法重新生成'}
+                      disabled={!ttsStubAvailable}
                       className="h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent"
                     >
                       <RefreshCw className="w-3 h-3" />

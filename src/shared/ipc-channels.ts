@@ -75,7 +75,9 @@ export const IPC = {
     set: 'store:set'
   },
   dialog: {
-    chooseDirectory: 'dialog:chooseDirectory'
+    chooseDirectory: 'dialog:chooseDirectory',
+    confirm: 'dialog:confirm',
+    prompt: 'dialog:prompt'
   },
   asset: {
     list: 'asset:list'

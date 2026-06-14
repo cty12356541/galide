@@ -6,6 +6,8 @@
  * 老名(SpriteEntry / ChoiceOption)以 alias 形式保留,不影响外部引用。
  */
 
+import type { WorkspaceLayout } from './workspace-layout'
+
 import type { ChoiceNode, ChoiceOption } from './dsl/types.js'
 
 export type CharacterCard = {
@@ -55,6 +57,13 @@ export type ProjectManifest = {
     initialized: boolean
     remoteUrl?: string
   }
+  /**
+   * 规约 .style-spec/layers/renderer/conventions.yaml#workspace_layout.persistence
+   * "project_level: .galproj.workspace (项目级覆盖,可选)"
+   * main 端 workspace-handlers 写盘时用,renderer 端 hydrate 时读
+   * in-flight 修复(2026-06-15): P0-10 配套 — type 必须含 workspace
+   */
+  workspace?: WorkspaceLayout
 }
 
 export type ExportTarget = 'web' | 'renpy' | 'ink' | 'json' | 'electron-desktop'
