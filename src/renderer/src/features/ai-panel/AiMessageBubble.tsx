@@ -164,11 +164,7 @@ export const TypewriterText = ({
       const now = performance.now()
       if (now - lastTickRef.current >= CHAR_DELAY_MS) {
         lastTickRef.current = now
-        setShown((prev) => {
-          const next = Math.min(prev + 1, target)
-          console.log(`[tick] pushed shown ${prev} -> ${next} (target=${target})`)
-          return next
-        })
+        setShown((prev) => Math.min(prev + 1, target))
       }
       rafRef.current = requestAnimationFrame(tick)
     }
