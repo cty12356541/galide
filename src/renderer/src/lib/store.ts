@@ -104,15 +104,24 @@ type ErrorState = {
   clear: () => void
 }
 
+/**
+ * T1 §4.4 P1-9 / T3 §4 P1-9 修复(2026-06-14): useErrorStore LRU 上限
+ * 防长会话持续报错时 entries 无限增长(AI provider 不可用 + 高频操作场景)。
+ * 实测: 10 分钟 × 每秒 1 次 ≈ 600 entries × 200B ≈ 120KB / 10min。
+ * 截断到最近 100 条,旧错误自然淘汰。
+ */
+const MAX_ERROR_ENTRIES = 100
+
 export const useErrorStore = create<ErrorState>((set) => ({
   entries: [],
   push: (entry) =>
-    set((s) => ({
-      entries: [
+    set((s) => {
+      const next = [
         ...s.entries,
         { ...entry, id: crypto.randomUUID(), timestamp: Date.now() }
       ]
-    })),
+      return { entries: next.length > MAX_ERROR_ENTRIES ? next.slice(-MAX_ERROR_ENTRIES) : next }
+    }),
   dismiss: (id) =>
     set((s) => ({ entries: s.entries.filter((e) => e.id !== id) })),
   clear: () => set({ entries: [] })
