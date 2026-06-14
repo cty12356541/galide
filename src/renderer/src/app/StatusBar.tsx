@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { GitBranch, FileText, Check, History, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
+import { StatusBarWorkspaceIndicator } from '../components/workspace/StatusBarWorkspaceIndicator'
 import { useUiStore } from '../lib/store'
 import { useGitStatus } from '../lib/ipc/use-git-status'
 import { useGit } from '../lib/ipc/use-git'
@@ -85,6 +86,7 @@ export const StatusBar = (): JSX.Element => {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {projectPath && <StatusBarWorkspaceIndicator />}
           {gitStatus.data?.initialized && (
             <>
               <button
