@@ -31,18 +31,38 @@ export const DEFAULT_TREE: WorkspaceMosaicNode = {
   }
 }
 
+export type SanitizeResult = {
+  tree: WorkspaceMosaicNode
+  /** 是否有 panel id 被替换/丢弃(持久化层脏数据) */
+  repaired: boolean
+}
+
 /**
  * 校验 mosaic 树,丢弃非法 panel id(防止持久化层脏数据)
+ * 返回 { tree, repaired } — repaired=true 表示有替换,UI 可提示用户
  */
-export const sanitizeTree = (node: WorkspaceMosaicNode | null | undefined): WorkspaceMosaicNode => {
-  if (!node) return DEFAULT_TREE
+export const sanitizeTree = (
+  node: WorkspaceMosaicNode | null | undefined
+): WorkspaceMosaicNode => sanitizeTreeWithResult(node).tree
+
+/**
+ * 同上但带 repaired 标记(给持久化层用,触发 toast)
+ */
+export const sanitizeTreeWithResult = (
+  node: WorkspaceMosaicNode | null | undefined
+): SanitizeResult => {
+  if (!node) return { tree: DEFAULT_TREE, repaired: false }
   if (typeof node === 'string') {
-    return MOSAIC_PANEL_IDS.includes(node as PanelId) ? (node as WorkspaceMosaicNode) : 'script-editor'
+    if (MOSAIC_PANEL_IDS.includes(node as PanelId)) {
+      return { tree: node, repaired: false }
+    }
+    return { tree: 'script-editor', repaired: true }
   }
+  const first = sanitizeTreeWithResult(node.first)
+  const second = sanitizeTreeWithResult(node.second)
   return {
-    direction: node.direction,
-    first: sanitizeTree(node.first),
-    second: sanitizeTree(node.second)
+    tree: { direction: node.direction, first: first.tree, second: second.tree },
+    repaired: first.repaired || second.repaired
   }
 }
 

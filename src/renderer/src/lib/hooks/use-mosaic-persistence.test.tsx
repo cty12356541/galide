@@ -145,4 +145,39 @@ describe('useMosaicPersistence', () => {
       expect(entries.some((e) => e.code === 'MOSAIC_WRITE_FAILED')).toBe(true)
     })
   })
+
+  it('read 返有脏数据的 tree → 触发 MOSAIC_REPAIRED 警告 + 修复后的 tree', async () => {
+    const dirtyTree = {
+      direction: 'row',
+      first: 'script-editor',
+      second: 'evil-panel' // 不在 MOSAIC_PANEL_IDS
+    }
+    setGalideMock({
+      readMosaic: () => Promise.resolve({ ok: true, tree: dirtyTree })
+    })
+    renderHook(() => useMosaicPersistence({ debounceMs: 30 }))
+    await waitFor(() => {
+      const entries = useErrorStore.getState().entries
+      expect(entries.some((e) => e.code === 'MOSAIC_REPAIRED')).toBe(true)
+    })
+    // store 内是修复后的 tree
+    const stored = useUiStore.getState().mosaicTree
+    expect(stored).toEqual({
+      direction: 'row',
+      first: 'script-editor',
+      second: 'script-editor'
+    })
+  })
+
+  it('read 返合法 tree → 不触发 MOSAIC_REPAIRED', async () => {
+    setGalideMock({
+      readMosaic: () => Promise.resolve({ ok: true, tree: sampleTree })
+    })
+    renderHook(() => useMosaicPersistence({ debounceMs: 30 }))
+    await waitFor(() => {
+      expect(useUiStore.getState().mosaicTree).toEqual(sampleTree)
+    })
+    const entries = useErrorStore.getState().entries
+    expect(entries.some((e) => e.code === 'MOSAIC_REPAIRED')).toBe(false)
+  })
 })

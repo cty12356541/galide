@@ -14,7 +14,8 @@
 import { useEffect, useRef } from 'react'
 import { useUiStore } from '../store'
 import { useErrorStore } from '../store'
-import { sanitizeTree } from '../../components/workspace/mosaic/MosaicRoot'
+import { sanitizeTreeWithResult } from '../../components/workspace/mosaic/MosaicRoot'
+import { toast } from '../../components/ui/toast'
 import type { WorkspaceMosaicNode } from '../store'
 
 const DEBOUNCE_MS_DEFAULT = 800
@@ -31,8 +32,19 @@ export const useMosaicPersistence = (opts: { debounceMs?: number } = {}): void =
         const r = await window.galide.workspace.readMosaic()
         if (cancelled) return
         if (r.ok && r.tree) {
-          const clean = sanitizeTree(r.tree as WorkspaceMosaicNode)
-          useUiStore.getState().setMosaicTree(clean)
+          const result = sanitizeTreeWithResult(r.tree as WorkspaceMosaicNode)
+          if (result.repaired) {
+            useErrorStore.getState().push({
+              code: 'MOSAIC_REPAIRED',
+              source: 'mosaic-persistence',
+              message: 'mosaic 布局中部分 panel id 已失效(可能是版本升级导致),已用默认值替换'
+            })
+            toast({
+              message: 'mosaic 布局已部分修复(有 panel id 被替换)',
+              variant: 'warning'
+            })
+          }
+          useUiStore.getState().setMosaicTree(result.tree)
         } else {
           // 读盘失败:不阻断,走默认 + 警告
           useErrorStore.getState().push({
