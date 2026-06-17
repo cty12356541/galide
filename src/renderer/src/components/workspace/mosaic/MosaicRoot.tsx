@@ -88,10 +88,19 @@ export const MosaicRoot = (): JSX.Element => {
             path={path}
             title={PANEL_META[id]?.title ?? id}
             renderToolbar={() => (
-              <FloatButton
-                panelId={id}
+              // 必须是原生 DOM 元素(react-mosaic 内部用 react-dnd 包 toolbar,
+              // 需要 ref attach 到原生 element)— 抽出 FloatButton 组件会触发
+              // "Only native element nodes can now be passed to React DnD connectors"
+              <button
+                type="button"
                 onClick={() => float(id)}
-              />
+                title={`浮出 ${PANEL_META[id]?.title ?? id}`}
+                aria-label={`浮出 ${PANEL_META[id]?.title ?? id}`}
+                data-testid={`float-${id}`}
+                className="px-2 py-1 text-xs rounded hover:bg-bg-elevated text-text-muted hover:text-text transition-colors"
+              >
+                ⤴ 浮出
+              </button>
             )}
           >
             {renderPanel(id)}
@@ -109,25 +118,6 @@ const renderPanel = (id: PanelId): JSX.Element => {
   const Comp = getPanelComponent(id)
   return <Comp />
 }
-
-const FloatButton = ({
-  panelId,
-  onClick
-}: {
-  panelId: PanelId
-  onClick: () => void
-}): JSX.Element => (
-  <button
-    type="button"
-    onClick={onClick}
-    title={`浮出 ${PANEL_META[panelId]?.title ?? panelId}`}
-    aria-label={`浮出 ${PANEL_META[panelId]?.title ?? panelId}`}
-    data-testid={`float-${panelId}`}
-    className="px-2 py-1 text-xs rounded hover:bg-bg-elevated text-text-muted hover:text-text transition-colors"
-  >
-    ⤴ 浮出
-  </button>
-)
 
 /** 收集所有叶子(用于工具栏 + floating 检查) */
 export const getAllLeafIds = (node: WorkspaceMosaicNode): PanelId[] => {
