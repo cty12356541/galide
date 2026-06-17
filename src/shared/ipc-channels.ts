@@ -96,6 +96,8 @@ export const IPC = {
     openPanel: 'workspace:openPanel',
     /** PR2: 浮出 panel 关闭时通知 renderer 清理 store */
     panelClosed: 'workspace:panelClosed',
+    /** PR3-B: 浮出窗口请求聚焦主窗口 */
+    focusMain: 'workspace:focusMain',
     /** PR2: mosaic 树形布局持久化(独立 store,namespace=galide-mosaic) */
     mosaic: {
       read: 'workspace:mosaic:read',

@@ -24,6 +24,9 @@ vi.mock('@renderer/features/script-editor/ScriptEditor', () => ({
   ScriptEditor: () => <div data-testid="editor-stub" />
 }))
 
+// 在 beforeEach 重置时挂上 focusMain stub(每个 test 独立)
+const focusMainMock = vi.fn(() => Promise.resolve({ ok: true }))
+
 const setSearch = (search: string): void => {
   // happy-dom 下改 window.location.search
   // 用 history.replaceState 改 URL 而不刷新
@@ -35,6 +38,17 @@ const setSearch = (search: string): void => {
 
 const resetSearch = (): void => {
   setSearch('')
+}
+
+const setupGalide = (): void => {
+  const w = window as unknown as {
+    galide: { workspace: { focusMain: typeof focusMainMock } & Record<string, unknown> } & Record<string, unknown>
+  }
+  focusMainMock.mockClear()
+  w.galide = {
+    ...w.galide,
+    workspace: { ...(w.galide?.workspace ?? {}), focusMain: focusMainMock }
+  }
 }
 
 describe('isFloatingWindow', () => {
@@ -67,6 +81,7 @@ describe('isFloatingWindow', () => {
 describe('FloatingPanelHost', () => {
   beforeEach(() => {
     resetSearch()
+    setupGalide()
   })
 
   afterEach(() => {
@@ -119,5 +134,22 @@ describe('FloatingPanelHost', () => {
       expect(screen.getByTestId('floating-content')).toBeTruthy()
       unmount()
     }
+  })
+
+  it('"返回主窗口" 按钮存在且可点', () => {
+    setSearch('?floating=1&panelId=script-editor')
+    render(<FloatingPanelHost />)
+    const btn = screen.getByTestId('floating-back')
+    expect(btn).toBeTruthy()
+    fireEvent.click(btn)
+    expect(focusMainMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('"返回主窗口" 失败不抛错', () => {
+    setSearch('?floating=1&panelId=script-editor')
+    focusMainMock.mockImplementationOnce(() => Promise.resolve({ ok: false }))
+    render(<FloatingPanelHost />)
+    const btn = screen.getByTestId('floating-back')
+    expect(() => fireEvent.click(btn)).not.toThrow()
   })
 })

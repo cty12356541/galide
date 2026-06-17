@@ -278,7 +278,9 @@ const api = {
     readMosaic: (): Promise<{ ok: boolean; tree: unknown; error?: string }> =>
       ipcRenderer.invoke(IPC.workspace.mosaic.read),
     writeMosaic: (args: { tree: unknown }): Promise<{ ok: boolean; error?: string; code?: string }> =>
-      ipcRenderer.invoke(IPC.workspace.mosaic.write, args)
+      ipcRenderer.invoke(IPC.workspace.mosaic.write, args),
+    /** PR3-B: 浮出窗口请求聚焦主窗口 */
+    focusMain: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.workspace.focusMain)
   }
 }
 

@@ -156,6 +156,24 @@ export const registerWorkspaceHandlers = (): void => {
     }
   )
 
+  // PR3-B: 浮出窗口聚焦主窗口(IPC 来自浮出窗口)
+  ipcMain.handle(
+    IPC.workspace.focusMain,
+    async (e): Promise<{ ok: boolean }> => {
+      const ownerId = ownerByWebContentsId.get(e.sender.id)
+      if (ownerId === undefined) {
+        return { ok: false }
+      }
+      const ownerWin = BrowserWindow.fromId(ownerId)
+      if (!ownerWin || ownerWin.isDestroyed()) {
+        return { ok: false }
+      }
+      if (ownerWin.isMinimized()) ownerWin.restore()
+      ownerWin.focus()
+      return { ok: true }
+    }
+  )
+
   // PR2: 持久化 mosaic 树(读)
   ipcMain.handle(
     IPC.workspace.mosaic.read,
@@ -215,6 +233,8 @@ type FloatingRegistryEntry = {
 }
 
 const floatingRegistry = new Map<number, FloatingRegistryEntry>()
+// 反向索引:从浮出窗口 webContents.id 找 ownerId(用于 focusMain IPC)
+const ownerByWebContentsId = new Map<number, number>()
 
 const isValidPanelId = (
   v: unknown
@@ -280,6 +300,10 @@ export const createFloatingPanelWindow = (
     const entry = floatingRegistry.get(win.id)
     floatingRegistry.delete(win.id)
     if (!entry) return
+    // 清反向索引
+    for (const [webId, ownerId] of ownerByWebContentsId.entries()) {
+      if (ownerId === entry.ownerId) ownerByWebContentsId.delete(webId)
+    }
     const owner = findOwner(entry.ownerId)
     if (owner && !owner.isDestroyed()) {
       owner.send(IPC.workspace.panelClosed, { panelId: entry.panelId })
@@ -294,5 +318,9 @@ export const createFloatingPanelWindow = (
   void win.loadURL(target)
 
   floatingRegistry.set(win.id, { panelId, ownerId, window: win })
+  // win.webContents.id 在 loadURL 后才稳定,延后记反向索引
+  win.webContents.once('did-finish-load', () => {
+    ownerByWebContentsId.set(win.webContents.id, ownerId)
+  })
   return win
 }

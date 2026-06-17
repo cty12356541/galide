@@ -12,7 +12,7 @@
  *   - 关闭按钮:window.close()(走 BrowserWindow 关闭事件 → 通知 owner)
  */
 import { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, ArrowLeft } from 'lucide-react'
 import { getPanelComponent, PANEL_META, ALL_PANEL_IDS, type PanelId } from '../components/workspace/mosaic/panel-registry'
 
 type FloatingMode = {
@@ -64,6 +64,20 @@ export const FloatingPanelHost = (): JSX.Element | null => {
           浮出
         </span>
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => {
+            // 聚焦主窗口(不关闭浮出窗口,用户可继续使用)
+            void window.galide.workspace.focusMain()
+          }}
+          title="返回主窗口(聚焦主窗口)"
+          aria-label="返回主窗口"
+          data-testid="floating-back"
+          className="h-7 px-2 rounded flex items-center gap-1 text-text-muted hover:text-text hover:bg-bg-elevated transition-colors text-xs"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>主窗口</span>
+        </button>
         <button
           type="button"
           onClick={() => window.close()}
