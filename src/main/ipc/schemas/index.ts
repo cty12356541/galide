@@ -352,3 +352,18 @@ export const MosaicReadSchema = z.object({})
 export const MosaicWriteSchema = z.object({
   tree: MosaicTreeNodeSchema
 })
+
+// =================== 浮出 panel (PR3-A) ===================
+
+/** 浮出 panel id — 含 3 个中区 + 2 个 ToolWindow(共 5) */
+export const OpenPanelIdSchema = z.enum([
+  'script-editor',
+  'flow-view',
+  'preview-canvas',
+  'left-tool-window',
+  'ai-tool-window'
+])
+
+export const WorkspaceOpenPanelSchema = z.object({
+  panelId: OpenPanelIdSchema
+})

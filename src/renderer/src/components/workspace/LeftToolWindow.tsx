@@ -12,8 +12,9 @@
  *   - 新:tab + 单一 panel(PyCharm 习惯) — 紧凑、清晰
  */
 import { useState } from 'react'
-import { Folder, GitBranch, X } from 'lucide-react'
+import { Folder, GitBranch, X, AppWindow } from 'lucide-react'
 import { useUiStore, type LeftPanelId } from '../../lib/store'
+import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { ScriptFileTree } from '../../features/script-editor/ScriptFileTree'
 import { AssetListPanel } from '../../features/asset/AssetListPanel'
 import { GitPanel } from '../../features/git/GitPanel'
@@ -38,6 +39,7 @@ export const LeftToolWindow = (): JSX.Element => {
 
   const active = (leftPanel === 'closed' ? 'project' : leftPanel) as Tab['id']
   const [secondaryTab, setSecondaryTab] = useState<'files' | 'assets'>('files')
+  const float = usePanelFloat()
 
   return (
     <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
@@ -61,6 +63,16 @@ export const LeftToolWindow = (): JSX.Element => {
           </button>
         ))}
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => float('left-tool-window')}
+          title="浮出到独立窗口"
+          aria-label="浮出到独立窗口"
+          data-testid="left-float"
+          className="h-7 w-7 rounded flex items-center justify-center text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
+        >
+          <AppWindow className="w-3.5 h-3.5" />
+        </button>
         <button
           type="button"
           onClick={toggleLeftPanel}

@@ -234,18 +234,42 @@ const api = {
       ipcRenderer.invoke(IPC.workspace.readGlobal),
     writeGlobal: (layout: WorkspaceLayout): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.workspace.writeGlobal, layout),
-    /** PR2: 浮出 panel 到独立 BrowserWindow */
+    /** PR2/PR3-A: 浮出 panel 到独立 BrowserWindow(5 个 panel) */
     openPanel: (
-      args: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }
-    ): Promise<{ ok: true; windowId: number } | { ok: false; error: string }> =>
-      ipcRenderer.invoke(IPC.workspace.openPanel, args),
-    /** PR2: 浮出窗口关闭时回调(用于清理 store) */
+      args: {
+        panelId:
+          | 'script-editor'
+          | 'flow-view'
+          | 'preview-canvas'
+          | 'left-tool-window'
+          | 'ai-tool-window'
+      }
+    ): Promise<
+      { ok: true; windowId: number } | { ok: false; error: string; code?: string }
+    > => ipcRenderer.invoke(IPC.workspace.openPanel, args),
+    /** PR2/PR3-A: 浮出窗口关闭时回调(用于清理 store) */
     onPanelClosed: (
-      callback: (args: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }) => void
+      callback: (
+        payload: {
+          panelId:
+            | 'script-editor'
+            | 'flow-view'
+            | 'preview-canvas'
+            | 'left-tool-window'
+            | 'ai-tool-window'
+        }
+      ) => void
     ): (() => void) => {
       const listener = (
         _e: unknown,
-        payload: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }
+        payload: {
+          panelId:
+            | 'script-editor'
+            | 'flow-view'
+            | 'preview-canvas'
+            | 'left-tool-window'
+            | 'ai-tool-window'
+        }
       ): void => callback(payload)
       ipcRenderer.on(IPC.workspace.panelClosed, listener)
       return () => ipcRenderer.removeListener(IPC.workspace.panelClosed, listener)

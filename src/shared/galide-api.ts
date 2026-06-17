@@ -169,13 +169,27 @@ export type GalideApi = {
     writeProject: (projectPath: string, layout: unknown) => Promise<{ ok: boolean }>
     readGlobal: () => Promise<{ ok: boolean; layout: unknown }>
     writeGlobal: (layout: unknown) => Promise<{ ok: boolean }>
-    /** PR2: 浮出 panel 到独立 BrowserWindow */
+    /** PR2/PR3-A: 浮出 panel 到独立 BrowserWindow(5 个 panel) */
     openPanel: (args: {
-      panelId: 'script-editor' | 'flow-view' | 'preview-canvas'
-    }) => Promise<{ ok: true; windowId: number } | { ok: false; error: string }>
-    /** PR2: 浮出窗口关闭时回调(用于清理 store) */
+      panelId:
+        | 'script-editor'
+        | 'flow-view'
+        | 'preview-canvas'
+        | 'left-tool-window'
+        | 'ai-tool-window'
+    }) => Promise<
+      { ok: true; windowId: number } | { ok: false; error: string; code?: string }
+    >
+    /** PR2/PR3-A: 浮出窗口关闭时回调(用于清理 store) */
     onPanelClosed: (
-      callback: (args: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }) => void
+      callback: (payload: {
+        panelId:
+          | 'script-editor'
+          | 'flow-view'
+          | 'preview-canvas'
+          | 'left-tool-window'
+          | 'ai-tool-window'
+      }) => void
     ) => () => void
     /** PR2: mosaic 树持久化 */
     readMosaic: () => Promise<{ ok: boolean; tree: unknown; error?: string }>

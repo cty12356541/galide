@@ -11,7 +11,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost.js'
-import { vi } from 'vitest'
 
 // happy-dom 不提供 canvas / WebGL,PixiJS 等组件无法真实渲染
 // 用 stub 替代,只验证 FloatingPanelHost 的路由行为

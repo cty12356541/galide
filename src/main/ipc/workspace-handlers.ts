@@ -124,21 +124,34 @@ export const registerWorkspaceHandlers = (): void => {
     }
   )
 
-  // PR2: 浮出 panel 到独立 BrowserWindow
+  // PR2/PR3-A: 浮出 panel 到独立 BrowserWindow
   ipcMain.handle(
     IPC.workspace.openPanel,
     async (
       e,
-      args: { panelId: unknown }
-    ): Promise<{ ok: true; windowId: number } | { ok: false; error: string }> => {
-      if (!_internalFns.isValidPanelId(args?.panelId)) {
-        return { ok: false, error: 'panelId 必须是 script-editor | flow-view | preview-canvas 之一' }
-      }
+      args: unknown
+    ): Promise<
+      | { ok: true; windowId: number }
+      | { ok: false; error: string; code?: string }
+    > => {
       try {
-        const win = createFloatingPanelWindow(e.sender, args.panelId)
+        const { panelId } = parseIpcArgs(
+          'workspace.openPanel',
+          WorkspaceOpenPanelSchema,
+          args
+        )
+        const win = createFloatingPanelWindow(e.sender, panelId)
         return { ok: true, windowId: win.id }
       } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+        const code =
+          (err as { name?: string }).name === 'IpcSchemaError'
+            ? 'SCHEMA_FAILED'
+            : undefined
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          ...(code ? { code } : {})
+        }
       }
     }
   )
@@ -190,7 +203,7 @@ export const registerWorkspaceHandlers = (): void => {
  */
 import { BrowserWindow, type WebContents } from 'electron'
 import { readMosaicTree, writeMosaicTree } from '../workspace/mosaic-store.js'
-import { MosaicReadSchema, MosaicWriteSchema, parseIpcArgs } from './schemas/index.js'
+import { MosaicReadSchema, MosaicWriteSchema, WorkspaceOpenPanelSchema, parseIpcArgs } from './schemas/index.js'
 import { is } from '@electron-toolkit/utils'
 
 const MAX_FLOATING = 3
@@ -203,8 +216,16 @@ type FloatingRegistryEntry = {
 
 const floatingRegistry = new Map<number, FloatingRegistryEntry>()
 
-const isValidPanelId = (v: unknown): v is 'script-editor' | 'flow-view' | 'preview-canvas' => {
-  return v === 'script-editor' || v === 'flow-view' || v === 'preview-canvas'
+const isValidPanelId = (
+  v: unknown
+): v is 'script-editor' | 'flow-view' | 'preview-canvas' | 'left-tool-window' | 'ai-tool-window' => {
+  return (
+    v === 'script-editor' ||
+    v === 'flow-view' ||
+    v === 'preview-canvas' ||
+    v === 'left-tool-window' ||
+    v === 'ai-tool-window'
+  )
 }
 
 const findOwner = (id: number): WebContents | null => {
@@ -221,7 +242,12 @@ export const _internalFns = { isValidPanelId }
  */
 export const createFloatingPanelWindow = (
   ownerWebContents: WebContents,
-  panelId: 'script-editor' | 'flow-view' | 'preview-canvas'
+  panelId:
+    | 'script-editor'
+    | 'flow-view'
+    | 'preview-canvas'
+    | 'left-tool-window'
+    | 'ai-tool-window'
 ): BrowserWindow => {
   if (floatingRegistry.size >= MAX_FLOATING) {
     throw new Error(`已到达最大浮出数 ${MAX_FLOATING},请先关闭部分浮出窗口`)

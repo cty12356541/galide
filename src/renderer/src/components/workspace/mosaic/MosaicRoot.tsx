@@ -10,6 +10,7 @@
  *   - 用户关闭浮动窗口时,floating 状态回滚(后续 PR 补,目前 store-only)
  */
 import { useEffect, useMemo } from 'react'
+import { usePanelFloat } from '../../../lib/hooks/use-panel-float'
 import {
   Mosaic,
   MosaicWindow,
@@ -17,7 +18,7 @@ import {
 } from 'react-mosaic-component'
 import 'react-mosaic-component/react-mosaic-component.css'
 import { useUiStore, type WorkspaceMosaicNode } from '../../../lib/store'
-import { ALL_PANEL_IDS, getPanelComponent, PANEL_META, type PanelId } from './panel-registry'
+import { MOSAIC_PANEL_IDS, getPanelComponent, PANEL_META, type PanelId } from './panel-registry'
 
 /** 默认布局:row → script | (column: flow / preview) */
 export const DEFAULT_TREE: WorkspaceMosaicNode = {
@@ -36,7 +37,7 @@ export const DEFAULT_TREE: WorkspaceMosaicNode = {
 export const sanitizeTree = (node: WorkspaceMosaicNode | null | undefined): WorkspaceMosaicNode => {
   if (!node) return DEFAULT_TREE
   if (typeof node === 'string') {
-    return ALL_PANEL_IDS.includes(node as PanelId) ? (node as WorkspaceMosaicNode) : 'script-editor'
+    return MOSAIC_PANEL_IDS.includes(node as PanelId) ? (node as WorkspaceMosaicNode) : 'script-editor'
   }
   return {
     direction: node.direction,
@@ -48,8 +49,6 @@ export const sanitizeTree = (node: WorkspaceMosaicNode | null | undefined): Work
 export const MosaicRoot = (): JSX.Element => {
   const mosaicTree = useUiStore((s) => s.mosaicTree)
   const setMosaicTree = useUiStore((s) => s.setMosaicTree)
-  const addFloatingPanel = useUiStore((s) => s.addFloatingPanel)
-  const removeFloatingPanel = useUiStore((s) => s.removeFloatingPanel)
 
   // 启动期 / 缺省值兜底
   const tree: WorkspaceMosaicNode = useMemo(() => sanitizeTree(mosaicTree), [mosaicTree])
@@ -58,15 +57,8 @@ export const MosaicRoot = (): JSX.Element => {
     if (!mosaicTree) setMosaicTree(DEFAULT_TREE)
   }, [mosaicTree, setMosaicTree])
 
-  // 浮出 panel(简化为 store + IPC,真实 BrowserWindow 创建走 main 端)
-  const handleFloat = (panelId: PanelId): void => {
-    addFloatingPanel(panelId)
-    // 通知 main 进程创建 BrowserWindow
-    void window.galide.workspace.openPanel({ panelId }).catch(() => {
-      // fallback: 失败时回滚 store
-      removeFloatingPanel(panelId)
-    })
-  }
+  // 浮出 panel(用共享 hook,统一失败处理)
+  const float = usePanelFloat()
 
   return (
     <div className="h-full w-full" data-testid="mosaic-root">
@@ -78,7 +70,7 @@ export const MosaicRoot = (): JSX.Element => {
             renderToolbar={() => (
               <FloatButton
                 panelId={id}
-                onClick={() => handleFloat(id)}
+                onClick={() => float(id)}
               />
             )}
           >

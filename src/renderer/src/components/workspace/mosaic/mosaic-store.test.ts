@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_TREE, getAllLeafIds, sanitizeTree } from './MosaicRoot'
-import { ALL_PANEL_IDS, type PanelId } from './panel-registry'
+import { MOSAIC_PANEL_IDS, type PanelId } from './panel-registry'
 
 describe('sanitizeTree', () => {
   it('null → DEFAULT_TREE', () => {
@@ -85,17 +85,17 @@ describe('getAllLeafIds', () => {
 })
 
 describe('DEFAULT_TREE 完整性', () => {
-  it('所有叶子都在 ALL_PANEL_IDS 中', () => {
+  it('所有叶子都在 MOSAIC_PANEL_IDS 中', () => {
     const leaves = getAllLeafIds(DEFAULT_TREE)
     expect(leaves.length).toBeGreaterThan(0)
     for (const leaf of leaves) {
-      expect(ALL_PANEL_IDS).toContain(leaf)
+      expect(MOSAIC_PANEL_IDS).toContain(leaf)
     }
   })
 
-  it('包含全部 3 个 panel(无丢失)', () => {
+  it('包含全部 3 个 mosaic panel(无丢失)', () => {
     const leaves = new Set(getAllLeafIds(DEFAULT_TREE))
-    for (const id of ALL_PANEL_IDS) {
+    for (const id of MOSAIC_PANEL_IDS) {
       expect(leaves.has(id)).toBe(true)
     }
   })

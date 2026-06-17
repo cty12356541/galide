@@ -13,6 +13,7 @@
 import { useState } from 'react'
 import { Sparkles, X, MoveRight, MoveDown, MoveLeft, AppWindow } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
+import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { AiPanel } from '../../features/ai-panel/AiPanel'
 import { cn } from '../../lib/utils'
 
@@ -20,6 +21,7 @@ export const AiToolWindow = (): JSX.Element => {
   const toggleAiPanel = useUiStore((s) => s.toggleAiPanel)
   const setAiDockedLocation = useUiStore((s) => s.setAiDockedLocation)
   const location = useUiStore((s) => s.aiDockedLocation)
+  const float = usePanelFloat()
 
   return (
     <section className="h-full flex flex-col bg-surface" data-testid="ai-tool-window">
@@ -27,7 +29,7 @@ export const AiToolWindow = (): JSX.Element => {
         <Sparkles className="w-3.5 h-3.5 text-accent" />
         <span className="text-xs font-medium">AI 助手</span>
         <div className="flex-1" />
-        <DockedLocationMenu location={location} setLocation={setAiDockedLocation} />
+        <DockedLocationMenu location={location} setLocation={setAiDockedLocation} onFloat={() => float('ai-tool-window')} />
         <button
           type="button"
           onClick={toggleAiPanel}
@@ -47,10 +49,12 @@ export const AiToolWindow = (): JSX.Element => {
 
 const DockedLocationMenu = ({
   location,
-  setLocation
+  setLocation,
+  onFloat
 }: {
   location: 'right' | 'bottom' | 'left' | 'floating'
   setLocation: (loc: 'right' | 'bottom' | 'left' | 'floating') => void
+  onFloat: () => void
 }): JSX.Element => {
   const [open, setOpen] = useState(false)
   const opts = [
@@ -85,7 +89,11 @@ const DockedLocationMenu = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setLocation(id)
+                    if (id === 'floating') {
+                      onFloat()
+                    } else {
+                      setLocation(id)
+                    }
                     setOpen(false)
                   }}
                   className={cn(
