@@ -25,12 +25,12 @@ export const Toolbar = (): JSX.Element => {
   return (
     <header
       aria-label="Toolbar"
-      className="h-10 bg-surface border-b border-border flex items-center px-2 gap-2 flex-shrink-0"
+      className="h-10 bg-bg-elevated border-b border-border flex items-center px-2.5 gap-2 flex-shrink-0"
       data-testid="toolbar"
     >
       {projectPath ? (
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-xs font-medium truncate" title={projectPath}>
+          <span className="text-[13px] font-medium truncate" title={projectPath}>
             {projectName ?? '未命名项目'}
           </span>
           {activeScriptFile ? (
@@ -52,10 +52,10 @@ export const Toolbar = (): JSX.Element => {
       {projectPath ? (
         <>
           <Button variant="ghost" size="sm" onClick={openCommitDialog} title="Git 提交 (⌘⇧C)">
-            <GitCommit className="w-3.5 h-3.5" />
+            <GitCommit className="w-4 h-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={openExportDialog} title="导出 (⌘E)">
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-4 h-4" />
           </Button>
         </>
       ) : null}
@@ -67,7 +67,7 @@ export const Toolbar = (): JSX.Element => {
         title="AI 助手 (⌘L)"
         data-testid="toolbar-ai-toggle"
       >
-        <Sparkles className="w-3.5 h-3.5" />
+        <Sparkles className="w-4 h-4" />
       </Button>
 
       <Button
@@ -76,11 +76,11 @@ export const Toolbar = (): JSX.Element => {
         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         title="切换主题"
       >
-        {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </Button>
 
       <Button variant="ghost" size="sm" onClick={() => openPreferences()} title="偏好 (⌘,)">
-        <Settings className="w-3.5 h-3.5" />
+        <Settings className="w-4 h-4" />
       </Button>
     </header>
   )

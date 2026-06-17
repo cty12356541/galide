@@ -105,7 +105,7 @@ export const MenuBar = (): JSX.Element => {
         <MenuDropdown key={label} label={label} icon={Icon} items={items} />
       ))}
       <div className="flex-1" />
-      <span className={cn('text-[10px] text-text-muted px-2')} data-testid="workspace-preset-label">
+      <span className={cn('text-[11px] text-text-muted px-2 font-medium')} data-testid="workspace-preset-label">
         {workspacePreset === 'writing' ? '✍️ 写作' : workspacePreset === 'flow' ? '🌊 流程' : '🔍 评审'}
       </span>
     </nav>
@@ -133,7 +133,7 @@ const MenuDropdown = ({
           )}
           data-testid={`menu-${label.toLowerCase()}`}
         >
-          <Icon className="w-3 h-3" />
+          <Icon className="w-3.5 h-3.5" />
           {label}
           <ChevronDown className="w-2.5 h-2.5 opacity-50" />
         </button>
@@ -148,14 +148,14 @@ const MenuDropdown = ({
                 setOpen(false)
               }}
               className={cn(
-                'w-full px-2 py-1.5 rounded text-xs flex items-center gap-2 transition-colors text-left',
+                'w-full px-2.5 py-1.5 rounded text-[13px] flex items-center gap-2 transition-colors text-left',
                 item.active ? 'bg-accent-soft text-accent' : 'text-text hover:bg-bg-elevated'
               )}
               data-testid={`menu-item-${label.toLowerCase()}-${item.label}`}
             >
               {item.icon ? <item.icon className="w-3.5 h-3.5 flex-shrink-0" /> : <span className="w-3.5" />}
               <span className="flex-1">{item.label}</span>
-              {item.shortcut ? <span className="text-text-muted text-[10px]">{item.shortcut}</span> : null}
+              {item.shortcut ? <span className="text-text-muted text-[11px] font-mono">{item.shortcut}</span> : null}
             </button>
             {item.separatorAfter ? <div className="h-px bg-border my-1" /> : null}
           </div>

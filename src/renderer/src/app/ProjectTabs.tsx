@@ -21,20 +21,20 @@ export const ProjectTabs = (): JSX.Element => {
 
   return (
     <div
-      className="h-8 bg-bg border-b border-border flex items-center px-2 gap-1 flex-shrink-0"
+      className="h-8 bg-bg-elevated border-b border-border flex items-center px-2.5 gap-1 flex-shrink-0"
       data-testid="project-tabs"
     >
       <button
         type="button"
         className={cn(
-          'h-6 px-2.5 rounded text-xs flex items-center gap-1.5 transition-colors',
-          'bg-accent-soft text-accent'
+          'h-7 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors',
+          'bg-surface text-text border border-border'
         )}
         data-testid="project-tab-active"
       >
-        <FileText className="w-3 h-3" />
+        <FileText className="w-3.5 h-3.5" />
         <span>{activeScript}</span>
-        <span className="ml-1 px-1 rounded bg-bg-elevated text-[9px] uppercase">
+        <span className="ml-1 px-1.5 rounded bg-bg text-text-muted text-[10px] font-medium uppercase tracking-wider">
           {workspacePreset}
         </span>
       </button>

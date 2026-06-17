@@ -3,35 +3,73 @@
 @tailwind utilities;
 
 @layer base {
+  /* ============================================
+   * Design Tokens (v0.4.1 — JetBrains New UI 风)
+   * ============================================
+   * 4 级表面: bg (深) → canvas (主区) → surface (panel) → bg-elevated (header/chip)
+   * 1 主色 accent: indigo-500 (低饱和,克制用)
+   * 1 强调边: border-strong (分割线、active 态)
+   */
   :root {
-    --bg: #fafaf9;
+    --bg: #f3f4f6;
+    --canvas: #f9fafb;
     --surface: #ffffff;
-    --bg-elevated: #f5f5f4;
-    --border: #e7e5e4;
-    --text: #1c1917;
-    /* light theme 调深 text-muted (#57534e 替代 #78716c),浅底+浅灰对比度不足 */
-    --text-muted: #57534e;
-    --accent: #7c3aed;
-    --accent-hover: #6d28d9;
-    --accent-soft: #ede9fe;
-    --gradient: linear-gradient(135deg, #faf5ff 0%, #fdf2f8 50%, #fafaf9 100%);
+    --bg-elevated: #f1f2f4;
+
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+
+    --text: #1f2937;
+    --text-muted: #6b7280;
+
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-soft: #eef2ff;
+
+    --danger: #dc2626;
+    --danger-soft: #fef2f2;
+    --warning: #d97706;
+    --warning-soft: #fffbeb;
+    --success: #059669;
+    --success-soft: #ecfdf5;
+
+    --gradient: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-popover: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.08);
   }
 
   .dark {
-    --bg: #0c0a09;
-    --surface: #1c1917;
-    --bg-elevated: #292524;
-    --border: #292524;
-    --text: #fafaf9;
-    --text-muted: #a8a29e;
-    --accent: #a78bfa;
-    --accent-hover: #8b5cf6;
-    --accent-soft: #2e1065;
-    --gradient: linear-gradient(135deg, #0c0a09 0%, #1c1917 50%, #0c0a09 100%);
+    --bg: #0f1115;
+    --canvas: #16181d;
+    --surface: #1c1f26;
+    --bg-elevated: #23272f;
+
+    --border: #2a2e36;
+    --border-strong: #3a3f48;
+
+    --text: #e5e7eb;
+    --text-muted: #9ca3af;
+
+    --accent: #818cf8;
+    --accent-hover: #6366f1;
+    --accent-soft: #1e1b4b;
+
+    --danger: #f87171;
+    --danger-soft: #450a0a;
+    --warning: #fbbf24;
+    --warning-soft: #451a03;
+    --success: #34d399;
+    --success-soft: #022c22;
+
+    --gradient: linear-gradient(180deg, #16181d 0%, #0f1115 100%);
+    --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-popover: 0 4px 6px rgba(0, 0, 0, 0.5), 0 10px 15px rgba(0, 0, 0, 0.4);
   }
 
   body {
     font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     color: var(--text);
@@ -48,12 +86,12 @@
     @apply bg-border rounded;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-text-muted;
+    @apply bg-border-strong;
   }
 }
 
 @layer components {
-  /* 字符淡入:每个字符入场时 opacity 0→1,平滑无突兀 */
+  /* 字符淡入(用于 AI 续写) */
   .animate-char-fade-in {
     opacity: 0;
     transform: translateY(2px);
@@ -72,7 +110,6 @@
   }
 }
 
-/* 尊重用户系统级 prefers-reduced-motion:不淡入,直接显 */
 @media (prefers-reduced-motion: reduce) {
   .animate-char-fade-in {
     animation: none;
@@ -82,60 +119,62 @@
 }
 
 /* ============================================
- * react-mosaic-component 边框覆盖
+ * react-mosaic-component 边框/主题覆盖 (v0.4.1)
  * ============================================
- * 默认 blueprint 主题给每个 MosaicWindow 套了一圈 1px 灰边 + box-shadow,
- * 4 个 panel 一起就显"贴便签感"。改:边改 1px 透明,hover/active 时给提示
+ * 4 个 panel 现在跟 ToolWindow 风格统一:
+ * - 圆角 6px + 浅边框 + 极淡阴影(从画布浮起)
+ * - toolbar 32px 跟 ToolWindow header 同高
+ * - 画布层 var(--canvas) 给主区"space"
  */
 .mosaic-root {
-  background: var(--bg) !important;
+  background: var(--canvas) !important;
+  padding: 4px !important;
 }
 
 .mosaic-tile {
   margin: 0 !important;
 }
 
-/* MosaicWindow 的 chrome 容器:左边框淡出 */
 .mosaic-window {
-  border: 1px solid transparent !important;
-  box-shadow: none !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-panel) !important;
   border-radius: 6px !important;
   background: var(--surface) !important;
-  outline: 1px solid var(--border) !important;
-  outline-offset: -1px !important;
+  overflow: hidden !important;
 }
 
 /* drop target highlight(react-dnd 拖拽时) */
 .mosaic-window.__dropping-above__ {
-  box-shadow: inset 0 2px 0 0 var(--accent) !important;
+  box-shadow: inset 0 2px 0 0 var(--accent), var(--shadow-panel) !important;
 }
 .mosaic-window.__dropping-below__ {
-  box-shadow: inset 0 -2px 0 0 var(--accent) !important;
+  box-shadow: inset 0 -2px 0 0 var(--accent), var(--shadow-panel) !important;
 }
 .mosaic-window.__dropping-left__ {
-  box-shadow: inset 2px 0 0 0 var(--accent) !important;
+  box-shadow: inset 2px 0 0 0 var(--accent), var(--shadow-panel) !important;
 }
 .mosaic-window.__dropping-right__ {
-  box-shadow: inset -2px 0 0 0 var(--accent) !important;
+  box-shadow: inset -2px 0 0 0 var(--accent), var(--shadow-panel) !important;
 }
 
-/* toolbar 高度小,内容居中 */
 .mosaic-window-toolbar {
   height: 32px !important;
   display: flex !important;
   align-items: center !important;
   padding: 0 8px !important;
-  background: var(--bg) !important;
+  background: var(--bg-elevated) !important;
   border-bottom: 1px solid var(--border) !important;
   border-top-left-radius: 6px !important;
   border-top-right-radius: 6px !important;
+  gap: 4px !important;
 }
 
 .mosaic-window-title {
-  font-size: 12px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
-  color: var(--text-muted) !important;
+  color: var(--text) !important;
   flex: 1 !important;
+  letter-spacing: 0.01em !important;
 }
 
 .mosaic-window-body {
@@ -147,7 +186,7 @@
 
 /* 分隔条(react-mosaic 自带 Splitter)细一点 */
 .mosaic-split {
-  background: var(--bg) !important;
+  background: var(--canvas) !important;
 }
 .mosaic-split:hover {
   background: var(--accent-soft) !important;

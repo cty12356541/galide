@@ -133,25 +133,25 @@ export const ScriptFileTree = (): JSX.Element => {
 
   return (
     <div className="border-b border-border">
-      <div className="h-9 px-3 flex items-center justify-between">
+      <div className="h-9 bg-bg-elevated px-2.5 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <FilePlus className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">剧本</span>
-          <span className="text-[10px] text-text-muted">({files.length})</span>
+          <span className="text-[12px] font-medium text-text-muted uppercase tracking-wider">剧本</span>
+          <span className="text-[11px] text-text-muted">({files.length})</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" onClick={() => void refresh()} title="刷新" className="h-6 w-6">
-            <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+          <Button variant="ghost" size="icon" onClick={() => void refresh()} title="刷新" className="h-7 w-7">
+            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => void handleNew()} title="新建剧本" className="h-6 w-6">
-            <Plus className="w-3 h-3" />
+          <Button variant="ghost" size="icon" onClick={() => void handleNew()} title="新建剧本" className="h-7 w-7">
+            <Plus className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
       <ScrollArea className="max-h-40">
         <div className="px-1.5 pb-1.5 space-y-0.5">
           {files.length === 0 ? (
-            <div className="text-[11px] text-text-muted px-2 py-1.5">无 .gal 脚本</div>
+            <div className="text-[12px] text-text-muted px-2 py-1.5">无 .gal 脚本</div>
           ) : (
             files.map((f) => {
               const isActive = f === activeScript
@@ -161,14 +161,14 @@ export const ScriptFileTree = (): JSX.Element => {
                   onClick={() => setActiveScript(f)}
                   onContextMenu={(e) => handleContextMenu(e, f)}
                   className={cn(
-                    'w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] text-left transition-colors',
+                    'w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[13px] text-left transition-colors',
                     isActive
                       ? 'bg-accent-soft text-accent font-medium'
                       : 'text-text-muted hover:bg-bg-elevated hover:text-text'
                   )}
                   title={f}
                 >
-                  <FileText className="w-3 h-3 shrink-0" />
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">{f}</span>
                 </button>
               )
@@ -178,7 +178,7 @@ export const ScriptFileTree = (): JSX.Element => {
       </ScrollArea>
       {contextMenu ? (
         <div
-          className="fixed z-50 min-w-[160px] bg-surface border border-border rounded-md shadow-lg py-1 text-xs"
+          className="fixed z-50 min-w-[160px] bg-surface border border-border rounded-md shadow-lg py-1 text-[13px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           data-testid="file-context-menu"
           onClick={(e) => e.stopPropagation()}
@@ -188,7 +188,7 @@ export const ScriptFileTree = (): JSX.Element => {
             onClick={() => handleCopyName(contextMenu.file)}
             className="w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated text-left"
           >
-            <Copy className="w-3 h-3 text-text-muted" />
+            <Copy className="w-3.5 h-3.5 text-text-muted" />
             <span>复制文件名</span>
           </button>
           <button
@@ -196,7 +196,7 @@ export const ScriptFileTree = (): JSX.Element => {
             onClick={() => void handleRename(contextMenu.file)}
             className="w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated text-left"
           >
-            <Edit3 className="w-3 h-3 text-text-muted" />
+            <Edit3 className="w-3.5 h-3.5 text-text-muted" />
             <span>重命名</span>
           </button>
           <div className="my-1 border-t border-border" />
@@ -206,7 +206,7 @@ export const ScriptFileTree = (): JSX.Element => {
             title="P5: 待加 script:delete IPC"
             className="w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated text-left text-text-muted"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
             <span>删除(暂未启用)</span>
           </button>
         </div>

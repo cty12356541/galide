@@ -43,7 +43,7 @@ export const LeftToolWindow = (): JSX.Element => {
 
   return (
     <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
-      <header className="h-9 flex items-center border-b border-border px-2 gap-1">
+      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1">
         {TABS.map(({ id, icon: Icon, title }) => (
           <button
             key={id}
@@ -52,13 +52,13 @@ export const LeftToolWindow = (): JSX.Element => {
             title={title}
             data-testid={`left-tab-${id}`}
             className={cn(
-              'h-7 px-2.5 rounded text-xs font-medium flex items-center gap-1.5 transition-colors',
+              'h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors',
               active === id
                 ? 'bg-accent-soft text-accent'
                 : 'text-text-muted hover:text-text hover:bg-bg-elevated'
             )}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="w-4 h-4" />
             {title}
           </button>
         ))}
@@ -69,7 +69,7 @@ export const LeftToolWindow = (): JSX.Element => {
           title="浮出到独立窗口"
           aria-label="浮出到独立窗口"
           data-testid="left-float"
-          className="h-7 w-7 rounded flex items-center justify-center text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
+          className="h-8 w-8 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-colors"
         >
           <AppWindow className="w-3.5 h-3.5" />
         </button>
@@ -112,12 +112,12 @@ const ProjectTab = ({
   }
   return (
     <div className="h-full flex flex-col">
-      <div className="h-7 flex items-center border-b border-border px-2 gap-1 text-xs">
+      <div className="h-8 flex items-center bg-bg-elevated border-b border-border px-2 gap-1 text-[12px]">
         <button
           type="button"
           onClick={() => setSecondaryTab('files')}
           className={cn(
-            'h-6 px-2 rounded transition-colors',
+            'h-7 px-2.5 rounded transition-colors font-medium',
             secondaryTab === 'files'
               ? 'bg-bg-elevated text-text'
               : 'text-text-muted hover:text-text'
@@ -129,7 +129,7 @@ const ProjectTab = ({
           type="button"
           onClick={() => setSecondaryTab('assets')}
           className={cn(
-            'h-6 px-2 rounded transition-colors',
+            'h-7 px-2.5 rounded transition-colors font-medium',
             secondaryTab === 'assets'
               ? 'bg-bg-elevated text-text'
               : 'text-text-muted hover:text-text'

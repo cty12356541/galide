@@ -25,7 +25,7 @@ export const AiToolWindow = (): JSX.Element => {
 
   return (
     <section className="h-full flex flex-col bg-surface" data-testid="ai-tool-window">
-      <header className="h-9 flex items-center border-b border-border px-2 gap-2">
+      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-2">
         <Sparkles className="w-3.5 h-3.5 text-accent" />
         <span className="text-xs font-medium">AI 助手</span>
         <div className="flex-1" />
@@ -35,7 +35,7 @@ export const AiToolWindow = (): JSX.Element => {
           onClick={toggleAiPanel}
           title="关闭 AI"
           aria-label="关闭 AI"
-          className="h-7 w-7 rounded flex items-center justify-center text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
+          className="h-8 w-8 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -70,7 +70,7 @@ const DockedLocationMenu = ({
         onClick={() => setOpen((v) => !v)}
         title="移动 AI"
         aria-label="移动 AI"
-        className="h-7 px-2 rounded flex items-center gap-1 text-text-muted hover:text-text hover:bg-bg-elevated transition-colors text-xs"
+        className="h-8 px-2.5 rounded-md flex items-center gap-1 text-text-muted hover:text-text hover:bg-surface transition-colors text-[13px] font-medium"
       >
         {opts.find((o) => o.id === location)?.label ?? '右侧'}
       </button>
@@ -83,7 +83,7 @@ const DockedLocationMenu = ({
             aria-hidden
             tabIndex={-1}
           />
-          <ul className="absolute right-0 mt-1 w-28 bg-bg-elevated border border-border rounded shadow-lg z-50 py-1 text-xs">
+          <ul className="absolute right-0 mt-1 w-28 bg-surface border border-border rounded-md shadow-lg z-50 py-1 text-[13px]">
             {opts.map(({ id, label, icon: Icon }) => (
               <li key={id}>
                 <button
@@ -97,7 +97,7 @@ const DockedLocationMenu = ({
                     setOpen(false)
                   }}
                   className={cn(
-                    'w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg transition-colors text-left',
+                    'w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated transition-colors text-left',
                     location === id ? 'text-accent' : 'text-text'
                   )}
                 >
