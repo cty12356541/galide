@@ -33,6 +33,20 @@ import { CommitDialog } from '../features/git/CommitDialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useMosaicPersistence } from '../lib/hooks/use-mosaic-persistence'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
+import { sanitizeTree, getAllLeafIds } from '../components/workspace/mosaic/MosaicRoot'
+import type { WorkspaceMosaicNode } from '../lib/store'
+
+const insertPanelIntoTree = (
+  tree: WorkspaceMosaicNode,
+  panelId: 'script-editor' | 'flow-view' | 'preview-canvas'
+): WorkspaceMosaicNode => {
+  if (typeof tree === 'string') {
+    return tree === panelId
+      ? tree
+      : ({ direction: 'row' as const, first: tree, second: panelId } as WorkspaceMosaicNode)
+  }
+  return { direction: 'row' as const, first: tree, second: panelId } as WorkspaceMosaicNode
+}
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -50,10 +64,22 @@ export const App = (): JSX.Element => {
   // PR2: mosaic 树持久化(启动期 read + 变化时 debounced write)
   useMosaicPersistence()
 
-  // PR2: 浮出 panel 窗口关闭 → 同步 store
+  // PR2/PR3-D: 浮出 panel 窗口关闭 → 同步 store(中区 panel 插回 mosaic 树)
   useEffect(() => {
     const off = window.galide.workspace.onPanelClosed(({ panelId }) => {
       useUiStore.getState().removeFloatingPanel(panelId)
+      // 中区 panel 关闭时,把该 panel 插回 mosaic 树
+      if (panelId !== 'left-tool-window' && panelId !== 'ai-tool-window') {
+        const cur = useUiStore.getState().mosaicTree
+        if (cur) {
+          // 检查 panel 是否已在树里(避免重复)
+          const leaves = getAllLeafIds(cur)
+          if (!leaves.includes(panelId)) {
+            const next = insertPanelIntoTree(cur, panelId)
+            useUiStore.getState().setMosaicTree(sanitizeTree(next))
+          }
+        }
+      }
     })
     return off
   }, [])

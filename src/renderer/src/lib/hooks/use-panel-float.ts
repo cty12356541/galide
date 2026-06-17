@@ -6,11 +6,54 @@
  */
 import { useCallback } from 'react'
 import { useUiStore, useErrorStore } from '../store'
-import type { PanelId } from '../../components/workspace/mosaic/panel-registry'
+import {
+  isToolWindow,
+  type PanelId
+} from '../../components/workspace/mosaic/panel-registry'
+import { sanitizeTree, DEFAULT_TREE } from '../../components/workspace/mosaic/MosaicRoot'
+import type { WorkspaceMosaicNode } from '../store'
+
+
+/**
+ * 把指定 panel 从 mosaic 树中移除(浮出时)
+ * - 如果 panel 不在树中(原本就不在),不动
+ * - 如果整树只剩这一个 panel(变成单 leaf),保留它(不破坏树结构)
+ * - 如果 panel 是某个分支的 leaf,删 leaf 后该分支收缩为另一个子树
+ * - 如果 panel 是嵌套的某个内部节点(理论上不会发生),保留不动
+ */
+const removePanelFromTree = (
+  tree: WorkspaceMosaicNode,
+  panelId: PanelId
+): WorkspaceMosaicNode | null => {
+  if (typeof tree === 'string') {
+    return tree === panelId ? null : tree
+  }
+  const first = removePanelFromTree(tree.first, panelId)
+  const second = removePanelFromTree(tree.second, panelId)
+  if (first === null && second === null) return null
+  if (first === null) return second
+  if (second === null) return first
+  return { direction: tree.direction, first, second }
+}
 
 export const usePanelFloat = (): ((panelId: PanelId) => void) => {
   return useCallback((panelId: PanelId) => {
     useUiStore.getState().addFloatingPanel(panelId)
+
+    // 中区 panel:从 mosaic 树移除,避免主窗口和浮出窗口双渲染
+    if (!isToolWindow(panelId)) {
+      const cur = useUiStore.getState().mosaicTree
+      if (cur) {
+        const next = removePanelFromTree(cur, panelId)
+        if (next) {
+          useUiStore.getState().setMosaicTree(sanitizeTree(next))
+        } else {
+          // 树被掏空(用户把所有 panel 都浮出了),重置为默认
+          useUiStore.getState().setMosaicTree(DEFAULT_TREE)
+        }
+      }
+    }
+
     void window.galide.workspace
       .openPanel({ panelId })
       .then((r) => {
