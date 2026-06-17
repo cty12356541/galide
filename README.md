@@ -49,14 +49,24 @@ galide/
 
 ## 启动
 
-### 一键脚本(推荐)
+### 仅启动(已装依赖后)
+
+```bash
+./scripts/start.sh
+# 或 macOS 双击: scripts/start.command
+# 等价: pnpm dev
+```
+
+启动 Vite dev server + Electron 窗口。Ctrl+C 退出。
+
+### 一键构建+启动(首次或代码改了)
 
 ```bash
 ./scripts/dev.sh
 # 或 macOS 双击: scripts/dev.command
 ```
 
-脚本依次跑:install → typecheck → lint → test → build → dev。
+依次跑:install → typecheck → lint → test → build → dev。
 环境变量跳过:
 - `SKIP_INSTALL=1` 跳过 pnpm install
 - `SKIP_CHECKS=1` 跳过 typecheck/lint/test
