@@ -31,4 +31,12 @@ fi
 echo -e "${BLUE}${BOLD}==>${RESET} ${BOLD}启动 Galide (pnpm dev)${RESET}"
 echo -e "提示: Ctrl+C 退出"
 echo
+
+# pnpm 内部需 node,提示用户装 node
+if ! command -v node >/dev/null 2>&1; then
+  echo -e "\033[1;31m✗\033[0m 未检测到 node (pnpm 需要)"
+  echo "  安装:brew install node  或  https://nodejs.org/"
+  exit 1
+fi
+
 pnpm dev
