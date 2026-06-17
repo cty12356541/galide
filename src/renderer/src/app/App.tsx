@@ -90,11 +90,6 @@ export const App = (): JSX.Element => {
     return <FloatingPanelHost />
   }
 
-  // 偏好页是全屏覆盖,其他都在主区
-  if (preferencesOpen) {
-    return <PreferencesDialog />
-  }
-
   return (
     <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden">
       <MenuBar />
@@ -110,6 +105,7 @@ export const App = (): JSX.Element => {
       </main>
       <StatusBar />
       {commandPaletteOpen && <CommandPalette />}
+      {preferencesOpen && <PreferencesDialog />}
       {projectPath && exportDialogOpen && <ExportDialog />}
       {projectPath && commitDialogOpen && <CommitDialog />}
     </div>

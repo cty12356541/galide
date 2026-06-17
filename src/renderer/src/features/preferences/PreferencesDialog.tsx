@@ -16,17 +16,18 @@ export const PreferencesDialog = (): JSX.Element => {
   }, [closePreferences])
 
   return (
-    <div
-      className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex justify-end"
-      onClick={closePreferences}
-      role="dialog"
-      aria-modal="true"
-      aria-label="偏好设置"
-      data-testid="preferences-dialog"
-    >
+    <>
       <div
-        className="h-full w-[800px] max-w-[90vw] bg-surface shadow-xl flex flex-col border-l border-border"
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        onClick={closePreferences}
+        aria-hidden
+      />
+      <div
+        className="fixed right-0 top-0 bottom-0 z-50 w-[800px] max-w-[90vw] bg-surface shadow-xl flex flex-col border-l border-border"
+        role="dialog"
+        aria-modal="true"
+        aria-label="偏好设置"
+        data-testid="preferences-dialog"
       >
         <div className="h-12 bg-bg-elevated border-b border-border flex items-center justify-between px-4 flex-shrink-0">
           <h1 className="text-sm font-semibold">偏好设置</h1>
@@ -48,6 +49,6 @@ export const PreferencesDialog = (): JSX.Element => {
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
