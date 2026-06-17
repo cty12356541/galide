@@ -1,0 +1,36 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/jsx-dev-runtime.js", {"importedNames":["jsxDEV"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/index.js");
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/src/renderer/src/lib/utils.ts", {"importedNames":["cn"]});
+
+
+
+const Textarea = __vite_ssr_import_1__.forwardRef(({ className, ...props }, ref) => {
+  return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+    "textarea",
+    {
+      className: __vite_ssr_import_2__.cn(
+        "flex min-h-[80px] w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm shadow-sm",
+        "placeholder:text-text-muted",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:border-accent",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      ),
+      ref,
+      ...props
+    },
+    void 0,
+    false,
+    {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/textarea.tsx",
+      lineNumber: 8,
+      columnNumber: 5
+    },
+    this
+  );
+});
+Textarea.displayName = "Textarea";
+
+Object.defineProperty(__vite_ssr_exports__, "Textarea", { enumerable: true, configurable: true, get(){ return Textarea }});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7O0FBT0k7QUFQbUI7QUFDSjtBQUluQixNQUFNLFdBQVcsc0JBQU0sV0FBK0MsQ0FBQyxFQUFFLFdBQVcsR0FBRyxNQUFNLEdBQUcsUUFBUTtBQUN0RyxTQUNFO0FBQUEsSUFBQztBQUFBO0FBQUEsTUFDQyxXQUFXO0FBQUEsUUFDVDtBQUFBLFFBQ0E7QUFBQSxRQUNBO0FBQUEsUUFDQTtBQUFBLFFBQ0E7QUFBQSxNQUNGO0FBQUEsTUFDQTtBQUFBLE1BQ0MsR0FBRztBQUFBO0FBQUEsSUFUTjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsRUFVQTtBQUVKLENBQUM7QUFDRCxTQUFTLGNBQWM7OzJIQUVkIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJ0ZXh0YXJlYS50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0ICogYXMgUmVhY3QgZnJvbSAncmVhY3QnXG5pbXBvcnQgeyBjbiB9IGZyb20gJy4uLy4uL2xpYi91dGlscydcblxuZXhwb3J0IHR5cGUgVGV4dGFyZWFQcm9wcyA9IFJlYWN0LlRleHRhcmVhSFRNTEF0dHJpYnV0ZXM8SFRNTFRleHRBcmVhRWxlbWVudD5cblxuY29uc3QgVGV4dGFyZWEgPSBSZWFjdC5mb3J3YXJkUmVmPEhUTUxUZXh0QXJlYUVsZW1lbnQsIFRleHRhcmVhUHJvcHM+KCh7IGNsYXNzTmFtZSwgLi4ucHJvcHMgfSwgcmVmKSA9PiB7XG4gIHJldHVybiAoXG4gICAgPHRleHRhcmVhXG4gICAgICBjbGFzc05hbWU9e2NuKFxuICAgICAgICAnZmxleCBtaW4taC1bODBweF0gdy1mdWxsIHJvdW5kZWQtbGcgYm9yZGVyIGJvcmRlci1ib3JkZXIgYmctYmcgcHgtMyBweS0yIHRleHQtc20gc2hhZG93LXNtJyxcbiAgICAgICAgJ3BsYWNlaG9sZGVyOnRleHQtdGV4dC1tdXRlZCcsXG4gICAgICAgICdmb2N1cy12aXNpYmxlOm91dGxpbmUtbm9uZSBmb2N1cy12aXNpYmxlOnJpbmctMiBmb2N1cy12aXNpYmxlOnJpbmctYWNjZW50LzQwIGZvY3VzLXZpc2libGU6Ym9yZGVyLWFjY2VudCcsXG4gICAgICAgICdkaXNhYmxlZDpjdXJzb3Itbm90LWFsbG93ZWQgZGlzYWJsZWQ6b3BhY2l0eS01MCcsXG4gICAgICAgIGNsYXNzTmFtZVxuICAgICAgKX1cbiAgICAgIHJlZj17cmVmfVxuICAgICAgey4uLnByb3BzfVxuICAgIC8+XG4gIClcbn0pXG5UZXh0YXJlYS5kaXNwbGF5TmFtZSA9ICdUZXh0YXJlYSdcblxuZXhwb3J0IHsgVGV4dGFyZWEgfVxuIl0sImZpbGUiOiIvc3JjL3JlbmRlcmVyL3NyYy9jb21wb25lbnRzL3VpL3RleHRhcmVhLnRzeCJ9

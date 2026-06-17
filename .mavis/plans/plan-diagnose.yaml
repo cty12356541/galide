@@ -1,0 +1,77 @@
+version: 1
+plan:
+  name: '诊断 9 commit 引入的 SidePanel/ActivityBar 按钮响应 bug'
+  max_concurrency: 3
+  max_consecutive_failures: 2
+  max_cycles: 4
+  verifier_config:
+    default_verifiers: [verifier]
+    audit_sample_rate: 0.0
+tasks:
+  - id: diagnose-sidepanel-bugs
+    title: '深度静态分析 9 commit 引入的 6 区域 + 3 preset 布局 bug'
+    prompt: |
+      你是深度静态分析师,任务:在 worktree `/Users/lipunima/projects/galide/.worktrees/diagnose-9-commits` 内分析为什么用户报告"几乎所有边侧栏导航按钮响应错误"。
+
+      ## 背景
+      - a1e91f8 是干净基线(用户确认 a1e91f8 老应用没问题)
+      - 9 commit (5b3a63f, f7afd55, c06ca2c, adbf13e, 25222c2, 450c987, cd91fb3, 63bab72) 引入了 6 区域布局(SidePanel/ActivityBar/DockviewCenterTabs 等)
+      - 9 commit 之前 SidePanel/ActivityBar/DockviewCenterTabs 都不存在(a1e91f8 App.tsx 只渲染 TitleBar+EditorArea+StatusBar)
+      - worktree 已 cherry-pick 9 commit,HEAD 在 63bab72
+
+      ## 你的任务(只读 + 报告,不修改任何代码)
+      1. **从导入链开始**:
+         - `src/renderer/src/app/App.tsx` 怎么 import SidePanel/ActivityBar/DockviewCenterTabs?每个 panel 在哪里 import?
+         - 每个 panel 用了什么 hook(useUiStore / useScript / useCharacter / etc.)?hook 返回类型真不真?
+         - SidePanel.tsx 的 `if (active.length === 0) return <div w-0 />` 在 a1e91f8 老 store 下会怎样?store 没 `workspaceLayout` 字段但 SidePanel 读 `useUiStore((s) => s.workspaceLayout.activeActivity)` 会怎样?
+
+      2. **逐 panel 静态走读**(6 个 — scripts/characters/voice/assets/outline/git):
+         - 每个 panel 文件 top 20 行 import
+         - 每个 panel 用了什么 IPC hook?hook 内部怎么读 window.galide?如果 `window.galide.X.Y` 在 hot-reload 期间 undefined 怎么办?
+         - 是否有 panel 内部 useEffect 抛错?有没有 try/catch?
+         - 是否有 panel import 了 store 但调用了 store 里不存在的字段?
+
+      3. **事件链走读**:
+         - ActivityBar.tsx 的 `onClick={() => toggle(item.id)}` — toggleActivity 在 store 真存在吗?(查 store.ts 第 134 行)
+         - 切换 activeActivity 后,SidePanel 重新渲染吗?(useUiStore selector 订阅是 shallow 还是 default?zustand 默认 deep 但对象引用变了才触发)
+         - panel 内部有 onClick 的按钮,调什么 store 字段?那个字段在 store 真存在吗?
+
+      4. **具体定位**:
+         - 列出 3-5 个**最可能的真 bug**,每条带 file:line 引用 + 解释为什么让按钮坏
+         - 区分 "编译时 typecheck 应该报错但被 ! 绕过" vs "运行时真崩" vs "逻辑边界 case"
+         - 至少跑 1 次 `pnpm typecheck` 或 `bun tsc --noEmit -p tsconfig.web.json` 看实际错误
+
+      5. **额外检查**:
+         - DockviewCenterTabs.tsx 真接了 OutlinePanel 吗?(cd91fb3 commit 提到接入)
+         - SidePanel 在 SidePanel.tsx 是 multi-split 还是 list 渲染?看 line 41-47 的 map
+         - 450c987 删了 EditorArea.tsx,但 9 commit 的 App.tsx 还用 EditorArea 吗?(grep 找 import)
+
+      ## 工具
+      - Read / Grep / Glob / Bash(只读)
+      - 可以跑 `cd /Users/lipunima/projects/galide/.worktrees/diagnose-9-commits && /Users/lipunima/.bun/bin/bun ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.web.json 2>&1 | head -40`
+      - 可以跑 vitest 但不是主要工具
+
+      ## 交付物
+      写到 `/Users/lipunima/projects/galide/.mavis/plans/reviews/diagnose-sidepanel-bugs.md`:
+      - 头部 5 行 "用户看到什么 / 真问题是什么"
+      - 5-10 条"具体 bug"列表,每条:file:line + 现象 + 根因 + 修复方向
+      - 区分 "P0 必修" vs "P1 重要" vs "P2 边角"
+      - 给出 "如果只能回滚一个 commit,回滚哪个" 建议
+
+      不要 commit / 不要修改任何源码。只写报告。
+    assigned_to: coder
+    verified_by: verifier
+    verify_prompt: |
+      独立审计 diagnose-sidepanel-bugs.md。
+      不要重读 producer 的分析,**自己独立**:
+      1. Read `src/renderer/src/app/App.tsx` line 1-50,确认真 import 了 SidePanel/ActivityBar/DockviewCenterTabs
+      2. Read `src/renderer/src/components/workspace/SidePanel.tsx` line 30-50,确认 if (active.length === 0) 逻辑
+      3. Read `src/renderer/src/lib/store.ts` 找 `workspaceLayout` 字段定义
+      4. Read `src/renderer/src/components/workspace/ActivityBar.tsx` 找 toggleActivity 调用
+      5. 跑 typecheck 验证 producer 列的真错误
+      然后判断:
+      - producer 列的 5-10 个 bug 真存在吗?每条用 file:line 独立确认
+      - producer 漏掉了更严重的 bug 吗?(你找 1-2 个 producer 没提的)
+      - producer 的 "回滚哪个 commit" 建议合理吗?
+      FAIL 条件: 报告里有文件:行号但实际不存在 / 描述的 bug 在源码里看不到 / 漏了明显严重问题
+    timeout_ms: 1800000

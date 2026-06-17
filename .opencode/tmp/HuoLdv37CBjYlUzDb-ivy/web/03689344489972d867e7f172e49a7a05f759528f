@@ -1,0 +1,52 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/jsx-dev-runtime.js", {"importedNames":["jsxDEV"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/index.js");
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/@radix-ui+react-slot@1.2.5_@types+react@18.3.31_react@18.3.1/node_modules/@radix-ui/react-slot/dist/index.mjs", {"importedNames":["Slot"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/class-variance-authority@0.7.1/node_modules/class-variance-authority/dist/index.mjs", {"importedNames":["cva"]});
+const __vite_ssr_import_4__ = await __vite_ssr_import__("/src/renderer/src/lib/utils.ts", {"importedNames":["cn"]});
+
+
+
+
+
+const buttonVariants = __vite_ssr_import_3__.cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-accent text-white hover:bg-accent-hover shadow-sm",
+        secondary: "bg-surface text-text border border-border hover:bg-bg-elevated",
+        ghost: "text-text hover:bg-bg-elevated",
+        outline: "border border-border bg-transparent text-text hover:bg-bg-elevated",
+        destructive: "bg-red-500 text-white hover:bg-red-600",
+        link: "text-accent underline-offset-4 hover:underline"
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 px-3 text-xs",
+        lg: "h-10 px-6",
+        icon: "h-9 w-9"
+      }
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default"
+    }
+  }
+);
+const Button = __vite_ssr_import_1__.forwardRef(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? __vite_ssr_import_2__.Slot : "button";
+    return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(Comp, { className: __vite_ssr_import_4__.cn(buttonVariants({ variant, size, className })), ref, ...props }, void 0, false, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/button.tsx",
+      lineNumber: 41,
+      columnNumber: 12
+    }, this);
+  }
+);
+Button.displayName = "Button";
+
+Object.defineProperty(__vite_ssr_exports__, "Button", { enumerable: true, configurable: true, get(){ return Button }});
+Object.defineProperty(__vite_ssr_exports__, "buttonVariants", { enumerable: true, configurable: true, get(){ return buttonVariants }});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7Ozs7QUF3Q1c7QUF4Q1k7QUFDRjtBQUNrQjtBQUNwQjtBQUVuQixNQUFNLGlCQUFpQjtBQUFBLEVBQ3JCO0FBQUEsRUFDQTtBQUFBLElBQ0UsVUFBVTtBQUFBLE1BQ1IsU0FBUztBQUFBLFFBQ1AsU0FBUztBQUFBLFFBQ1QsV0FBVztBQUFBLFFBQ1gsT0FBTztBQUFBLFFBQ1AsU0FBUztBQUFBLFFBQ1QsYUFBYTtBQUFBLFFBQ2IsTUFBTTtBQUFBLE1BQ1I7QUFBQSxNQUNBLE1BQU07QUFBQSxRQUNKLFNBQVM7QUFBQSxRQUNULElBQUk7QUFBQSxRQUNKLElBQUk7QUFBQSxRQUNKLE1BQU07QUFBQSxNQUNSO0FBQUEsSUFDRjtBQUFBLElBQ0EsaUJBQWlCO0FBQUEsTUFDZixTQUFTO0FBQUEsTUFDVCxNQUFNO0FBQUEsSUFDUjtBQUFBLEVBQ0Y7QUFDRjtBQVFBLE1BQU0sU0FBUyxzQkFBTTtBQUFBLEVBQ25CLENBQUMsRUFBRSxXQUFXLFNBQVMsTUFBTSxVQUFVLE9BQU8sR0FBRyxNQUFNLEdBQUcsUUFBUTtBQUNoRSxVQUFNLE9BQU8sVUFBVSw2QkFBTztBQUM5QixXQUFPLDZDQUFDLFFBQUssV0FBVyx5QkFBRyxlQUFlLEVBQUUsU0FBUyxNQUFNLFVBQVUsQ0FBQyxDQUFDLEdBQUcsS0FBVyxHQUFHLFNBQWpGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FBd0Y7QUFBQSxFQUNqRztBQUNGO0FBQ0EsT0FBTyxjQUFjOzs7dUlBRUoiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbImJ1dHRvbi50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0ICogYXMgUmVhY3QgZnJvbSAncmVhY3QnXG5pbXBvcnQgeyBTbG90IH0gZnJvbSAnQHJhZGl4LXVpL3JlYWN0LXNsb3QnXG5pbXBvcnQgeyBjdmEsIHR5cGUgVmFyaWFudFByb3BzIH0gZnJvbSAnY2xhc3MtdmFyaWFuY2UtYXV0aG9yaXR5J1xuaW1wb3J0IHsgY24gfSBmcm9tICcuLi8uLi9saWIvdXRpbHMnXG5cbmNvbnN0IGJ1dHRvblZhcmlhbnRzID0gY3ZhKFxuICAnaW5saW5lLWZsZXggaXRlbXMtY2VudGVyIGp1c3RpZnktY2VudGVyIGdhcC0yIHdoaXRlc3BhY2Utbm93cmFwIHJvdW5kZWQteGwgdGV4dC1zbSBmb250LW1lZGl1bSB0cmFuc2l0aW9uLWFsbCBmb2N1cy12aXNpYmxlOm91dGxpbmUtbm9uZSBmb2N1cy12aXNpYmxlOnJpbmctMiBmb2N1cy12aXNpYmxlOnJpbmctYWNjZW50LzQwIGRpc2FibGVkOnBvaW50ZXItZXZlbnRzLW5vbmUgZGlzYWJsZWQ6b3BhY2l0eS01MCcsXG4gIHtcbiAgICB2YXJpYW50czoge1xuICAgICAgdmFyaWFudDoge1xuICAgICAgICBkZWZhdWx0OiAnYmctYWNjZW50IHRleHQtd2hpdGUgaG92ZXI6YmctYWNjZW50LWhvdmVyIHNoYWRvdy1zbScsXG4gICAgICAgIHNlY29uZGFyeTogJ2JnLXN1cmZhY2UgdGV4dC10ZXh0IGJvcmRlciBib3JkZXItYm9yZGVyIGhvdmVyOmJnLWJnLWVsZXZhdGVkJyxcbiAgICAgICAgZ2hvc3Q6ICd0ZXh0LXRleHQgaG92ZXI6YmctYmctZWxldmF0ZWQnLFxuICAgICAgICBvdXRsaW5lOiAnYm9yZGVyIGJvcmRlci1ib3JkZXIgYmctdHJhbnNwYXJlbnQgdGV4dC10ZXh0IGhvdmVyOmJnLWJnLWVsZXZhdGVkJyxcbiAgICAgICAgZGVzdHJ1Y3RpdmU6ICdiZy1yZWQtNTAwIHRleHQtd2hpdGUgaG92ZXI6YmctcmVkLTYwMCcsXG4gICAgICAgIGxpbms6ICd0ZXh0LWFjY2VudCB1bmRlcmxpbmUtb2Zmc2V0LTQgaG92ZXI6dW5kZXJsaW5lJ1xuICAgICAgfSxcbiAgICAgIHNpemU6IHtcbiAgICAgICAgZGVmYXVsdDogJ2gtOSBweC00IHB5LTInLFxuICAgICAgICBzbTogJ2gtOCBweC0zIHRleHQteHMnLFxuICAgICAgICBsZzogJ2gtMTAgcHgtNicsXG4gICAgICAgIGljb246ICdoLTkgdy05J1xuICAgICAgfVxuICAgIH0sXG4gICAgZGVmYXVsdFZhcmlhbnRzOiB7XG4gICAgICB2YXJpYW50OiAnZGVmYXVsdCcsXG4gICAgICBzaXplOiAnZGVmYXVsdCdcbiAgICB9XG4gIH1cbilcblxuZXhwb3J0IGludGVyZmFjZSBCdXR0b25Qcm9wc1xuICBleHRlbmRzIFJlYWN0LkJ1dHRvbkhUTUxBdHRyaWJ1dGVzPEhUTUxCdXR0b25FbGVtZW50PixcbiAgICBWYXJpYW50UHJvcHM8dHlwZW9mIGJ1dHRvblZhcmlhbnRzPiB7XG4gIGFzQ2hpbGQ/OiBib29sZWFuXG59XG5cbmNvbnN0IEJ1dHRvbiA9IFJlYWN0LmZvcndhcmRSZWY8SFRNTEJ1dHRvbkVsZW1lbnQsIEJ1dHRvblByb3BzPihcbiAgKHsgY2xhc3NOYW1lLCB2YXJpYW50LCBzaXplLCBhc0NoaWxkID0gZmFsc2UsIC4uLnByb3BzIH0sIHJlZikgPT4ge1xuICAgIGNvbnN0IENvbXAgPSBhc0NoaWxkID8gU2xvdCA6ICdidXR0b24nXG4gICAgcmV0dXJuIDxDb21wIGNsYXNzTmFtZT17Y24oYnV0dG9uVmFyaWFudHMoeyB2YXJpYW50LCBzaXplLCBjbGFzc05hbWUgfSkpfSByZWY9e3JlZn0gey4uLnByb3BzfSAvPlxuICB9XG4pXG5CdXR0b24uZGlzcGxheU5hbWUgPSAnQnV0dG9uJ1xuXG5leHBvcnQgeyBCdXR0b24sIGJ1dHRvblZhcmlhbnRzIH1cbiJdLCJmaWxlIjoiL3NyYy9yZW5kZXJlci9zcmMvY29tcG9uZW50cy91aS9idXR0b24udHN4In0=

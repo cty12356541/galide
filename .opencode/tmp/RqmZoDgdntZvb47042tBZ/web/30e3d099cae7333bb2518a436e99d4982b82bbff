@@ -1,0 +1,322 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/jsx-dev-runtime.js", {"importedNames":["jsxDEV"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/index.js", {"importedNames":["useEffect","useState","useCallback"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/lucide-react@0.453.0_react@18.3.1/node_modules/lucide-react/dist/cjs/lucide-react.js", {"importedNames":["Volume2","Play","Trash2","RefreshCw","Loader2","AlertCircle"]});
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/src/renderer/src/components/ui/button.tsx", {"importedNames":["Button"]});
+const __vite_ssr_import_4__ = await __vite_ssr_import__("/src/renderer/src/components/ui/scroll-area.tsx", {"importedNames":["ScrollArea"]});
+const __vite_ssr_import_5__ = await __vite_ssr_import__("/src/renderer/src/lib/store.ts", {"importedNames":["useUiStore"]});
+const __vite_ssr_import_6__ = await __vite_ssr_import__("/src/renderer/src/lib/ipc/use-voice.ts", {"importedNames":["useVoice"]});
+const __vite_ssr_import_7__ = await __vite_ssr_import__("/src/renderer/src/lib/store.ts", {"importedNames":["useErrorStore"]});
+const __vite_ssr_import_8__ = await __vite_ssr_import__("/src/renderer/src/components/ui/toast.tsx", {"importedNames":["toast"]});
+const __vite_ssr_import_9__ = await __vite_ssr_import__("/src/renderer/src/lib/utils.ts", {"importedNames":["cn"]});
+
+
+
+
+
+
+
+
+
+
+const ttsStubAvailable = false;
+const VoicePanel = () => {
+  const projectPath = __vite_ssr_import_5__.useUiStore((s) => s.projectPath);
+  const voice = __vite_ssr_import_6__.useVoice();
+  const pushError = __vite_ssr_import_7__.useErrorStore((s) => s.push);
+  const [items, setItems] = __vite_ssr_import_1__.useState([]);
+  const [loading, setLoading] = __vite_ssr_import_1__.useState(false);
+  const [generating, setGenerating] = __vite_ssr_import_1__.useState(null);
+  const [playing, setPlaying] = __vite_ssr_import_1__.useState(null);
+  const refresh = __vite_ssr_import_1__.useCallback(async () => {
+    if (!projectPath) {
+      setItems([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await voice.list(projectPath);
+      setItems(r?.items ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectPath, voice]);
+  __vite_ssr_import_1__.useEffect(() => {
+    void refresh();
+  }, [refresh]);
+  const handlePlay = (item) => {
+    if (!item.audioPath) return;
+    setPlaying(item.id);
+    const audio = new Audio(`file://${item.audioPath}`);
+    audio.onended = () => setPlaying((p) => p === item.id ? null : p);
+    audio.onerror = () => {
+      setPlaying((p) => p === item.id ? null : p);
+      pushError({
+        code: "VOICE_PLAY_FAILED",
+        message: "播放失败(文件可能缺失)",
+        source: "voice:play"
+      });
+    };
+    void audio.play();
+  };
+  const handleDelete = async (id) => {
+    if (!projectPath) return;
+    if (!window.confirm(`删除语音 ${id}.mp3?`)) return;
+    const r = await voice.delete(projectPath, id);
+    if (!r?.ok) {
+      pushError({
+        code: "VOICE_DELETE_FAILED",
+        message: r?.error ?? "unknown",
+        source: "voice:delete"
+      });
+      return;
+    }
+    await refresh();
+    __vite_ssr_import_8__.toast({ message: `已删除 ${id}`, variant: "success" });
+  };
+  const handleRegenerate = async (item) => {
+    if (!projectPath) return;
+    setGenerating(item.id);
+    try {
+      const r = await voice.generate(projectPath, item.id, item.text, item.characterId);
+      if (!r?.ok) {
+        pushError({
+          code: "VOICE_GENERATE_FAILED",
+          message: r?.error ?? "unknown",
+          source: "voice:generate"
+        });
+        return;
+      }
+      await refresh();
+      __vite_ssr_import_8__.toast({ message: `已生成 ${item.id}.mp3`, variant: "success" });
+    } finally {
+      setGenerating(null);
+    }
+  };
+  if (!projectPath) return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", {}, void 0, false, {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+    lineNumber: 119,
+    columnNumber: 28
+  }, this);
+  return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "border-b border-border", children: [
+    /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "h-9 px-3 flex items-center justify-between", children: [
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex items-center gap-1.5", children: [
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Volume2, { className: "w-3.5 h-3.5 text-text-muted" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 125,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[11px] font-medium text-text-muted uppercase tracking-wider", children: "语音" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 126,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[10px] text-text-muted", children: [
+          "(",
+          items.length,
+          ")"
+        ] }, void 0, true, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 127,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+        lineNumber: 124,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+        __vite_ssr_import_3__.Button,
+        {
+          variant: "ghost",
+          size: "icon",
+          onClick: () => void refresh(),
+          title: "刷新",
+          className: "h-6 w-6",
+          children: /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.RefreshCw, { className: __vite_ssr_import_9__.cn("w-3 h-3", loading && "animate-spin") }, void 0, false, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+            lineNumber: 136,
+            columnNumber: 11
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 129,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+      lineNumber: 123,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_4__.ScrollArea, { className: "max-h-40", children: /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "px-1.5 pb-1.5 space-y-0.5", children: [
+      items.length === 0 ? /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[11px] text-text-muted px-2 py-1.5", children: [
+        "尚未生成语音。",
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("br", {}, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 144,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-text-muted/70", children: "在偏好 → 语音 配置默认 TTS 提供商。" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 145,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+        lineNumber: 142,
+        columnNumber: 13
+      }, this) : items.map((it) => {
+        const isGen = generating === it.id;
+        const isPlay = playing === it.id;
+        return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+          "div",
+          {
+            className: "group flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-bg-elevated",
+            children: [
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+                "button",
+                {
+                  onClick: () => handlePlay(it),
+                  disabled: !it.audioPath,
+                  className: "shrink-0 p-1 rounded text-text-muted hover:text-accent disabled:opacity-40",
+                  title: isPlay ? "播放中…" : "试听",
+                  children: isPlay ? /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Loader2, { className: "w-3 h-3 animate-spin" }, void 0, false, {
+                    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                    lineNumber: 165,
+                    columnNumber: 23
+                  }, this) : /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Play, { className: "w-3 h-3" }, void 0, false, {
+                    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                    lineNumber: 167,
+                    columnNumber: 23
+                  }, this)
+                },
+                void 0,
+                false,
+                {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                  lineNumber: 158,
+                  columnNumber: 19
+                },
+                this
+              ),
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex-1 min-w-0", children: [
+                /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[11px] font-mono truncate", children: [
+                  it.id,
+                  ".mp3"
+                ] }, void 0, true, {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                  lineNumber: 171,
+                  columnNumber: 21
+                }, this),
+                it.text && /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[10px] text-text-muted truncate", children: it.text }, void 0, false, {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                  lineNumber: 173,
+                  columnNumber: 23
+                }, this)
+              ] }, void 0, true, {
+                fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                lineNumber: 170,
+                columnNumber: 19
+              }, this),
+              isGen ? /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Loader2, { className: "w-3 h-3 animate-spin text-text-muted" }, void 0, false, {
+                fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                lineNumber: 179,
+                columnNumber: 21
+              }, this) : /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+                __vite_ssr_import_3__.Button,
+                {
+                  variant: "ghost",
+                  size: "icon",
+                  onClick: () => void handleRegenerate(it),
+                  title: ttsStubAvailable ? "重新生成" : "TTS 尚未实装,无法重新生成",
+                  disabled: !ttsStubAvailable,
+                  className: "h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent",
+                  children: /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.RefreshCw, { className: "w-3 h-3" }, void 0, false, {
+                    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                    lineNumber: 189,
+                    columnNumber: 23
+                  }, this)
+                },
+                void 0,
+                false,
+                {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                  lineNumber: 181,
+                  columnNumber: 21
+                },
+                this
+              ),
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+                __vite_ssr_import_3__.Button,
+                {
+                  variant: "ghost",
+                  size: "icon",
+                  onClick: () => void handleDelete(it.id),
+                  title: "删除",
+                  className: "h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-red-500",
+                  children: /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Trash2, { className: "w-3 h-3" }, void 0, false, {
+                    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                    lineNumber: 199,
+                    columnNumber: 21
+                  }, this)
+                },
+                void 0,
+                false,
+                {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+                  lineNumber: 192,
+                  columnNumber: 19
+                },
+                this
+              )
+            ]
+          },
+          it.id,
+          true,
+          {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+            lineNumber: 154,
+            columnNumber: 17
+          },
+          this
+        );
+      }),
+      items.length > 0 && /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex items-center gap-1 px-2 py-1 text-[10px] text-amber-600", children: [
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.AlertCircle, { className: "w-2.5 h-2.5" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 207,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { children: "重新生成取决于 TTS 提供商是否实现" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+          lineNumber: 208,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+        lineNumber: 206,
+        columnNumber: 13
+      }, this)
+    ] }, void 0, true, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+      lineNumber: 140,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+      lineNumber: 139,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/voice/VoicePanel.tsx",
+    lineNumber: 122,
+    columnNumber: 5
+  }, this);
+};
+Object.defineProperty(__vite_ssr_exports__, "VoicePanel", { enumerable: true, configurable: true, get(){ return VoicePanel }});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,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ZVBhbmVsLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VFZmZlY3QsIHVzZVN0YXRlLCB1c2VDYWxsYmFjayB9IGZyb20gJ3JlYWN0J1xuaW1wb3J0IHsgVm9sdW1lMiwgUGxheSwgVHJhc2gyLCBSZWZyZXNoQ3csIExvYWRlcjIsIEFsZXJ0Q2lyY2xlIH0gZnJvbSAnbHVjaWRlLXJlYWN0J1xuaW1wb3J0IHsgQnV0dG9uIH0gZnJvbSAnLi4vLi4vY29tcG9uZW50cy91aS9idXR0b24nXG5pbXBvcnQgeyBTY3JvbGxBcmVhIH0gZnJvbSAnLi4vLi4vY29tcG9uZW50cy91aS9zY3JvbGwtYXJlYSdcbmltcG9ydCB7IHVzZVVpU3RvcmUgfSBmcm9tICcuLi8uLi9saWIvc3RvcmUnXG5pbXBvcnQgeyB1c2VWb2ljZSB9IGZyb20gJy4uLy4uL2xpYi9pcGMvdXNlLXZvaWNlJ1xuaW1wb3J0IHsgdXNlRXJyb3JTdG9yZSB9IGZyb20gJy4uLy4uL2xpYi9zdG9yZSdcbmltcG9ydCB7IHRvYXN0IH0gZnJvbSAnLi4vLi4vY29tcG9uZW50cy91aS90b2FzdCdcbmltcG9ydCB7IGNuIH0gZnJvbSAnLi4vLi4vbGliL3V0aWxzJ1xuXG4vKipcbiAqIFRUUyBzdHViIOeKtuaAgeagh+iusCDigJQgUDAtMTAg5L+u5aSNKDIwMjYtMDYtMTUpXG4gKlxuICog6ICBIGJ1dHRvbi1jbGlja2FiaWxpdHkudGVzdC50cyAoUDIgIzcpIOaWreiogCBWb2ljZVBhbmVsIOWcqCBUVFMg6L+Y5rKh5a6e6KOFXG4gKiDpmLbmrrUs55Sf5oiQ5oyJ6ZKu5bqUIGRpc2FibGVkIOW5tuaYvuekuiB0b29sdGlw44CCdHRzU3R1YkF2YWlsYWJsZT1mYWxzZSDmmK/ljaDkvY1cbiAqIOagh+ivhizlkYror4nmtYvor5UgLyDmnKrmnaXnmoQgQUkg55+l6YGTIFRUUyDmnI3liqHov5jmsqHnnJ/mjqXpgJrjgIJpbi1mbGlnaHQg5LmL5ZCO5Y+v5LulXG4gKiDmlLnmiJDor7sgcHJlZmVyZW5jZXMudHRzUHJvdmlkZXIg55yf5a6e5YC8LOacrCBQUiDku4XmgaLlpI3moIfor4bku6XorqnogIHmtYvor5XpgJrov4fjgIJcbiAqL1xuY29uc3QgdHRzU3R1YkF2YWlsYWJsZSA9IGZhbHNlXG5cbnR5cGUgVm9pY2VJdGVtID0ge1xuICBpZDogc3RyaW5nXG4gIHRleHQ6IHN0cmluZ1xuICBhdWRpb1BhdGg/OiBzdHJpbmdcbiAgY2hhcmFjdGVySWQ6IHN0cmluZ1xufVxuXG4vKipcbiAqIOivremfs+euoeeQhumdouadv1xuICpcbiAqIOinhOe6pjpcbiAqIC0gY29yZS9uYW1pbmcueWFtbDogXCLor63pn7MgLyBUVFNcIlxuICogLSAuc3R5bGUtc3BlYy9sYXllcnMvbWFpbi1wcm9jZXNzL2NvbnZlbnRpb25zLnlhbWw6IFwiQUkg5Lu75Yqh5YWl6ZifLFVJIOaYvuekuuaOkumYn+eKtuaAgVwiXG4gKlxuICog5b2T5YmN54q25oCBOiDliJflh7ogYXNzZXRzL3ZvaWNlIOS4i+eahCAubXAzLOWFgeiuuOivleWQrCAvIOWIoOmZpCAvIOWfuuS6jumAieS4reWvueeZvemHjeeUn+aIkOOAglxuICog55Sx5LqOIHR0cy1wcm94eSDku43mmK8gTk9UX0lNUExFTUVOVEVEIOWNoOS9jSxVSSDku43nhLbog73lrozmlbTlkYjnjrBcIuW3sueUn+aIkOeahOi1hOS6p1wiXG4gKiDliJfooajor63kuYks55Sf5oiQ5pe25Lmf5Lya5aaC5a6e5Y+N6aaI5Y2g5L2N6ZSZ6K+vKOS4jemdmem7mOWQninjgIJcbiAqL1xuZXhwb3J0IGNvbnN0IFZvaWNlUGFuZWwgPSAoKTogSlNYLkVsZW1lbnQgPT4ge1xuICBjb25zdCBwcm9qZWN0UGF0aCA9IHVzZVVpU3RvcmUoKHMpID0+IHMucHJvamVjdFBhdGgpXG4gIGNvbnN0IHZvaWNlID0gdXNlVm9pY2UoKVxuICBjb25zdCBwdXNoRXJyb3IgPSB1c2VFcnJvclN0b3JlKChzKSA9PiBzLnB1c2gpXG4gIGNvbnN0IFtpdGVtcywgc2V0SXRlbXNdID0gdXNlU3RhdGU8Vm9pY2VJdGVtW10+KFtdKVxuICBjb25zdCBbbG9hZGluZywgc2V0TG9hZGluZ10gPSB1c2VTdGF0ZShmYWxzZSlcbiAgY29uc3QgW2dlbmVyYXRpbmcsIHNldEdlbmVyYXRpbmddID0gdXNlU3RhdGU8c3RyaW5nIHwgbnVsbD4obnVsbClcbiAgY29uc3QgW3BsYXlpbmcsIHNldFBsYXlpbmddID0gdXNlU3RhdGU8c3RyaW5nIHwgbnVsbD4obnVsbClcblxuICBjb25zdCByZWZyZXNoID0gdXNlQ2FsbGJhY2soYXN5bmMgKCkgPT4ge1xuICAgIGlmICghcHJvamVjdFBhdGgpIHtcbiAgICAgIHNldEl0ZW1zKFtdKVxuICAgICAgcmV0dXJuXG4gICAgfVxuICAgIHNldExvYWRpbmcodHJ1ZSlcbiAgICB0cnkge1xuICAgICAgY29uc3QgciA9IGF3YWl0IHZvaWNlLmxpc3QocHJvamVjdFBhdGgpXG4gICAgICBzZXRJdGVtcyhyPy5pdGVtcyA/PyBbXSlcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0TG9hZGluZyhmYWxzZSlcbiAgICB9XG4gIH0sIFtwcm9qZWN0UGF0aCwgdm9pY2VdKVxuXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgdm9pZCByZWZyZXNoKClcbiAgfSwgW3JlZnJlc2hdKVxuXG4gIGNvbnN0IGhhbmRsZVBsYXkgPSAoaXRlbTogVm9pY2VJdGVtKTogdm9pZCA9PiB7XG4gICAgaWYgKCFpdGVtLmF1ZGlvUGF0aCkgcmV0dXJuXG4gICAgc2V0UGxheWluZyhpdGVtLmlkKVxuICAgIC8vIOmAmui/hyBtYWluIOerr+aatOmcsueahOi1hOS6p+i3r+W+hOaSreaUvijnm7jlr7npobnnm67moLkpXG4gICAgY29uc3QgYXVkaW8gPSBuZXcgQXVkaW8oYGZpbGU6Ly8ke2l0ZW0uYXVkaW9QYXRofWApXG4gICAgYXVkaW8ub25lbmRlZCA9ICgpID0+IHNldFBsYXlpbmcoKHApID0+IChwID09PSBpdGVtLmlkID8gbnVsbCA6IHApKVxuICAgIGF1ZGlvLm9uZXJyb3IgPSAoKSA9PiB7XG4gICAgICBzZXRQbGF5aW5nKChwKSA9PiAocCA9PT0gaXRlbS5pZCA/IG51bGwgOiBwKSlcbiAgICAgIHB1c2hFcnJvcih7XG4gICAgICAgIGNvZGU6ICdWT0lDRV9QTEFZX0ZBSUxFRCcsXG4gICAgICAgIG1lc3NhZ2U6ICfmkq3mlL7lpLHotKUo5paH5Lu25Y+v6IO957y65aSxKScsXG4gICAgICAgIHNvdXJjZTogJ3ZvaWNlOnBsYXknXG4gICAgICB9KVxuICAgIH1cbiAgICB2b2lkIGF1ZGlvLnBsYXkoKVxuICB9XG5cbiAgY29uc3QgaGFuZGxlRGVsZXRlID0gYXN5bmMgKGlkOiBzdHJpbmcpOiBQcm9taXNlPHZvaWQ+ID0+IHtcbiAgICBpZiAoIXByb2plY3RQYXRoKSByZXR1cm5cbiAgICBpZiAoIXdpbmRvdy5jb25maXJtKGDliKDpmaTor63pn7MgJHtpZH0ubXAzP2ApKSByZXR1cm5cbiAgICBjb25zdCByID0gYXdhaXQgdm9pY2UuZGVsZXRlKHByb2plY3RQYXRoLCBpZClcbiAgICBpZiAoIXI/Lm9rKSB7XG4gICAgICBwdXNoRXJyb3Ioe1xuICAgICAgICBjb2RlOiAnVk9JQ0VfREVMRVRFX0ZBSUxFRCcsXG4gICAgICAgIG1lc3NhZ2U6IHI/LmVycm9yID8/ICd1bmtub3duJyxcbiAgICAgICAgc291cmNlOiAndm9pY2U6ZGVsZXRlJ1xuICAgICAgfSlcbiAgICAgIHJldHVyblxuICAgIH1cbiAgICBhd2FpdCByZWZyZXNoKClcbiAgICB0b2FzdCh7IG1lc3NhZ2U6IGDlt7LliKDpmaQgJHtpZH1gLCB2YXJpYW50OiAnc3VjY2VzcycgfSlcbiAgfVxuXG4gIGNvbnN0IGhhbmRsZVJlZ2VuZXJhdGUgPSBhc3luYyAoaXRlbTogVm9pY2VJdGVtKTogUHJvbWlzZTx2b2lkPiA9PiB7XG4gICAgaWYgKCFwcm9qZWN0UGF0aCkgcmV0dXJuXG4gICAgc2V0R2VuZXJhdGluZyhpdGVtLmlkKVxuICAgIHRyeSB7XG4gICAgICBjb25zdCByID0gYXdhaXQgdm9pY2UuZ2VuZXJhdGUocHJvamVjdFBhdGgsIGl0ZW0uaWQsIGl0ZW0udGV4dCwgaXRlbS5jaGFyYWN0ZXJJZClcbiAgICAgIGlmICghcj8ub2spIHtcbiAgICAgICAgcHVzaEVycm9yKHtcbiAgICAgICAgICBjb2RlOiAnVk9JQ0VfR0VORVJBVEVfRkFJTEVEJyxcbiAgICAgICAgICBtZXNzYWdlOiByPy5lcnJvciA/PyAndW5rbm93bicsXG4gICAgICAgICAgc291cmNlOiAndm9pY2U6Z2VuZXJhdGUnXG4gICAgICAgIH0pXG4gICAgICAgIHJldHVyblxuICAgICAgfVxuICAgICAgYXdhaXQgcmVmcmVzaCgpXG4gICAgICB0b2FzdCh7IG1lc3NhZ2U6IGDlt7LnlJ/miJAgJHtpdGVtLmlkfS5tcDNgLCB2YXJpYW50OiAnc3VjY2VzcycgfSlcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0R2VuZXJhdGluZyhudWxsKVxuICAgIH1cbiAgfVxuXG4gIGlmICghcHJvamVjdFBhdGgpIHJldHVybiA8ZGl2IC8+XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cImJvcmRlci1iIGJvcmRlci1ib3JkZXJcIj5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC05IHB4LTMgZmxleCBpdGVtcy1jZW50ZXIganVzdGlmeS1iZXR3ZWVuXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNVwiPlxuICAgICAgICAgIDxWb2x1bWUyIGNsYXNzTmFtZT1cInctMy41IGgtMy41IHRleHQtdGV4dC1tdXRlZFwiIC8+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gZm9udC1tZWRpdW0gdGV4dC10ZXh0LW11dGVkIHVwcGVyY2FzZSB0cmFja2luZy13aWRlclwiPuivremfszwvc3Bhbj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LXRleHQtbXV0ZWRcIj4oe2l0ZW1zLmxlbmd0aH0pPC9zcGFuPlxuICAgICAgICA8L2Rpdj5cbiAgICAgICAgPEJ1dHRvblxuICAgICAgICAgIHZhcmlhbnQ9XCJnaG9zdFwiXG4gICAgICAgICAgc2l6ZT1cImljb25cIlxuICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHZvaWQgcmVmcmVzaCgpfVxuICAgICAgICAgIHRpdGxlPVwi5Yi35pawXCJcbiAgICAgICAgICBjbGFzc05hbWU9XCJoLTYgdy02XCJcbiAgICAgICAgPlxuICAgICAgICAgIDxSZWZyZXNoQ3cgY2xhc3NOYW1lPXtjbigndy0zIGgtMycsIGxvYWRpbmcgJiYgJ2FuaW1hdGUtc3BpbicpfSAvPlxuICAgICAgICA8L0J1dHRvbj5cbiAgICAgIDwvZGl2PlxuICAgICAgPFNjcm9sbEFyZWEgY2xhc3NOYW1lPVwibWF4LWgtNDBcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJweC0xLjUgcGItMS41IHNwYWNlLXktMC41XCI+XG4gICAgICAgICAge2l0ZW1zLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1bMTFweF0gdGV4dC10ZXh0LW11dGVkIHB4LTIgcHktMS41XCI+XG4gICAgICAgICAgICAgIOWwmuacqueUn+aIkOivremfs+OAglxuICAgICAgICAgICAgICA8YnIgLz5cbiAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwidGV4dC10ZXh0LW11dGVkLzcwXCI+XG4gICAgICAgICAgICAgICAg5Zyo5YGP5aW9IOKGkiDor63pn7Mg6YWN572u6buY6K6kIFRUUyDmj5DkvpvllYbjgIJcbiAgICAgICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKSA6IChcbiAgICAgICAgICAgIGl0ZW1zLm1hcCgoaXQpID0+IHtcbiAgICAgICAgICAgICAgY29uc3QgaXNHZW4gPSBnZW5lcmF0aW5nID09PSBpdC5pZFxuICAgICAgICAgICAgICBjb25zdCBpc1BsYXkgPSBwbGF5aW5nID09PSBpdC5pZFxuICAgICAgICAgICAgICByZXR1cm4gKFxuICAgICAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgICAgIGtleT17aXQuaWR9XG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJncm91cCBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMSBweC0yIHB5LTEuNSByb3VuZGVkLW1kIGhvdmVyOmJnLWJnLWVsZXZhdGVkXCJcbiAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICA8YnV0dG9uXG4gICAgICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IGhhbmRsZVBsYXkoaXQpfVxuICAgICAgICAgICAgICAgICAgICBkaXNhYmxlZD17IWl0LmF1ZGlvUGF0aH1cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwic2hyaW5rLTAgcC0xIHJvdW5kZWQgdGV4dC10ZXh0LW11dGVkIGhvdmVyOnRleHQtYWNjZW50IGRpc2FibGVkOm9wYWNpdHktNDBcIlxuICAgICAgICAgICAgICAgICAgICB0aXRsZT17aXNQbGF5ID8gJ+aSreaUvuS4reKApicgOiAn6K+V5ZCsJ31cbiAgICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgICAge2lzUGxheSA/IChcbiAgICAgICAgICAgICAgICAgICAgICA8TG9hZGVyMiBjbGFzc05hbWU9XCJ3LTMgaC0zIGFuaW1hdGUtc3BpblwiIC8+XG4gICAgICAgICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgICAgICAgPFBsYXkgY2xhc3NOYW1lPVwidy0zIGgtM1wiIC8+XG4gICAgICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleC0xIG1pbi13LTBcIj5cbiAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSBmb250LW1vbm8gdHJ1bmNhdGVcIj57aXQuaWR9Lm1wMzwvZGl2PlxuICAgICAgICAgICAgICAgICAgICB7aXQudGV4dCAmJiAoXG4gICAgICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LXRleHQtbXV0ZWQgdHJ1bmNhdGVcIj5cbiAgICAgICAgICAgICAgICAgICAgICAgIHtpdC50ZXh0fVxuICAgICAgICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICB7aXNHZW4gPyAoXG4gICAgICAgICAgICAgICAgICAgIDxMb2FkZXIyIGNsYXNzTmFtZT1cInctMyBoLTMgYW5pbWF0ZS1zcGluIHRleHQtdGV4dC1tdXRlZFwiIC8+XG4gICAgICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICAgICA8QnV0dG9uXG4gICAgICAgICAgICAgICAgICAgICAgdmFyaWFudD1cImdob3N0XCJcbiAgICAgICAgICAgICAgICAgICAgICBzaXplPVwiaWNvblwiXG4gICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gdm9pZCBoYW5kbGVSZWdlbmVyYXRlKGl0KX1cbiAgICAgICAgICAgICAgICAgICAgICB0aXRsZT17dHRzU3R1YkF2YWlsYWJsZSA/ICfph43mlrDnlJ/miJAnIDogJ1RUUyDlsJrmnKrlrp7oo4Us5peg5rOV6YeN5paw55Sf5oiQJ31cbiAgICAgICAgICAgICAgICAgICAgICBkaXNhYmxlZD17IXR0c1N0dWJBdmFpbGFibGV9XG4gICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiaC02IHctNiBvcGFjaXR5LTAgZ3JvdXAtaG92ZXI6b3BhY2l0eS0xMDAgdGV4dC10ZXh0LW11dGVkIGhvdmVyOnRleHQtYWNjZW50XCJcbiAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgIDxSZWZyZXNoQ3cgY2xhc3NOYW1lPVwidy0zIGgtM1wiIC8+XG4gICAgICAgICAgICAgICAgICAgIDwvQnV0dG9uPlxuICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgIDxCdXR0b25cbiAgICAgICAgICAgICAgICAgICAgdmFyaWFudD1cImdob3N0XCJcbiAgICAgICAgICAgICAgICAgICAgc2l6ZT1cImljb25cIlxuICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiB2b2lkIGhhbmRsZURlbGV0ZShpdC5pZCl9XG4gICAgICAgICAgICAgICAgICAgIHRpdGxlPVwi5Yig6ZmkXCJcbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiaC02IHctNiBvcGFjaXR5LTAgZ3JvdXAtaG92ZXI6b3BhY2l0eS0xMDAgdGV4dC10ZXh0LW11dGVkIGhvdmVyOnRleHQtcmVkLTUwMFwiXG4gICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgIDxUcmFzaDIgY2xhc3NOYW1lPVwidy0zIGgtM1wiIC8+XG4gICAgICAgICAgICAgICAgICA8L0J1dHRvbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKVxuICAgICAgICAgICAgfSlcbiAgICAgICAgICApfVxuICAgICAgICAgIHtpdGVtcy5sZW5ndGggPiAwICYmIChcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEgcHgtMiBweS0xIHRleHQtWzEwcHhdIHRleHQtYW1iZXItNjAwXCI+XG4gICAgICAgICAgICAgIDxBbGVydENpcmNsZSBjbGFzc05hbWU9XCJ3LTIuNSBoLTIuNVwiIC8+XG4gICAgICAgICAgICAgIDxzcGFuPumHjeaWsOeUn+aIkOWPluWGs+S6jiBUVFMg5o+Q5L6b5ZWG5piv5ZCm5a6e546wPC9zcGFuPlxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgKX1cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L1Njcm9sbEFyZWE+XG4gICAgPC9kaXY+XG4gIClcbn1cbiJdLCJmaWxlIjoiL3NyYy9yZW5kZXJlci9zcmMvZmVhdHVyZXMvdm9pY2UvVm9pY2VQYW5lbC50c3gifQ==

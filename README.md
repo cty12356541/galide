@@ -49,6 +49,22 @@ galide/
 
 ## 启动
 
+### 一键脚本(推荐)
+
+```bash
+./scripts/dev.sh
+# 或 macOS 双击: scripts/dev.command
+```
+
+脚本依次跑:install → typecheck → lint → test → build → dev。
+环境变量跳过:
+- `SKIP_INSTALL=1` 跳过 pnpm install
+- `SKIP_CHECKS=1` 跳过 typecheck/lint/test
+- `SKIP_BUILD=1` 跳过 pnpm build
+- `SKIP_DEV=1` 跳过 pnpm dev(只跑前置检查)
+
+### 手动
+
 ```bash
 pnpm install
 pnpm dev

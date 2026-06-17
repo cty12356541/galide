@@ -1,0 +1,11 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/clsx@2.1.1/node_modules/clsx/dist/clsx.mjs", {"importedNames":["clsx"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/tailwind-merge@2.6.1/node_modules/tailwind-merge/dist/bundle-mjs.mjs", {"importedNames":["twMerge"]});
+
+
+const cn = (...inputs) => {
+  return __vite_ssr_import_1__.twMerge(__vite_ssr_import_0__.clsx(inputs));
+};
+Object.defineProperty(__vite_ssr_exports__, "cn", { enumerable: true, configurable: true, get(){ return cn }});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7QUFBc0M7QUFDZDtBQUVqQixNQUFNLEtBQUssSUFBSSxXQUFpQztBQUNyRCxTQUFPLDhCQUFRLDJCQUFLLE1BQU0sQ0FBQztBQUM3QjsrR0FBQSIsIm5hbWVzIjpbXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsidXRpbHMudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHsgY2xzeCwgdHlwZSBDbGFzc1ZhbHVlIH0gZnJvbSAnY2xzeCdcbmltcG9ydCB7IHR3TWVyZ2UgfSBmcm9tICd0YWlsd2luZC1tZXJnZSdcblxuZXhwb3J0IGNvbnN0IGNuID0gKC4uLmlucHV0czogQ2xhc3NWYWx1ZVtdKTogc3RyaW5nID0+IHtcbiAgcmV0dXJuIHR3TWVyZ2UoY2xzeChpbnB1dHMpKVxufVxuIl0sImZpbGUiOiIvc3JjL3JlbmRlcmVyL3NyYy9saWIvdXRpbHMudHMifQ==

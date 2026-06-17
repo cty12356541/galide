@@ -1,0 +1,103 @@
+version: 1
+plan:
+  name: '补 11 个缺失文件,9 commit 边侧栏真正可用'
+  max_concurrency: 2
+  max_consecutive_failures: 2
+  max_cycles: 6
+  verifier_config:
+    default_verifiers: [verifier]
+    audit_sample_rate: 0.0
+tasks:
+  - id: supplement-11-files
+    title: '在工作树中按产线标准补全 11 个缺失文件,双端 typecheck 全绿且 main 进程能 import'
+    prompt: |
+      你是 worker,任务:在 worktree `/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files`(HEAD 172b7b8)内**按产线标准补全 9 commit 引用的 11 个缺失文件 + 1 个目录**,让应用真能启动、6 区域布局真能跑通。
+
+      ## 上下文
+      - 这是 mavis team plan,owner 是 Mavis(根 session)
+      - worktree 已建好,based on `diagnose/9-commits-sidepanel-bugs`(9 commit 完整复现)
+      - 诊断报告(你必须读):`/Users/lipunima/projects/galide/.mavis/plans/reviews/diagnose-sidepanel-bugs.md`
+      - 13 个 TS2307 错清单 + 11 缺失文件路径 + 启动期 4 阶段崩溃机制都在报告里
+      - **绝对不要回到 a1e91f8 那种"全删了重写"路线**——目标是补 9 commit 的功能而不是回滚
+      - **不要 commit 到 main**,所有改动留 working tree 不 commit,owner 会来收尾
+      - **写完 deliverable.md 即停**,不要等 CI / 等用户 / 任何自循环
+
+      ## 11 个缺失文件(分类 + 路径)
+      ### 共享基础(2 个,Phase 1 必做)
+      1. `src/shared/workspace-layout.ts` — `WorkspaceLayout` / `ActivityBarItemId` / `RightDockId` / `CenterTabId` / `WorkspacePresetId` 5 个 type,`DEFAULT_WORKSPACE_LAYOUT` / `applyWorkspacePreset(preset, current)` / `mergeWorkspaceLayout(saved, defaults)` 3 个函数。
+      2. `src/renderer/src/lib/workspace-layout.ts` — re-export from shared,方便 vite 路径。
+
+      ### Main 端 handler(2 个,Phase 2)
+      3. `src/main/ipc/asset-handlers.ts` — 导出 `registerAssetHandlers(ipcMain, deps)`。覆盖 `galide.asset.{list,read,create,update,delete,scan}` 6 个 IPC 通道。底层 deps 应接受 `workspace: { projectRoot: string }` 注入。**返回 schema 必须跟 preload `asset.read/write` 类型一致**(看 `src/preload/index.ts:160-180` 范围,反推)。
+      4. `src/main/ipc/workspace-handlers.ts` — 导出 `registerWorkspaceHandlers(ipcMain, deps)`。覆盖 `galide.workspace.{readProject,writeProject,readGlobal,writeGlobal}` 4 个 IPC 通道。读 / 写 `~/.galide/workspace/<projectId>.json` 和 `~/.galide/workspace/global.json`,schema 用 `WorkspaceLayout`。
+
+      ### Renderer hook(2 个,Phase 3)
+      5. `src/renderer/src/lib/ipc/use-workspace.ts` — 导出 `useWorkspacePersistence()`,返回 `{ hydrate: (projectPath) => Promise<WorkspaceLayout | null>, persistProject: (projectPath, layout) => Promise<void>, persistGlobal: (layout) => Promise<void> }`。`beforeunload` 时调 `persistGlobal(layout)` 兜底。
+      6. `src/renderer/src/lib/ipc/use-appearance-effect.ts` — 导出 `useAppearanceEffect()`,监听 `useUiStore.theme`,`document.documentElement.classList.toggle('dark', theme === 'dark')`。
+
+      ### UI 组件(5 个,Phase 4)
+      7. `src/renderer/src/components/workspace/ActivityBar.tsx` — 左竖条 6 个图标按钮(scripts/characters/voice/assets/outline/git),从 `useUiStore(s => s.workspaceLayout.activeActivity)` 读当前,`onClick={() => toggleActivity(id)}` 切。按钮 disabled 状态用 `useUiStore` 的 `dirtyMap`。
+      8. `src/renderer/src/components/workspace/SidePanel.tsx` — 6 panel 容器:`activeActivity.map(id => <PanelFor id={id} />)`,PanelFor dict: `{ scripts: ScriptListPanel, characters: CharacterListPanel, voice: VoicePanel, assets: AssetListPanel, outline: OutlinePanel, git: GitPanel }`。空时返回 `<div className="w-0" />`。
+      9. `src/renderer/src/components/workspace/StatusBarWorkspaceIndicator.tsx` — StatusBar 第 4 行 import 的小指示器。显示 `activeActivity.length + " panels"`。
+      10. `src/renderer/src/components/workspace/WorkspacePresetSelector.tsx` — TitleBar 第 3 行 import。下拉 3 个 preset('default' | 'writing' | 'review'),调 `applyWorkspacePreset(preset, current)` 写回 store。
+      11. `src/renderer/src/features/outline/OutlinePanel.tsx` — 大纲 tab 内容,从 manifest 派生 scene/character 列表。**DockviewCenterTabs.tsx:35 import 这文件**。
+
+      ## 实施原则
+      - **从诊断报告反推接口**:报告第 4 节"TypeScript 编译错清单"是权威。每个 import 路径都对应一个 file:line,反推 import 处的用法(`(s: T) => T.x.y` 反推 y 字段类型)。
+      - **参考 a1e91f8 已有组件形态**:git show a1e91f8:src/renderer/src/components/StatusBar.tsx 看老 StatusBar 怎么写;git show a1e91f8:src/renderer/src/features/character/CharacterListPanel.tsx 看老 panel 怎么写。9 commit 的设计意图保留,但**实现要 1:1 够用 + 真能渲染**。
+      - **依赖注入 + 容错**:handler 端要 catch error 返回 `{ ok: false, error: ... }`,不要 throw。renderer 端用 `window.galide?.X?.Y` 防御性访问(参考 `src/renderer/src/lib/ipc/galide-safe.ts`)。
+      - **zustand store 字段必须真存在**:`activeActivity: ActivityBarItemId[]` / `openCenterTabs: CenterTabId[]` / `rightDock: RightDockId` / `dirtyMap: Record<ActivityBarItemId, boolean>` / `theme: 'light' | 'dark'` / `applyWorkspacePreset: (preset) => void`。store.ts 已有 `workspaceLayout` 字段就扩展,别新建。
+      - **IPC channel 注册**:参考 `src/main/ipc/ipc-channels.ts`(adbf13e 加的),按现有命名约定。
+      - **不开 vite dev 跑**(沙箱无 node,跑不通)。**靠 typecheck + 单测 + 静态验证**。
+
+      ## Phase 顺序(每 Phase 必做 typecheck)
+      1. Phase 1: 写 `src/shared/workspace-layout.ts` + re-export → 跑 `bun tsc --noEmit -p tsconfig.web.json 2>&1 | head -10` 看错是否减少(预期从 13 错 → 11 错,只少 shared/types.ts 和 preload 那 2 个 workspace-layout 错,store 和 renderer 内部 re-export 还需要看 renderer 那份)。
+      2. Phase 2: 写 2 个 main handler → 跑 `bun tsc --noEmit -p tsconfig.node.json` → 4 个 node 错应全消。
+      3. Phase 3: 写 2 个 renderer hook → 跑 `bun tsc --noEmit -p tsconfig.web.json` → 应少 3 错(use-workspace / use-appearance-effect / store 那条)。
+      4. Phase 4: 写 4 个 UI 组件 + OutlinePanel → 跑 `bun tsc --noEmit -p tsconfig.web.json` → 应**全 0 错**。
+      5. 最终验证:跑 vitest(用 `bun ./node_modules/vitest/vitest.mjs run`),写一个 e2e 单测验证 `import { ActivityBar } from './ActivityBar'` 实际能 mount 渲染。
+
+      ## 工具
+      - Read / Grep / Glob / Write / Edit
+      - Bash 只跑 typecheck + vitest + git status,**不要跑 vite dev** / 不要启动应用
+      - 可以 `git show a1e91f8:path/to/file` 看老代码
+      - 可以 `git show diagnose/9-commits-sidepanel-bugs:path/to/file` 看 9 commit 改的文件
+
+      ## 交付物(写到 worktree 内)
+      写到 `/Users/lipunima/projects/galide/.mavis/plans/plan_<plan_id>/outputs/supplement-11-files/deliverable.md`:
+      - 顶部 3 行 "完成 / 总代码行数 / 双端 typecheck 状态"
+      - 11 个文件路径 + 关键函数列表(每文件 1-3 个核心导出 + 关键依赖)
+      - 实施决策日志(关键:PanelFor dict 怎么选;workspace_layout shared vs renderer 重复;handler 错误处理策略;store 字段扩展)
+      - 已知未覆盖项(若有):6 区域拖拽规约 / drag-to-dock / 某些 panel 内部复杂逻辑——只点出来,不实现
+      - 给 verifier 的可复现命令清单
+
+      ## 严禁
+      - ❌ commit / push / 创建 MR
+      - ❌ 修改 main worktree 的代码
+      - ❌ 删除 / 移动诊断报告(.mavis/plans/reviews/diagnose-sidepanel-bugs.md)
+      - ❌ 写完后"再检查一下" / 任何"等用户决策"循环——deliverable.md 写完即停,exit
+      - ❌ 改 9 commit 已 commit 的代码(App.tsx/TitleBar.tsx 等老文件不能动,只能新增文件)
+    assigned_to: coder
+    verified_by: verifier
+    verify_prompt: |
+      独立审计 deliverable.md,**不要重读 producer 的描述**,你**自己**:
+      1. Read 11 个新文件前 30 行,确认 export 形状与诊断报告反推一致
+      2. 跑 `cd /Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files && bun tsc --noEmit -p tsconfig.web.json 2>&1 | head -20` 看是否 0 错
+      3. 跑 `bun tsc --noEmit -p tsconfig.node.json 2>&1 | head -10` 看是否 0 错
+      4. 跑 `bun ./node_modules/vitest/vitest.mjs run 2>&1 | tail -30`
+      5. grep 验证每个 import path 真有对应文件:ActivityBar / SidePanel / StatusBarWorkspaceIndicator / WorkspacePresetSelector / use-workspace / use-appearance-effect / workspace-layout(shared + renderer) / asset-handlers / workspace-handlers / OutlinePanel
+      6. 跑 `grep -r "import" src/main/index.ts src/preload/index.ts src/renderer/src/app/App.tsx` 确认所有 import 解析得到
+      7. 找一个现成老组件(CharacterListPanel),看 SidePanel.tsx 的 PanelFor dict 是否真接上(避免导入字典对不上)
+
+      判断:
+      - 11 个文件都存在 + 导出形状 OK?
+      - 双端 typecheck 0 错?
+      - vitest 通过(允许 1-2 个 skip / pending,但不允许 fail)?
+      - 老组件真接上(grep CharacterListPanel 出现 1+ 次)?
+
+      FAIL 条件:
+      - 任何文件缺失 / 导出形状不对
+      - typecheck 仍报 TS2307
+      - vitest fail
+      - 老组件没接到 SidePanel dict(直接砍了功能)
+    timeout_ms: 1800000

@@ -1,0 +1,64 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/jsx-dev-runtime.js", {"importedNames":["jsxDEV"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/index.js");
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/@radix-ui+react-scroll-area@1.2.11_@types+react-dom@18.3.7_@types+react@18.3.31__@types+react_vtwujfrwhncydsisusgpbk3pw4/node_modules/@radix-ui/react-scroll-area/dist/index.mjs");
+const __vite_ssr_import_3__ = await __vite_ssr_import__("/src/renderer/src/lib/utils.ts", {"importedNames":["cn"]});
+
+
+
+
+const ScrollArea = __vite_ssr_import_1__.forwardRef(({ className, children, ...props }, ref) => /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Root, { ref, className: __vite_ssr_import_3__.cn("relative overflow-hidden", className), ...props, children: [
+  /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Viewport, { className: "h-full w-full rounded-[inherit]", children }, void 0, false, {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/scroll-area.tsx",
+    lineNumber: 10,
+    columnNumber: 5
+  }, this),
+  /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(ScrollBar, {}, void 0, false, {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/scroll-area.tsx",
+    lineNumber: 13,
+    columnNumber: 5
+  }, this),
+  /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.Corner, {}, void 0, false, {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/scroll-area.tsx",
+    lineNumber: 14,
+    columnNumber: 5
+  }, this)
+] }, void 0, true, {
+  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/scroll-area.tsx",
+  lineNumber: 9,
+  columnNumber: 3
+}, this));
+ScrollArea.displayName = __vite_ssr_import_2__.Root.displayName;
+const ScrollBar = __vite_ssr_import_1__.forwardRef(({ className, orientation = "vertical", ...props }, ref) => /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+  __vite_ssr_import_2__.ScrollAreaScrollbar,
+  {
+    ref,
+    orientation,
+    className: __vite_ssr_import_3__.cn(
+      "flex touch-none select-none transition-colors",
+      orientation === "vertical" && "h-full w-2 border-l border-l-transparent p-[1px]",
+      orientation === "horizontal" && "h-2 flex-col border-t border-t-transparent p-[1px]",
+      className
+    ),
+    ...props,
+    children: /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.ScrollAreaThumb, { className: "relative flex-1 rounded-full bg-border" }, void 0, false, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/scroll-area.tsx",
+      lineNumber: 34,
+      columnNumber: 5
+    }, this)
+  },
+  void 0,
+  false,
+  {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/components/ui/scroll-area.tsx",
+    lineNumber: 23,
+    columnNumber: 3
+  },
+  this
+));
+ScrollBar.displayName = __vite_ssr_import_2__.ScrollAreaScrollbar.displayName;
+
+Object.defineProperty(__vite_ssr_exports__, "ScrollArea", { enumerable: true, configurable: true, get(){ return ScrollArea }});
+Object.defineProperty(__vite_ssr_exports__, "ScrollBar", { enumerable: true, configurable: true, get(){ return ScrollBar }});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJtYXBwaW5ncyI6IkFBQUEsQ0FBQTs7OztBQVNJO0FBVG1CO0FBQ2M7QUFDbEI7QUFFbkIsTUFBTSxhQUFhLHNCQUFNLFdBR3ZCLENBQUMsRUFBRSxXQUFXLFVBQVUsR0FBRyxNQUFNLEdBQUcsUUFDcEMsNkNBQUMsc0JBQW9CLE1BQXBCLEVBQXlCLEtBQVUsV0FBVyx5QkFBRyw0QkFBNEIsU0FBUyxHQUFJLEdBQUcsT0FDNUY7QUFBQSwrQ0FBQyxzQkFBb0IsVUFBcEIsRUFBNkIsV0FBVSxtQ0FDckMsWUFESDtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBRUE7QUFBQSxFQUNBLDZDQUFDLGVBQUQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQUFXO0FBQUEsRUFDWCw2Q0FBQyxzQkFBb0IsUUFBcEIsSUFBRDtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBQTRCO0FBQUEsS0FMOUI7QUFBQTtBQUFBO0FBQUE7QUFBQSxPQU1BLENBQ0Q7QUFDRCxXQUFXLGNBQWMsc0JBQW9CLEtBQUs7QUFFbEQsTUFBTSxZQUFZLHNCQUFNLFdBR3RCLENBQUMsRUFBRSxXQUFXLGNBQWMsWUFBWSxHQUFHLE1BQU0sR0FBRyxRQUNwRDtBQUFBLEVBQUMsc0JBQW9CO0FBQUEsRUFBcEI7QUFBQSxJQUNDO0FBQUEsSUFDQTtBQUFBLElBQ0EsV0FBVztBQUFBLE1BQ1Q7QUFBQSxNQUNBLGdCQUFnQixjQUFjO0FBQUEsTUFDOUIsZ0JBQWdCLGdCQUFnQjtBQUFBLE1BQ2hDO0FBQUEsSUFDRjtBQUFBLElBQ0MsR0FBRztBQUFBLElBRUosdURBQUMsc0JBQW9CLGlCQUFwQixFQUFvQyxXQUFVLDRDQUEvQztBQUFBO0FBQUE7QUFBQTtBQUFBLFdBQXdGO0FBQUE7QUFBQSxFQVgxRjtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBWUEsQ0FDRDtBQUNELFVBQVUsY0FBYyxzQkFBb0Isb0JBQW9COzs7NkhBRTNDIiwibmFtZXMiOltdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJzY3JvbGwtYXJlYS50c3giXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0ICogYXMgUmVhY3QgZnJvbSAncmVhY3QnXG5pbXBvcnQgKiBhcyBTY3JvbGxBcmVhUHJpbWl0aXZlIGZyb20gJ0ByYWRpeC11aS9yZWFjdC1zY3JvbGwtYXJlYSdcbmltcG9ydCB7IGNuIH0gZnJvbSAnLi4vLi4vbGliL3V0aWxzJ1xuXG5jb25zdCBTY3JvbGxBcmVhID0gUmVhY3QuZm9yd2FyZFJlZjxcbiAgUmVhY3QuRWxlbWVudFJlZjx0eXBlb2YgU2Nyb2xsQXJlYVByaW1pdGl2ZS5Sb290PixcbiAgUmVhY3QuQ29tcG9uZW50UHJvcHNXaXRob3V0UmVmPHR5cGVvZiBTY3JvbGxBcmVhUHJpbWl0aXZlLlJvb3Q+XG4+KCh7IGNsYXNzTmFtZSwgY2hpbGRyZW4sIC4uLnByb3BzIH0sIHJlZikgPT4gKFxuICA8U2Nyb2xsQXJlYVByaW1pdGl2ZS5Sb290IHJlZj17cmVmfSBjbGFzc05hbWU9e2NuKCdyZWxhdGl2ZSBvdmVyZmxvdy1oaWRkZW4nLCBjbGFzc05hbWUpfSB7Li4ucHJvcHN9PlxuICAgIDxTY3JvbGxBcmVhUHJpbWl0aXZlLlZpZXdwb3J0IGNsYXNzTmFtZT1cImgtZnVsbCB3LWZ1bGwgcm91bmRlZC1baW5oZXJpdF1cIj5cbiAgICAgIHtjaGlsZHJlbn1cbiAgICA8L1Njcm9sbEFyZWFQcmltaXRpdmUuVmlld3BvcnQ+XG4gICAgPFNjcm9sbEJhciAvPlxuICAgIDxTY3JvbGxBcmVhUHJpbWl0aXZlLkNvcm5lciAvPlxuICA8L1Njcm9sbEFyZWFQcmltaXRpdmUuUm9vdD5cbikpXG5TY3JvbGxBcmVhLmRpc3BsYXlOYW1lID0gU2Nyb2xsQXJlYVByaW1pdGl2ZS5Sb290LmRpc3BsYXlOYW1lXG5cbmNvbnN0IFNjcm9sbEJhciA9IFJlYWN0LmZvcndhcmRSZWY8XG4gIFJlYWN0LkVsZW1lbnRSZWY8dHlwZW9mIFNjcm9sbEFyZWFQcmltaXRpdmUuU2Nyb2xsQXJlYVNjcm9sbGJhcj4sXG4gIFJlYWN0LkNvbXBvbmVudFByb3BzV2l0aG91dFJlZjx0eXBlb2YgU2Nyb2xsQXJlYVByaW1pdGl2ZS5TY3JvbGxBcmVhU2Nyb2xsYmFyPlxuPigoeyBjbGFzc05hbWUsIG9yaWVudGF0aW9uID0gJ3ZlcnRpY2FsJywgLi4ucHJvcHMgfSwgcmVmKSA9PiAoXG4gIDxTY3JvbGxBcmVhUHJpbWl0aXZlLlNjcm9sbEFyZWFTY3JvbGxiYXJcbiAgICByZWY9e3JlZn1cbiAgICBvcmllbnRhdGlvbj17b3JpZW50YXRpb259XG4gICAgY2xhc3NOYW1lPXtjbihcbiAgICAgICdmbGV4IHRvdWNoLW5vbmUgc2VsZWN0LW5vbmUgdHJhbnNpdGlvbi1jb2xvcnMnLFxuICAgICAgb3JpZW50YXRpb24gPT09ICd2ZXJ0aWNhbCcgJiYgJ2gtZnVsbCB3LTIgYm9yZGVyLWwgYm9yZGVyLWwtdHJhbnNwYXJlbnQgcC1bMXB4XScsXG4gICAgICBvcmllbnRhdGlvbiA9PT0gJ2hvcml6b250YWwnICYmICdoLTIgZmxleC1jb2wgYm9yZGVyLXQgYm9yZGVyLXQtdHJhbnNwYXJlbnQgcC1bMXB4XScsXG4gICAgICBjbGFzc05hbWVcbiAgICApfVxuICAgIHsuLi5wcm9wc31cbiAgPlxuICAgIDxTY3JvbGxBcmVhUHJpbWl0aXZlLlNjcm9sbEFyZWFUaHVtYiBjbGFzc05hbWU9XCJyZWxhdGl2ZSBmbGV4LTEgcm91bmRlZC1mdWxsIGJnLWJvcmRlclwiIC8+XG4gIDwvU2Nyb2xsQXJlYVByaW1pdGl2ZS5TY3JvbGxBcmVhU2Nyb2xsYmFyPlxuKSlcblNjcm9sbEJhci5kaXNwbGF5TmFtZSA9IFNjcm9sbEFyZWFQcmltaXRpdmUuU2Nyb2xsQXJlYVNjcm9sbGJhci5kaXNwbGF5TmFtZVxuXG5leHBvcnQgeyBTY3JvbGxBcmVhLCBTY3JvbGxCYXIgfVxuIl0sImZpbGUiOiIvc3JjL3JlbmRlcmVyL3NyYy9jb21wb25lbnRzL3VpL3Njcm9sbC1hcmVhLnRzeCJ9

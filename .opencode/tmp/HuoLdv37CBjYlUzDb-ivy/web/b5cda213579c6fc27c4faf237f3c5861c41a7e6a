@@ -1,0 +1,224 @@
+const __vite_ssr_import_0__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/react@18.3.1/node_modules/react/jsx-dev-runtime.js", {"importedNames":["jsxDEV"]});
+const __vite_ssr_import_1__ = await __vite_ssr_import__("/src/renderer/src/lib/store.ts", {"importedNames":["useUiStore"]});
+const __vite_ssr_import_2__ = await __vite_ssr_import__("/@fs/Users/lipunima/projects/galide/node_modules/.pnpm/lucide-react@0.453.0_react@18.3.1/node_modules/lucide-react/dist/cjs/lucide-react.js", {"importedNames":["ListTree","User","MapPin"]});
+
+
+
+const OutlinePanel = () => {
+  const projectName = __vite_ssr_import_1__.useUiStore((s) => s.projectName);
+  const manifest = __vite_ssr_import_1__.useUiStore((s) => s.manifest);
+  const activeScriptFile = __vite_ssr_import_1__.useUiStore((s) => s.activeScriptFile);
+  if (!manifest) {
+    return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "h-full flex flex-col items-center justify-center text-text-muted bg-bg p-8", children: [
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.ListTree, { className: "w-8 h-8 mb-2 opacity-40" }, void 0, false, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 38,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-xs", children: "打开项目以查看大纲" }, void 0, false, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 39,
+        columnNumber: 9
+      }, this),
+      projectName && /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[10px] mt-1 opacity-60", children: projectName }, void 0, false, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 40,
+        columnNumber: 25
+      }, this)
+    ] }, void 0, true, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+      lineNumber: 37,
+      columnNumber: 7
+    }, this);
+  }
+  const characters = manifest.characters ?? [];
+  const placeholderScenes = activeScriptFile ? [
+    { id: "opening", label: "开场", line: 1 },
+    { id: "meet", label: "相遇", line: 18 },
+    { id: "choice", label: "选择点", line: 27 }
+  ] : [];
+  return /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "h-full flex flex-col bg-bg", "data-testid": "outline-panel", children: [
+    /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "h-10 px-3 flex items-center gap-2 border-b border-border bg-surface", children: [
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.ListTree, { className: "w-4 h-4 text-text-muted" }, void 0, false, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 60,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-xs font-medium uppercase tracking-wider text-text-muted", children: "大纲" }, void 0, false, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 61,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[10px] text-text-muted", children: projectName ?? "" }, void 0, false, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 62,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+      lineNumber: 59,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden", children: [
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("section", { className: "flex flex-col overflow-hidden border-r border-border", children: [
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("header", { className: "h-9 px-3 flex items-center gap-1.5 bg-surface border-b border-border", children: [
+          /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.MapPin, { className: "w-3.5 h-3.5 text-text-muted" }, void 0, false, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 68,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[11px] font-medium uppercase tracking-wider text-text-muted", children: "场景" }, void 0, false, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 69,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[10px] text-text-muted", children: [
+            "(",
+            placeholderScenes.length,
+            ")"
+          ] }, void 0, true, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 72,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+          lineNumber: 67,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex-1 overflow-auto p-2 space-y-0.5", children: placeholderScenes.length === 0 ? /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[11px] text-text-muted px-2 py-1.5", children: "尚未打开剧本" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+          lineNumber: 76,
+          columnNumber: 15
+        }, this) : placeholderScenes.map((s) => /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+          "button",
+          {
+            type: "button",
+            className: "w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-bg-elevated text-left",
+            children: [
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[10px] font-mono text-text-muted w-6 text-right", children: s.line }, void 0, false, {
+                fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+                lineNumber: 84,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[12px]", children: s.label }, void 0, false, {
+                fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+                lineNumber: 87,
+                columnNumber: 19
+              }, this)
+            ]
+          },
+          s.id,
+          true,
+          {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 79,
+            columnNumber: 17
+          },
+          this
+        )) }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+          lineNumber: 74,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 66,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("section", { className: "flex flex-col overflow-hidden", children: [
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("header", { className: "h-9 px-3 flex items-center gap-1.5 bg-surface border-b border-border", children: [
+          /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.User, { className: "w-3.5 h-3.5 text-text-muted" }, void 0, false, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 96,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[11px] font-medium uppercase tracking-wider text-text-muted", children: "角色" }, void 0, false, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 97,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("span", { className: "text-[10px] text-text-muted", children: [
+            "(",
+            characters.length,
+            ")"
+          ] }, void 0, true, {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 100,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+          lineNumber: 95,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex-1 overflow-auto p-2 space-y-0.5", children: characters.length === 0 ? /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[11px] text-text-muted px-2 py-1.5", children: "尚未创建角色" }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+          lineNumber: 104,
+          columnNumber: 15
+        }, this) : characters.map((c) => /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(
+          "div",
+          {
+            className: "flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-bg-elevated",
+            children: [
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV(__vite_ssr_import_2__.User, { className: "w-3 h-3 text-text-muted shrink-0" }, void 0, false, {
+                fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+                lineNumber: 111,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "flex-1 min-w-0", children: [
+                /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[12px] truncate", children: c.name }, void 0, false, {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+                  lineNumber: 113,
+                  columnNumber: 21
+                }, this),
+                c.personality && /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("div", { className: "text-[10px] text-text-muted truncate", children: c.personality }, void 0, false, {
+                  fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+                  lineNumber: 115,
+                  columnNumber: 23
+                }, this)
+              ] }, void 0, true, {
+                fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+                lineNumber: 112,
+                columnNumber: 19
+              }, this)
+            ]
+          },
+          c.id,
+          true,
+          {
+            fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+            lineNumber: 107,
+            columnNumber: 17
+          },
+          this
+        )) }, void 0, false, {
+          fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+          lineNumber: 102,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+        lineNumber: 94,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+      lineNumber: 65,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ __vite_ssr_import_0__.jsxDEV("footer", { className: "h-7 px-3 flex items-center text-[10px] text-text-muted border-t border-border bg-surface", children: "大纲视图基于 manifest 派生。V2:解析 .gal 脚本生成 scene + choice 树。" }, void 0, false, {
+      fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+      lineNumber: 125,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "/Users/lipunima/projects/galide/.worktrees/fix/supplement-9-commit-files/src/renderer/src/features/outline/OutlinePanel.tsx",
+    lineNumber: 58,
+    columnNumber: 5
+  }, this);
+};
+Object.defineProperty(__vite_ssr_exports__, "OutlinePanel", { enumerable: true, configurable: true, get(){ return OutlinePanel }});
+
+//# sourceMappingSource=vite-node
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,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QUE7QUFBQSxlQW1CQTtBQUFBLFdBM0JGO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUE0QkE7QUFBQSxTQXpERjtBQUFBO0FBQUE7QUFBQTtBQUFBLFdBMERBO0FBQUEsSUFFQSw2Q0FBQyxZQUFPLFdBQVUsNEZBQTJGLG9FQUE3RztBQUFBO0FBQUE7QUFBQTtBQUFBLFdBRUE7QUFBQSxPQXJFRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBc0VBO0FBRUo7bUlBQUEiLCJuYW1lcyI6W10sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIk91dGxpbmVQYW5lbC50c3giXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXG4gKiBPdXRsaW5lUGFuZWwg4oCUIOWkp+e6suinhuWbvijkuK3lpK4gdGFiICsgU2lkZVBhbmVsIOWFseeUqClcbiAqXG4gKiDmlbDmja7mupA6dXNlVWlTdG9yZSgocykgPT4gcy5tYW5pZmVzdCks5LuOIFByb2plY3RNYW5pZmVzdCDmtL7nlJ8gc2NlbmUgLyBjaGFyYWN0ZXIg5YiX6KGo44CCXG4gKiDnnJ/lrp4gb3V0bGluZSDmjqjlr7wo5LuOIC5nYWwgc2NyaXB0IHBhcnNlIOKGkiBzY2VuZSArIGNob2ljZSB0cmVlKeeVmSBWMizmnKzova7lj6rlsZXnpLpcbiAqIG1hbmlmZXN0IOeOsOacieWtl+autSArIOWNoOS9jSBzY2VuZSDlkI0s5L+d6K+B57uE5Lu26IO9IG1vdW50ICsg5riy5p+TICsg6YCa6L+HIHR5cGVjaGVja+OAglxuICpcbiAqIOmAgumFjSBkb2NrdmlldyDnrb7lkI06XG4gKiAgLSBEb2Nrdmlld0NlbnRlclRhYnMg55SoIGBhcyB1bmtub3duIGFzIElEb2Nrdmlld1BhbmVsUHJvcHNgIOW8uui9rCzmiJHku6zmjqXlj5dcbiAqICAgIHByb3BzIOS9huS4jeiuv+mXriBwcm9wcy5wYXJhbXMgLyBwcm9wcy5hcGko6K+K5pat5oql5ZGKIEItMDcg5o+Q5Yiw55qEXCJhcyB1bmtub3duXCLlj43mqKHlvI8sXG4gKiAgICDmnKznu4Tku7bnrb7lkI3ku43kuLogKCkgPT4gSlNYLkVsZW1lbnQs5LiO5by66L2s5a+56b2QKeOAglxuICogIC0gU2lkZVBhbmVsIOS4jeS8oCBwcm9wcyznm7TmjqUgbW91bnQg5LmfIE9L44CCXG4gKlxuICog6KGM5Li6OlxuICogIC0g5LiK5Y2K6YOo5YiGOnNjZW5lIOWIl+ihqCjnm67liY3ku44gbWFuaWZlc3QuY2hhcmFjdGVycyArIOmdmeaAgSBmYWxsYmFjayDljaDkvY0pXG4gKiAgLSDkuIvljYrpg6jliIY6Y2hhcmFjdGVyIOWIl+ihqCjku44gbWFuaWZlc3QuY2hhcmFjdGVycyDmtL7nlJ8pXG4gKiAgLSDnqbrmgIE66aG555uu5pyq5omT5byAIC8gbWFuaWZlc3Qg57y65aSx5pe25pi+56S65o+Q56S6XG4gKi9cblxuaW1wb3J0IHsgdXNlVWlTdG9yZSB9IGZyb20gJy4uLy4uL2xpYi9zdG9yZSdcbmltcG9ydCB7IExpc3RUcmVlLCBVc2VyLCBNYXBQaW4gfSBmcm9tICdsdWNpZGUtcmVhY3QnXG5cbi8qKlxuICogTm90ZSBvbiB0aGUgcHJvcHMgc2lnbmF0dXJlOiB0aGlzIGNvbXBvbmVudCBpcyByZW5kZXJlZCBieSBib3RoOlxuICogIC0gU2lkZVBhbmVsIGRpcmVjdGx5IChubyBwcm9wcylcbiAqICAtIERvY2t2aWV3Q2VudGVyVGFicyB2aWEgYGFzIHVua25vd24gYXMgSURvY2t2aWV3UGFuZWxQcm9wc2AgY2FzdFxuICogQm90aCBjb2RlIHBhdGhzIHdvcmsgYmVjYXVzZSB3ZSBkZWNsYXJlIGAoKTogSlNYLkVsZW1lbnRgLiBUaGUgZG9ja3ZpZXcgYWRhcHRlclxuICogY2FzdGluZyBpbiBEb2Nrdmlld0NlbnRlclRhYnMgaGFuZGxlcyB0aGUgcHJvcCBmb3J3YXJkaW5nIGNvbmNlcm4gZXh0ZXJuYWxseS5cbiAqL1xuZXhwb3J0IGNvbnN0IE91dGxpbmVQYW5lbCA9ICgpOiBKU1guRWxlbWVudCA9PiB7XG4gIGNvbnN0IHByb2plY3ROYW1lID0gdXNlVWlTdG9yZSgocykgPT4gcy5wcm9qZWN0TmFtZSlcbiAgY29uc3QgbWFuaWZlc3QgPSB1c2VVaVN0b3JlKChzKSA9PiBzLm1hbmlmZXN0KVxuICBjb25zdCBhY3RpdmVTY3JpcHRGaWxlID0gdXNlVWlTdG9yZSgocykgPT4gcy5hY3RpdmVTY3JpcHRGaWxlKVxuXG4gIGlmICghbWFuaWZlc3QpIHtcbiAgICByZXR1cm4gKFxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJoLWZ1bGwgZmxleCBmbGV4LWNvbCBpdGVtcy1jZW50ZXIganVzdGlmeS1jZW50ZXIgdGV4dC10ZXh0LW11dGVkIGJnLWJnIHAtOFwiPlxuICAgICAgICA8TGlzdFRyZWUgY2xhc3NOYW1lPVwidy04IGgtOCBtYi0yIG9wYWNpdHktNDBcIiAvPlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQteHNcIj7miZPlvIDpobnnm67ku6Xmn6XnnIvlpKfnurI8L2Rpdj5cbiAgICAgICAge3Byb2plY3ROYW1lICYmIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gbXQtMSBvcGFjaXR5LTYwXCI+e3Byb2plY3ROYW1lfTwvZGl2Pn1cbiAgICAgIDwvZGl2PlxuICAgIClcbiAgfVxuXG4gIGNvbnN0IGNoYXJhY3RlcnMgPSBtYW5pZmVzdC5jaGFyYWN0ZXJzID8/IFtdXG5cbiAgLy8g5Y2g5L2NOuS7jiBhY3RpdmVTY3JpcHRGaWxlIOaOqOS4gOS4quS8qiBzY2VuZSDlkI0o5pys6L2u5LiN6Kej5p6QIC5nYWwpXG4gIC8vIOWQjue7rSBQUjrotbAgc2NyaXB0LnBhcnNlICsg5o+Q5Y+WID09PSDmrrXokL0gPT09XG4gIGNvbnN0IHBsYWNlaG9sZGVyU2NlbmVzID0gYWN0aXZlU2NyaXB0RmlsZVxuICAgID8gW1xuICAgICAgICB7IGlkOiAnb3BlbmluZycsIGxhYmVsOiAn5byA5Zy6JywgbGluZTogMSB9LFxuICAgICAgICB7IGlkOiAnbWVldCcsIGxhYmVsOiAn55u46YGHJywgbGluZTogMTggfSxcbiAgICAgICAgeyBpZDogJ2Nob2ljZScsIGxhYmVsOiAn6YCJ5oup54K5JywgbGluZTogMjcgfVxuICAgICAgXVxuICAgIDogW11cblxuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPVwiaC1mdWxsIGZsZXggZmxleC1jb2wgYmctYmdcIiBkYXRhLXRlc3RpZD1cIm91dGxpbmUtcGFuZWxcIj5cbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwiaC0xMCBweC0zIGZsZXggaXRlbXMtY2VudGVyIGdhcC0yIGJvcmRlci1iIGJvcmRlci1ib3JkZXIgYmctc3VyZmFjZVwiPlxuICAgICAgICA8TGlzdFRyZWUgY2xhc3NOYW1lPVwidy00IGgtNCB0ZXh0LXRleHQtbXV0ZWRcIiAvPlxuICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LXhzIGZvbnQtbWVkaXVtIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciB0ZXh0LXRleHQtbXV0ZWRcIj7lpKfnurI8L3NwYW4+XG4gICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIHRleHQtdGV4dC1tdXRlZFwiPntwcm9qZWN0TmFtZSA/PyAnJ308L3NwYW4+XG4gICAgICA8L2Rpdj5cblxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4LTEgZ3JpZCBncmlkLWNvbHMtMSBtZDpncmlkLWNvbHMtMiBnYXAtMCBvdmVyZmxvdy1oaWRkZW5cIj5cbiAgICAgICAgPHNlY3Rpb24gY2xhc3NOYW1lPVwiZmxleCBmbGV4LWNvbCBvdmVyZmxvdy1oaWRkZW4gYm9yZGVyLXIgYm9yZGVyLWJvcmRlclwiPlxuICAgICAgICAgIDxoZWFkZXIgY2xhc3NOYW1lPVwiaC05IHB4LTMgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTEuNSBiZy1zdXJmYWNlIGJvcmRlci1iIGJvcmRlci1ib3JkZXJcIj5cbiAgICAgICAgICAgIDxNYXBQaW4gY2xhc3NOYW1lPVwidy0zLjUgaC0zLjUgdGV4dC10ZXh0LW11dGVkXCIgLz5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtbWVkaXVtIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciB0ZXh0LXRleHQtbXV0ZWRcIj5cbiAgICAgICAgICAgICAg5Zy65pmvXG4gICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LXRleHQtbXV0ZWRcIj4oe3BsYWNlaG9sZGVyU2NlbmVzLmxlbmd0aH0pPC9zcGFuPlxuICAgICAgICAgIDwvaGVhZGVyPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZmxleC0xIG92ZXJmbG93LWF1dG8gcC0yIHNwYWNlLXktMC41XCI+XG4gICAgICAgICAgICB7cGxhY2Vob2xkZXJTY2VuZXMubGVuZ3RoID09PSAwID8gKFxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtWzExcHhdIHRleHQtdGV4dC1tdXRlZCBweC0yIHB5LTEuNVwiPuWwmuacquaJk+W8gOWJp+acrDwvZGl2PlxuICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgcGxhY2Vob2xkZXJTY2VuZXMubWFwKChzKSA9PiAoXG4gICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAga2V5PXtzLmlkfVxuICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJ3LWZ1bGwgZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgcHgtMiBweS0xLjUgcm91bmRlZC1tZCBob3ZlcjpiZy1iZy1lbGV2YXRlZCB0ZXh0LWxlZnRcIlxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEwcHhdIGZvbnQtbW9ubyB0ZXh0LXRleHQtbXV0ZWQgdy02IHRleHQtcmlnaHRcIj5cbiAgICAgICAgICAgICAgICAgICAge3MubGluZX1cbiAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzEycHhdXCI+e3MubGFiZWx9PC9zcGFuPlxuICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICApKVxuICAgICAgICAgICAgKX1cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9zZWN0aW9uPlxuXG4gICAgICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cImZsZXggZmxleC1jb2wgb3ZlcmZsb3ctaGlkZGVuXCI+XG4gICAgICAgICAgPGhlYWRlciBjbGFzc05hbWU9XCJoLTkgcHgtMyBmbGV4IGl0ZW1zLWNlbnRlciBnYXAtMS41IGJnLXN1cmZhY2UgYm9yZGVyLWIgYm9yZGVyLWJvcmRlclwiPlxuICAgICAgICAgICAgPFVzZXIgY2xhc3NOYW1lPVwidy0zLjUgaC0zLjUgdGV4dC10ZXh0LW11dGVkXCIgLz5cbiAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInRleHQtWzExcHhdIGZvbnQtbWVkaXVtIHVwcGVyY2FzZSB0cmFja2luZy13aWRlciB0ZXh0LXRleHQtbXV0ZWRcIj5cbiAgICAgICAgICAgICAg6KeS6ImyXG4gICAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJ0ZXh0LVsxMHB4XSB0ZXh0LXRleHQtbXV0ZWRcIj4oe2NoYXJhY3RlcnMubGVuZ3RofSk8L3NwYW4+XG4gICAgICAgICAgPC9oZWFkZXI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4LTEgb3ZlcmZsb3ctYXV0byBwLTIgc3BhY2UteS0wLjVcIj5cbiAgICAgICAgICAgIHtjaGFyYWN0ZXJzLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ0ZXh0LVsxMXB4XSB0ZXh0LXRleHQtbXV0ZWQgcHgtMiBweS0xLjVcIj7lsJrmnKrliJvlu7rop5LoibI8L2Rpdj5cbiAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgIGNoYXJhY3RlcnMubWFwKChjKSA9PiAoXG4gICAgICAgICAgICAgICAgPGRpdlxuICAgICAgICAgICAgICAgICAga2V5PXtjLmlkfVxuICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiZmxleCBpdGVtcy1jZW50ZXIgZ2FwLTIgcHgtMiBweS0xLjUgcm91bmRlZC1tZCBob3ZlcjpiZy1iZy1lbGV2YXRlZFwiXG4gICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgPFVzZXIgY2xhc3NOYW1lPVwidy0zIGgtMyB0ZXh0LXRleHQtbXV0ZWQgc2hyaW5rLTBcIiAvPlxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmbGV4LTEgbWluLXctMFwiPlxuICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInRleHQtWzEycHhdIHRydW5jYXRlXCI+e2MubmFtZX08L2Rpdj5cbiAgICAgICAgICAgICAgICAgICAge2MucGVyc29uYWxpdHkgJiYgKFxuICAgICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidGV4dC1bMTBweF0gdGV4dC10ZXh0LW11dGVkIHRydW5jYXRlXCI+e2MucGVyc29uYWxpdHl9PC9kaXY+XG4gICAgICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKSlcbiAgICAgICAgICAgICl9XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvc2VjdGlvbj5cbiAgICAgIDwvZGl2PlxuXG4gICAgICA8Zm9vdGVyIGNsYXNzTmFtZT1cImgtNyBweC0zIGZsZXggaXRlbXMtY2VudGVyIHRleHQtWzEwcHhdIHRleHQtdGV4dC1tdXRlZCBib3JkZXItdCBib3JkZXItYm9yZGVyIGJnLXN1cmZhY2VcIj5cbiAgICAgICAg5aSn57qy6KeG5Zu+5Z+65LqOIG1hbmlmZXN0IOa0vueUn+OAglYyOuino+aekCAuZ2FsIOiEmuacrOeUn+aIkCBzY2VuZSArIGNob2ljZSDmoJHjgIJcbiAgICAgIDwvZm9vdGVyPlxuICAgIDwvZGl2PlxuICApXG59Il0sImZpbGUiOiIvc3JjL3JlbmRlcmVyL3NyYy9mZWF0dXJlcy9vdXRsaW5lL091dGxpbmVQYW5lbC50c3gifQ==
