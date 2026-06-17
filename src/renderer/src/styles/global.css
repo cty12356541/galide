@@ -136,7 +136,8 @@
 }
 
 .mosaic-window {
-  border: 1px solid var(--border) !important;
+  /* 边框弱化(只 0.5px + 用 shadow 表达岛感),避免大灰色框突兀感 */
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent) !important;
   box-shadow: var(--shadow-panel) !important;
   border-radius: 12px !important;
   background: var(--surface) !important;
@@ -184,10 +185,10 @@
   overflow: hidden !important;
 }
 
-/* 分隔条(react-mosaic 自带 Splitter)细一点 */
+/* 分隔条(react-mosaic 自带 Splitter)— 1px 分隔线,hover 强调 */
 .mosaic-split {
-  background: var(--canvas) !important;
+  background: var(--border) !important;
 }
 .mosaic-split:hover {
-  background: var(--accent-soft) !important;
+  background: var(--accent) !important;
 }
