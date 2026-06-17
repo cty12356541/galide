@@ -128,7 +128,7 @@
  */
 .mosaic-root {
   background: var(--canvas) !important;
-  padding: 4px !important;
+  padding: 8px !important;
 }
 
 .mosaic-tile {
@@ -138,7 +138,7 @@
 .mosaic-window {
   border: 1px solid var(--border) !important;
   box-shadow: var(--shadow-panel) !important;
-  border-radius: 6px !important;
+  border-radius: 12px !important;
   background: var(--surface) !important;
   overflow: hidden !important;
 }
@@ -164,8 +164,8 @@
   padding: 0 8px !important;
   background: var(--bg-elevated) !important;
   border-bottom: 1px solid var(--border) !important;
-  border-top-left-radius: 6px !important;
-  border-top-right-radius: 6px !important;
+  border-top-left-radius: 12px !important;
+  border-top-right-radius: 12px !important;
   gap: 4px !important;
 }
 
@@ -179,8 +179,8 @@
 
 .mosaic-window-body {
   background: var(--surface) !important;
-  border-bottom-left-radius: 6px !important;
-  border-bottom-right-radius: 6px !important;
+  border-bottom-left-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
   overflow: hidden !important;
 }
 

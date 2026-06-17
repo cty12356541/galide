@@ -33,11 +33,11 @@ export const CenterSplit = (): JSX.Element => {
   // AI 在底部:上下分栏(center 上 / ai 下)
   if (showAi && aiDockedLocation === 'bottom') {
     return (
-      <PanelGroup direction="vertical" autoSaveId="galide-center-bottom" className="flex-1 min-h-0">
+      <PanelGroup direction="vertical" autoSaveId="galide-center-bottom" className="flex-1 min-h-0 gap-2">
         <Panel defaultSize={70} minSize={30}>
           <CenterWithLeft leftOpen={showLeft} />
         </Panel>
-        <PanelResizeHandle className="h-1 bg-border hover:bg-accent transition-colors" />
+        <PanelResizeHandle className="h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1" />
         <Panel defaultSize={30} minSize={15} maxSize={60}>
           <AiToolWindow />
         </Panel>
@@ -47,27 +47,29 @@ export const CenterSplit = (): JSX.Element => {
 
   // AI 在右侧(默认):左右分栏(left | center | right)
   return (
-    <PanelGroup direction="horizontal" autoSaveId="galide-center-right" className="flex-1 min-h-0">
+    <PanelGroup direction="horizontal" autoSaveId="galide-center-right" className="flex-1 min-h-0 gap-2">
       {showLeft ? (
         <>
           <Panel defaultSize={20} minSize={12} maxSize={40} collapsible>
-            <div className="h-full border-r border-border overflow-hidden">
+            <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
               <LeftToolWindow />
             </div>
           </Panel>
-          <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors" />
+          <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
         </>
       ) : null}
       <Panel defaultSize={showAi ? 50 : 100} minSize={30}>
-        <div className="h-full w-full overflow-hidden">
+        <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
           <MosaicRoot />
         </div>
       </Panel>
       {showAi ? (
         <>
-          <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors" />
+          <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
           <Panel defaultSize={30} minSize={15} maxSize={60} collapsible>
-            <AiToolWindow />
+            <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
+              <AiToolWindow />
+            </div>
           </Panel>
         </>
       ) : null}
@@ -82,15 +84,15 @@ export const CenterSplit = (): JSX.Element => {
 const CenterWithLeft = ({ leftOpen }: { leftOpen: boolean }): JSX.Element => {
   if (!leftOpen) return <MosaicRoot />
   return (
-    <PanelGroup direction="horizontal" autoSaveId="galide-center-bottom-left" className="h-full">
+    <PanelGroup direction="horizontal" autoSaveId="galide-center-bottom-left" className="h-full gap-2">
       <Panel defaultSize={20} minSize={12} maxSize={40} collapsible>
-        <div className="h-full border-r border-border overflow-hidden">
+        <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
           <LeftToolWindow />
         </div>
       </Panel>
-      <PanelResizeHandle className="w-1 bg-border hover:bg-accent transition-colors" />
+      <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
       <Panel defaultSize={80} minSize={30}>
-        <div className="h-full w-full overflow-hidden">
+        <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
           <MosaicRoot />
         </div>
       </Panel>

@@ -77,7 +77,7 @@ const Header = ({
   onClose: () => void
 }): JSX.Element => {
   return (
-    <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1 justify-end">
+    <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1 justify-end rounded-t-xl">
       <button
         type="button"
         onClick={() => float('left-tool-window')}

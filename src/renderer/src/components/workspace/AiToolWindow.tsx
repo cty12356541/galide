@@ -25,7 +25,7 @@ export const AiToolWindow = (): JSX.Element => {
 
   return (
     <section className="group h-full flex flex-col bg-surface" data-testid="ai-tool-window">
-      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1.5 min-w-0">
+      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1.5 min-w-0 rounded-t-xl">
         <Sparkles className="w-3.5 h-3.5 text-accent" />
         <span className="text-xs font-medium">AI 助手</span>
         <div className="flex-1" />
