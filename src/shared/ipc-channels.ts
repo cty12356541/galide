@@ -43,7 +43,11 @@ export const IPC = {
     keySet: 'ai:keySet',
     keyDelete: 'ai:keyDelete',
     keyHas: 'ai:keyHas',
-    connectionTest: 'ai:connectionTest'
+    connectionTest: 'ai:connectionTest',
+    connTest: {
+      stream: 'ai:connTest:stream',
+      status: 'ai:connTest:status'
+    }
   },
   preferences: {
     get: 'preferences:get',
@@ -80,13 +84,18 @@ export const IPC = {
     prompt: 'dialog:prompt'
   },
   asset: {
-    list: 'asset:list'
+    list: 'asset:list',
+    resolve: 'asset:resolve'
   },
   workspace: {
     readProject: 'workspace:readProject',
     writeProject: 'workspace:writeProject',
     readGlobal: 'workspace:readGlobal',
-    writeGlobal: 'workspace:writeGlobal'
+    writeGlobal: 'workspace:writeGlobal',
+    /** PR2: 在独立 BrowserWindow 中浮出 panel(走 main 端 createWindow) */
+    openPanel: 'workspace:openPanel',
+    /** PR2: 浮出 panel 关闭时通知 renderer 清理 store */
+    panelClosed: 'workspace:panelClosed'
   }
 } as const
 

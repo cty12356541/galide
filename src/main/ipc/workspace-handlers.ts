@@ -123,4 +123,116 @@ export const registerWorkspaceHandlers = (): void => {
       }
     }
   )
+
+  // PR2: 浮出 panel 到独立 BrowserWindow
+  ipcMain.handle(
+    IPC.workspace.openPanel,
+    async (
+      e,
+      args: { panelId: unknown }
+    ): Promise<{ ok: true; windowId: number } | { ok: false; error: string }> => {
+      if (!_internalFns.isValidPanelId(args?.panelId)) {
+        return { ok: false, error: 'panelId 必须是 script-editor | flow-view | preview-canvas 之一' }
+      }
+      try {
+        const win = createFloatingPanelWindow(e.sender, args.panelId)
+        return { ok: true, windowId: win.id }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+}
+/**
+ * PR2: 浮出 panel — 独立 BrowserWindow
+ *
+ * 实现:
+ *   - 收到 workspace:openPanel({ panelId, ownerWebContentsId }) 后创建 BrowserWindow
+ *   - 加载 renderer URL + `?floating=1&panelId=xxx`
+ *   - 监听窗口 'closed' → 给 owner 推 workspace:panelClosed 通知,renderer 收到后 removeFloatingPanel
+ *
+ * 注意点:
+ *   - 限制同时浮出窗口数(防误操作刷屏)— MAX_FLOATING = 3
+ *   - BrowserWindow 配置用最简的(无 toolbar,只显示内容)
+ *   - 复用 main 端 preload 桥(单点维护)
+ */
+import { BrowserWindow, type WebContents } from 'electron'
+import { is } from '@electron-toolkit/utils'
+
+const MAX_FLOATING = 3
+
+type FloatingRegistryEntry = {
+  panelId: string
+  ownerId: number
+  window: BrowserWindow
+}
+
+const floatingRegistry = new Map<number, FloatingRegistryEntry>()
+
+const isValidPanelId = (v: unknown): v is 'script-editor' | 'flow-view' | 'preview-canvas' => {
+  return v === 'script-editor' || v === 'flow-view' || v === 'preview-canvas'
+}
+
+const findOwner = (id: number): WebContents | null => {
+  const c = BrowserWindow.fromId(id)?.webContents
+  if (!c || c.isDestroyed()) return null
+  return c
+}
+void findOwner
+
+export const _internalFns = { isValidPanelId }
+
+/**
+ * 创建 floating panel 窗口(供 workspace-handlers.ts 内的 ipcMain.handle 调用)
+ */
+export const createFloatingPanelWindow = (
+  ownerWebContents: WebContents,
+  panelId: 'script-editor' | 'flow-view' | 'preview-canvas'
+): BrowserWindow => {
+  if (floatingRegistry.size >= MAX_FLOATING) {
+    throw new Error(`已到达最大浮出数 ${MAX_FLOATING},请先关闭部分浮出窗口`)
+  }
+
+  const ownerId = ownerWebContents.id
+
+  const win = new BrowserWindow({
+    width: 720,
+    height: 540,
+    minWidth: 320,
+    minHeight: 240,
+    show: false,
+    autoHideMenuBar: true,
+    titleBarStyle: 'hiddenInset',
+    backgroundColor: '#fafaf9',
+    parent: BrowserWindow.fromWebContents(ownerWebContents) ?? undefined,
+    webPreferences: {
+      preload: join(__dirname, '../../preload/index.mjs'),
+      sandbox: false,
+      contextIsolation: true,
+      additionalArguments: [`--galide-floating=${panelId}`]
+    }
+  })
+
+  win.on('ready-to-show', () => win.show())
+
+  // 关闭时通知 owner
+  win.on('closed', () => {
+    const entry = floatingRegistry.get(win.id)
+    floatingRegistry.delete(win.id)
+    if (!entry) return
+    const owner = findOwner(entry.ownerId)
+    if (owner && !owner.isDestroyed()) {
+      owner.send(IPC.workspace.panelClosed, { panelId: entry.panelId })
+    }
+  })
+
+  // URL 加 query 让 renderer 知道是 floating 模式
+  const baseUrl = is.dev && process.env['ELECTRON_RENDERER_URL']
+    ? process.env['ELECTRON_RENDERER_URL']
+    : `file://${join(__dirname, '../renderer/index.html')}`
+  const target = baseUrl + (baseUrl.includes('?') ? '&' : '?') + `floating=1&panelId=${encodeURIComponent(panelId)}`
+  void win.loadURL(target)
+
+  floatingRegistry.set(win.id, { panelId, ownerId, window: win })
+  return win
 }

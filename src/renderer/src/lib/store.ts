@@ -1,21 +1,37 @@
+/**
+ * Galide renderer 端 zustand store
+ *
+ * P1 重构(2026-06-17): 删掉 `workspaceLayout: WorkspaceLayout` 嵌套对象(治本)
+ *   - 不再序列化、不再 hydrate、不再 debounce 写盘、不再用 useRef + useEffect 绕 deps
+ *   - 改 5 个独立标量字段: workspacePreset / leftPanelOpen / leftPanel / aiPanelOpen / aiPanelDocked
+ *   - 单一职责,UI 状态走 React,持久化(如有需要)走 useUiStore.subscribe + IPC 监听
+ *
+ * 设计原则:
+ *   - 标量字段优先于嵌套对象:细粒度订阅,避免无关组件 re-render
+ *   - action 简短(1-2 行 set),复杂逻辑(preset 应用)放 hook 层
+ *   - 主题切换 setTheme 仍包含 DOM 副作用(toggle .dark class),但用 useEffect 在 App 层
+ *     监听 theme 变化统一处理,不在 set 中(避免 SSR / happy-dom 环境下崩)
+ */
 import { create } from 'zustand'
 import type { ProjectManifest } from '../../../shared/types'
 import type { PreferencesSection } from '../../../shared/preferences'
 import type { RecentProject, ErrorEntry, SelectedNode } from './types'
-import {
-  DEFAULT_WORKSPACE_LAYOUT,
-  applyWorkspacePreset as applyPresetPure,
-  mergeWorkspaceLayout,
-  type WorkspaceLayout,
-  type WorkspacePresetId,
-  type ActivityBarItemId,
-  type RightDockId
-} from './workspace-layout'
+import type { PanelId } from '../components/workspace/mosaic/panel-registry'
+import type { MosaicNode } from 'react-mosaic-component'
+
+export type WorkspacePresetId = 'writing' | 'flow' | 'review'
+
+/**
+ * Mosaic 树节点 — 字符串叶子是 panel id
+ * 与 PR2 组件岛风格配合
+ */
+export type WorkspaceMosaicNode = MosaicNode<PanelId>
+export type LeftPanelId = 'project' | 'git' | 'closed'
+export type AiDockedLocation = 'right' | 'bottom' | 'left' | 'floating'
 
 type Theme = 'light' | 'dark'
 
-/** 老 EditorLayout 字段(保留兼容 — in-flight 改造后大部分组件切到 workspaceLayout,
- *  但 EditorArea / setLayout 之类暂留以避免大面积破坏老调用方) */
+/** 老 EditorLayout 字段(保留兼容,后续可弃用) */
 type EditorLayout = {
   sidebar: number
   editor: number
@@ -31,53 +47,54 @@ const defaultLayout: EditorLayout = {
 }
 
 type UiState = {
+  // project
   projectPath: string | null
   projectName: string | null
   manifest: ProjectManifest | null
   activeScriptFile: string | null
-  /** 规约 workspace_layout:6 区域布局(中央 tab / activity panel / right dock) */
-  workspaceLayout: WorkspaceLayout
-  /** 老布局字段(panel 宽窄比),保留以兼容 EditorArea。后续可弃用。 */
+
+  // workspace (P1 重构: 标量化)
+  workspacePreset: WorkspacePresetId
+  leftPanelOpen: boolean
+  leftPanel: LeftPanelId
+  aiPanelOpen: boolean
+  aiDockedLocation: AiDockedLocation
+  /** P2: mosaic 树,字符串叶子 = panel id。null = 还没初始化 */
+  mosaicTree: WorkspaceMosaicNode | null
+  /** P2: 浮出独立 BrowserWindow 的 panel 列表 */
+  floatingPanels: readonly PanelId[]
+
+  // editor layout (保留兼容)
   layout: EditorLayout
-  recentProjects: RecentProject[]
+
+  // UI state
   theme: Theme
-  selectedNode: SelectedNode
   commandPaletteOpen: boolean
   preferencesOpen: boolean
   preferencesSection: PreferencesSection
   exportDialogOpen: boolean
   commitDialogOpen: boolean
-  /**
-   * P1 修复(2026-06-13): "新建项目" 对话框开关。
-   * 提升到 store 以便 CommandPalette 与 WelcomeScreen 共享同一对话框(避免硬编码 '新项目')。
-   */
   newProjectDialogOpen: boolean
-  /** 录制快捷键时为 true,App 级 keydown 监听器应当 early-return (P1-3 修复) */
   shortcutRecording: boolean
-  /** 老 aiPanelOpen(保留兼容),与 workspaceLayout.rightDock 双向同步 */
-  aiPanelOpen: boolean
+
+  // recent
+  recentProjects: RecentProject[]
+  selectedNode: SelectedNode
+
+  // actions
   setProject: (projectPath: string, manifest: ProjectManifest) => void
   setActiveScript: (fileName: string | null) => void
-  /**
-   * 原子事务: 一次写入 activity/tabs/dock 三组状态(Rule 4)
-   */
-  applyWorkspacePreset: (presetId: WorkspacePresetId) => void
-  /**
-   * 启动时从持久化层恢复,字段缺失时降级到 DEFAULT_WORKSPACE_LAYOUT(Rule 6)
-   */
-  hydrateWorkspaceLayout: (stored: WorkspaceLayout | null | undefined) => void
-  /**
-   * 切换 Activity Bar 项的激活状态(multi-split)
-   */
-  toggleActivity: (id: ActivityBarItemId) => void
-  /**
-   * 设置右侧 Dock 内容(null 表示收起)
-   */
-  setRightDock: (id: RightDockId | null) => void
+  setWorkspacePreset: (preset: WorkspacePresetId) => void
+  toggleLeftPanel: () => void
+  setLeftPanel: (id: LeftPanelId) => void
+  toggleAiPanel: () => void
+  setAiDockedLocation: (loc: AiDockedLocation) => void
+  setMosaicTree: (tree: WorkspaceMosaicNode) => void
+  setFloatingPanels: (panels: readonly PanelId[]) => void
+  addFloatingPanel: (panel: PanelId) => void
+  removeFloatingPanel: (panel: PanelId) => void
   setLayout: (layout: Partial<EditorLayout>) => void
   setRecentProjects: (recent: RecentProject[]) => void
-  /** 老 API,内部同步到 setRightDock */
-  toggleAiPanel: (open?: boolean) => void
   setTheme: (theme: Theme) => void
   setSelectedNode: (node: SelectedNode) => void
   toggleCommandPalette: (open?: boolean) => void
@@ -98,7 +115,13 @@ export const useUiStore = create<UiState>((set) => ({
   projectName: null,
   manifest: null,
   activeScriptFile: 'chapter1.gal',
-  workspaceLayout: { ...DEFAULT_WORKSPACE_LAYOUT },
+  workspacePreset: 'writing',
+  leftPanelOpen: true,
+  leftPanel: 'project',
+  aiPanelOpen: true,
+  aiDockedLocation: 'right',
+  mosaicTree: null,
+  floatingPanels: [],
   layout: defaultLayout,
   recentProjects: [],
   theme: 'light',
@@ -110,53 +133,27 @@ export const useUiStore = create<UiState>((set) => ({
   commitDialogOpen: false,
   newProjectDialogOpen: false,
   shortcutRecording: false,
-  aiPanelOpen: false,
+
   setProject: (projectPath, manifest) =>
     set({ projectPath, manifest, projectName: manifest.name }),
   setActiveScript: (fileName) => set({ activeScriptFile: fileName }),
-  applyWorkspacePreset: (presetId) =>
-    set((s) => {
-      const next = applyPresetPure(s.workspaceLayout, presetId)
-      return {
-        workspaceLayout: next,
-        // 同步老 aiPanelOpen 字段以兼容
-        aiPanelOpen: next.rightDock !== null
-      }
-    }),
-  hydrateWorkspaceLayout: (stored) =>
-    set((s) => {
-      const merged = mergeWorkspaceLayout(stored, s.workspaceLayout)
-      return {
-        workspaceLayout: merged,
-        aiPanelOpen: merged.rightDock !== null
-      }
-    }),
-  toggleActivity: (id) =>
-    set((s) => {
-      const current = s.workspaceLayout.activeActivity
-      const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id]
-      return {
-        workspaceLayout: { ...s.workspaceLayout, activeActivity: next }
-      }
-    }),
-  setRightDock: (id) =>
-    set((s) => ({
-      workspaceLayout: { ...s.workspaceLayout, rightDock: id },
-      aiPanelOpen: id !== null
-    })),
+  setWorkspacePreset: (preset) => set({ workspacePreset: preset }),
+  toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
+  setLeftPanel: (id) => set({ leftPanel: id, leftPanelOpen: id !== 'closed' }),
+  toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
+  setAiDockedLocation: (loc) => set({ aiDockedLocation: loc }),
+  setMosaicTree: (tree) => set({ mosaicTree: tree }),
+  setFloatingPanels: (panels) => set({ floatingPanels: panels }),
+  addFloatingPanel: (panel) =>
+    set((s) =>
+      s.floatingPanels.includes(panel)
+        ? s
+        : { floatingPanels: [...s.floatingPanels, panel] }
+    ),
+  removeFloatingPanel: (panel) =>
+    set((s) => ({ floatingPanels: s.floatingPanels.filter((p) => p !== panel) })),
   setLayout: (layout) => set((s) => ({ layout: { ...s.layout, ...layout } })),
   setRecentProjects: (recent) => set({ recentProjects: recent }),
-  toggleAiPanel: (open) =>
-    set((s) => {
-      const next = open !== undefined ? open : !s.aiPanelOpen
-      return {
-        aiPanelOpen: next,
-        workspaceLayout: {
-          ...s.workspaceLayout,
-          rightDock: next ? 'ai' : null
-        }
-      }
-    }),
   setTheme: (theme) => {
     set({ theme })
     if (typeof document !== 'undefined') {
@@ -186,32 +183,31 @@ export const useUiStore = create<UiState>((set) => ({
   setShortcutRecording: (recording) => set({ shortcutRecording: recording })
 }))
 
+type ErrorPushInput = Omit<ErrorEntry, 'id' | 'timestamp'> & {
+  id?: string
+  timestamp?: number
+}
+
 type ErrorState = {
   entries: ErrorEntry[]
-  push: (entry: Omit<ErrorEntry, 'id' | 'timestamp'>) => void
+  push: (entry: ErrorPushInput) => void
   dismiss: (id: string) => void
   clear: () => void
 }
 
-/**
- * T1 §4.4 P1-9 / T3 §4 P1-9 修复(2026-06-14): useErrorStore LRU 上限
- * 防长会话持续报错时 entries 无限增长(AI provider 不可用 + 高频操作场景)。
- * 实测: 10 分钟 × 每秒 1 次 ≈ 600 entries × 200B ≈ 120KB / 10min。
- * 截断到最近 100 条,旧错误自然淘汰。
- */
 const MAX_ERROR_ENTRIES = 100
 
 export const useErrorStore = create<ErrorState>((set) => ({
   entries: [],
   push: (entry) =>
     set((s) => {
-      const next = [
-        ...s.entries,
-        { ...entry, id: crypto.randomUUID(), timestamp: Date.now() }
-      ]
-      return { entries: next.length > MAX_ERROR_ENTRIES ? next.slice(-MAX_ERROR_ENTRIES) : next }
+      // P1 重构: 接受宽松输入(id / timestamp 缺省时自动补),兼容老调用方
+      const id = entry.id ?? crypto.randomUUID()
+      const timestamp = entry.timestamp ?? Date.now()
+      const without = s.entries.filter((e) => e.id !== id)
+      const next = [{ ...entry, id, timestamp }, ...without].slice(0, MAX_ERROR_ENTRIES)
+      return { entries: next }
     }),
-  dismiss: (id) =>
-    set((s) => ({ entries: s.entries.filter((e) => e.id !== id) })),
+  dismiss: (id) => set((s) => ({ entries: s.entries.filter((e) => e.id !== id) })),
   clear: () => set({ entries: [] })
 }))

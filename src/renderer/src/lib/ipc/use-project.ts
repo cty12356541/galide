@@ -1,14 +1,8 @@
 import { useCallback } from 'react'
-import type { GalideApi } from '../../../../preload'
 import { useErrorStore } from '../store'
 import type { ProjectManifest } from '../../../../shared/types'
 import { useUiStore } from '../store'
 
-declare global {
-  interface Window {
-    galide: GalideApi
-  }
-}
 
 const wrap = async <T>(
   source: string,

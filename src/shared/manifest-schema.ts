@@ -6,7 +6,7 @@
  *
  * 规约: layers/main-process/conventions.yaml — manifest 入口必须校验
  */
-import { z } from 'zod'
+import * as z from 'zod/v4'
 import type { ProjectManifest } from './types.js'
 import type { Result } from './dsl/types.js'
 

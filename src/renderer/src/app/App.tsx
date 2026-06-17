@@ -1,152 +1,79 @@
 /**
- * App.tsx — 顶层布局(规约 workspace_layout 6 区域)
+ * App.tsx — Galide 顶层布局(PyCharm 2026 组件岛风格)
  *
- * 规约依据: .style-spec/layers/renderer/conventions.yaml#workspace_layout
- *   6 区域: title_bar / activity_bar / side_panel / center_tabs / right_dock / status_bar
- *   6 强约束 (Rule 1-6):
- *     1. 一个面板 = 一个 feature (ActivityBar 6 panel)
- *     2. 中央 Tab Group 走 dockview (DockviewCenterTabs)
- *     3. AI Panel 走 PanelGroup (右 dock,setRightDock('ai'))
- *     4. Workspace 切换原子事务 (applyWorkspacePreset)
- *     5. StatusBar 实时反映 (StatusBarWorkspaceIndicator)
- *     6. layout 序列化容错 (mergeWorkspaceLayout)
+ * 设计:
+ *   - 3 层顶栏: Menu Bar(应用菜单) + Toolbar(项目操作) + Project Tabs(已开文件)
+ *   - 主区: LeftToolWindow | CenterSplit | (可选 AI 右侧 dock) | (可选 AI 底部 dock)
+ *   - 6 区块 StatusBar:git / 错误 / 消息 / 光标 / 缩放 / AI 状态
  *
- * 持久化:
- *   - 启动期 hydrate:useWorkspacePersistence().hydrate(projectPath)
- *   - workspaceLayout 变化:debounce 300ms 写盘(project + global 两层)
- *   - beforeunload 强制 flush 最后一笔
+ * P1 重构(2026-06-17):
+ *   - 删 3 个 useEffect(hydrate / persist / beforeunload flush)
+ *   - 删 workspace_layout 序列化(改由 zustand 标量 + React 自管)
+ *   - 删 useRef × 3(治本:之前用 ref 绕 exhaustive-deps 是历史遗留)
+ *   - 简化 useUiStore 字段(workspaceLayout → 5 个标量)
+ *
+ * 状态语义:
+ *   - leftPanelOpen / leftPanel:左侧 Tool Window(PyCharm Project 风格)
+ *   - aiPanelOpen / aiDockedLocation:右侧 / 底部 / 浮动的 AI Tool Window
+ *   - workspacePreset:writing / flow / review 单值 enum
  */
-
-import { useEffect, useRef } from 'react'
-import { TitleBar } from './TitleBar'
+import { useEffect } from 'react'
+import { useUiStore } from '../lib/store'
+import { useAppearanceEffect } from '../lib/ipc/use-appearance-effect'
+import { MenuBar } from './MenuBar'
+import { Toolbar } from './Toolbar'
+import { ProjectTabs } from './ProjectTabs'
+import { CenterSplit } from '../components/workspace/CenterSplit'
 import { StatusBar } from './StatusBar'
 import { WelcomeScreen } from './WelcomeScreen'
-import { AiPanel } from '../features/ai-panel/AiPanel'
 import { CommandPalette } from '../features/command-palette/CommandPalette'
 import { PreferencesDialog } from '../features/preferences/PreferencesDialog'
 import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
-import { ActivityBar } from '../components/workspace/ActivityBar'
-import { SidePanel } from '../components/workspace/SidePanel'
-import { DockviewCenterTabs } from '../components/workspace/DockviewCenterTabs'
-import { useUiStore } from '../lib/store'
-import { useWorkspacePersistence } from '../lib/ipc/use-workspace'
-import { useAppearanceEffect } from '../lib/ipc/use-appearance-effect'
-
-const PERSIST_DEBOUNCE_MS = 300
+import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
-  const aiPanelOpen = useUiStore((s) => s.aiPanelOpen)
-  const commandPaletteOpen = useUiStore((s) => s.commandPaletteOpen)
   const preferencesOpen = useUiStore((s) => s.preferencesOpen)
-  const workspaceLayout = useUiStore((s) => s.workspaceLayout)
-  const toggleCommandPalette = useUiStore((s) => s.toggleCommandPalette)
-  const openPreferences = useUiStore((s) => s.openPreferences)
-  const closePreferences = useUiStore((s) => s.closePreferences)
-  const shortcutRecording = useUiStore((s) => s.shortcutRecording)
+  const commandPaletteOpen = useUiStore((s) => s.commandPaletteOpen)
+  const exportDialogOpen = useUiStore((s) => s.exportDialogOpen)
+  const commitDialogOpen = useUiStore((s) => s.commitDialogOpen)
 
+  // 主题同步(订阅 store.theme,effect 内 toggle .dark class)
   useAppearanceEffect()
 
-  const persistence = useWorkspacePersistence()
+  // 全局快捷键(Cmd+K / Cmd+, / Cmd+L / Cmd+1 / Cmd+W)
+  useKeyboardShortcuts()
 
-  // P1-4 修复(2026-06-15): hydrate 期间不应触发 persist 写回。
-  // skipNextPersistRef 防止 hydrate 写入的 store 触发 useEffect 写盘回磁盘。
-  const skipNextPersistRef = useRef(true)
-  const projectFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const globalFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // 启动期 hydrate
+  // PR2: 浮出 panel 窗口关闭 → 同步 store
   useEffect(() => {
-    skipNextPersistRef.current = true
-    void persistence.hydrate(projectPath).then((layout) => {
-      useUiStore.getState().hydrateWorkspaceLayout(layout)
+    const off = window.galide.workspace.onPanelClosed(({ panelId }) => {
+      useUiStore.getState().removeFloatingPanel(panelId)
     })
-  }, [projectPath, persistence])
+    return off
+  }, [])
 
-  // 监听快捷键(Cmd+K / Cmd+, / Esc)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent): void => {
-      if (shortcutRecording) return
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        toggleCommandPalette()
-        return
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault()
-        openPreferences()
-        return
-      }
-      if (e.key === 'Escape' && preferencesOpen) {
-        e.preventDefault()
-        closePreferences()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [toggleCommandPalette, openPreferences, closePreferences, preferencesOpen, shortcutRecording])
-
-  // P2-11 修复(2026-06-15): workspaceLayout 变化 → 写盘(300ms debounce + beforeunload flush)
-  useEffect(() => {
-    if (skipNextPersistRef.current) {
-      skipNextPersistRef.current = false
-      return
-    }
-    const layout = workspaceLayout
-    if (projectFlushTimerRef.current) clearTimeout(projectFlushTimerRef.current)
-    if (globalFlushTimerRef.current) clearTimeout(globalFlushTimerRef.current)
-    if (projectPath) {
-      projectFlushTimerRef.current = setTimeout(() => {
-        void persistence.persistProject(projectPath, layout)
-      }, PERSIST_DEBOUNCE_MS)
-    }
-    globalFlushTimerRef.current = setTimeout(() => {
-      void persistence.persistGlobal(layout)
-    }, PERSIST_DEBOUNCE_MS)
-
-    return () => {
-      if (projectFlushTimerRef.current) clearTimeout(projectFlushTimerRef.current)
-      if (globalFlushTimerRef.current) clearTimeout(globalFlushTimerRef.current)
-    }
-  }, [workspaceLayout, projectPath, persistence])
-
-  // beforeunload 强制 flush 最后一笔
-  useEffect(() => {
-    const flush = (): void => {
-      if (projectFlushTimerRef.current) clearTimeout(projectFlushTimerRef.current)
-      if (globalFlushTimerRef.current) clearTimeout(globalFlushTimerRef.current)
-      const layout = useUiStore.getState().workspaceLayout
-      if (projectPath) void persistence.persistProject(projectPath, layout)
-      void persistence.persistGlobal(layout)
-    }
-    window.addEventListener('beforeunload', flush)
-    return () => window.removeEventListener('beforeunload', flush)
-  }, [projectPath, persistence])
-
+  // 偏好页是全屏覆盖,其他都在主区
   if (preferencesOpen) {
     return <PreferencesDialog />
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-bg text-text">
-      <TitleBar />
-      <div className="flex-1 flex overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden">
+      <MenuBar />
+      <Toolbar />
+      <ProjectTabs />
+      <main className="flex-1 min-h-0 flex overflow-hidden">
         {projectPath ? (
-          <>
-            <ActivityBar />
-            <SidePanel />
-            <DockviewCenterTabs />
-            {aiPanelOpen && <AiPanel />}
-          </>
+          <CenterSplit />
         ) : (
           <WelcomeScreen />
         )}
-      </div>
+      </main>
       <StatusBar />
       {commandPaletteOpen && <CommandPalette />}
-      {projectPath && <ExportDialog />}
-      {projectPath && <CommitDialog />}
+      {projectPath && exportDialogOpen && <ExportDialog />}
+      {projectPath && commitDialogOpen && <CommitDialog />}
     </div>
   )
 }

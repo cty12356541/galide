@@ -45,6 +45,7 @@
     "pixi.js": "^8.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "react-mosaic-component": "^6.0.0",
     "react-resizable-panels": "^2.1.0",
     "simple-git": "^3.20.0",
     "sonner": "^1.5.0",

@@ -158,7 +158,7 @@ export const AiPanel = (): JSX.Element => {
           <Sparkles className="w-4 h-4 text-accent" />
           <span className="text-sm font-medium">AI 助手</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => toggleAi(false)}>
+        <Button variant="ghost" size="icon" onClick={() => toggleAi()}>
           <X className="w-4 h-4" />
         </Button>
       </div>

@@ -211,7 +211,19 @@ const api = {
       projectPath: string,
       kind: 'characters' | 'backgrounds' | 'bgm'
     ): Promise<{ ok: boolean; entries: { relPath: string; kind: 'characters' | 'backgrounds' | 'bgm'; size: number }[] }> =>
-      ipcRenderer.invoke(IPC.asset.list, projectPath, kind)
+      ipcRenderer.invoke(IPC.asset.list, projectPath, kind),
+    resolve: (
+      args: { projectPath: string; relPath: string }
+    ): Promise<{
+      ok: boolean
+      dataUrl?: string
+      absolutePath?: string
+      mime?: string
+      size?: number
+      isDataUrl?: boolean
+      code?: string
+      error?: string
+    }> => ipcRenderer.invoke(IPC.asset.resolve, args.projectPath, args.relPath)
   },
   workspace: {
     readProject: (projectPath: string): Promise<{ ok: boolean; layout: WorkspaceLayout | null }> =>
@@ -221,7 +233,23 @@ const api = {
     readGlobal: (): Promise<{ ok: boolean; layout: WorkspaceLayout | null }> =>
       ipcRenderer.invoke(IPC.workspace.readGlobal),
     writeGlobal: (layout: WorkspaceLayout): Promise<{ ok: boolean }> =>
-      ipcRenderer.invoke(IPC.workspace.writeGlobal, layout)
+      ipcRenderer.invoke(IPC.workspace.writeGlobal, layout),
+    /** PR2: 浮出 panel 到独立 BrowserWindow */
+    openPanel: (
+      args: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }
+    ): Promise<{ ok: true; windowId: number } | { ok: false; error: string }> =>
+      ipcRenderer.invoke(IPC.workspace.openPanel, args),
+    /** PR2: 浮出窗口关闭时回调(用于清理 store) */
+    onPanelClosed: (
+      callback: (args: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }) => void
+    ): (() => void) => {
+      const listener = (
+        _e: unknown,
+        payload: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }
+      ): void => callback(payload)
+      ipcRenderer.on(IPC.workspace.panelClosed, listener)
+      return () => ipcRenderer.removeListener(IPC.workspace.panelClosed, listener)
+    }
   }
 }
 

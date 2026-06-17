@@ -99,9 +99,92 @@ export const registerAssetHandlers = (): void => {
         return { ok: true, entries }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        // 防御性:即便 listDirectory 内部已吞掉目录不存在的错,这里仍兜底
         return { ok: false, error: message, entries: [] }
       }
     }
   )
+
+  ipcMain.handle(
+    IPC.asset.resolve,
+    async (_e, projectPath: string, relPath: string) => {
+      return resolveAsset(projectPath, relPath)
+    }
+  )
+}
+const _ALLOWED_PREFIXES = ['assets/', 'scripts/', '.galproj'] as const
+const _MAX_DATAURL_SIZE = 5 * 1024 * 1024
+
+const _safeResolve = (
+  projectPath: string,
+  relPath: string
+): { ok: true; abs: string } | { ok: false; code: 'INVALID_PATH' | 'OUTSIDE_PROJECT'; error: string; isDataUrl?: never } => {
+  if (!relPath || typeof relPath !== 'string') {
+    return { ok: false, code: 'INVALID_PATH', error: 'relPath 不能为空' }
+  }
+  if (relPath.startsWith('/') || /^[a-zA-Z]:/.test(relPath)) {
+    return { ok: false, code: 'INVALID_PATH', error: '绝对路径不被允许' }
+  }
+  if (relPath.split('/').includes('..')) {
+    return { ok: false, code: 'OUTSIDE_PROJECT', error: '路径穿越不被允许' }
+  }
+  if (!_ALLOWED_PREFIXES.some((p) => relPath === p.slice(0, -1) || relPath.startsWith(p))) {
+    return { ok: false, code: 'OUTSIDE_PROJECT', error: `path 必须以 ${_ALLOWED_PREFIXES.join(', ')} 开头` }
+  }
+  return { ok: true, abs: join(projectPath, relPath) }
+}
+
+const _guessMime = (p: string): string => {
+  const ext = p.toLowerCase().split('.').pop() ?? ''
+  const map: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    mp3: 'audio/mpeg',
+    ogg: 'audio/ogg',
+    wav: 'audio/wav',
+    json: 'application/json',
+    txt: 'text/plain'
+  }
+  return map[ext] ?? 'application/octet-stream'
+}
+
+export type ResolveAssetResult =
+  | { ok: true; dataUrl: string; absolutePath: string; mime: string; size: number; isDataUrl: true }
+  | { ok: true; dataUrl: null; absolutePath: string; mime: string; size: number; isDataUrl: false }
+  | { ok: false; error: string; code: 'INVALID_PATH' | 'OUTSIDE_PROJECT' | 'NOT_FOUND' | 'TOO_LARGE' | 'READ_FAILED' }
+
+export const resolveAsset = async (
+  projectPath: string,
+  relPath: string
+): Promise<ResolveAssetResult> => {
+  const r = _safeResolve(projectPath, relPath)
+  if (!r.ok) {
+    return r as ResolveAssetResult
+  }
+  let stat
+  try {
+    stat = await fs.stat(r.abs)
+  } catch {
+    return { ok: false, code: 'NOT_FOUND', error: `file not found: ${relPath}` }
+  }
+  if (!stat.isFile()) {
+    return { ok: false, code: 'INVALID_PATH', error: 'not a file' }
+  }
+  const mime = _guessMime(r.abs)
+  if (stat.size > _MAX_DATAURL_SIZE) {
+    return { ok: true, dataUrl: null, absolutePath: r.abs, mime, size: stat.size, isDataUrl: false }
+  }
+  try {
+    const buf = await fs.readFile(r.abs)
+    const dataUrl = `data:${mime};base64,${buf.toString('base64')}`
+    return { ok: true, dataUrl, absolutePath: r.abs, mime, size: stat.size, isDataUrl: true }
+  } catch (err) {
+    return {
+      ok: false,
+      code: 'READ_FAILED',
+      error: err instanceof Error ? err.message : String(err)
+    }
+  }
 }
