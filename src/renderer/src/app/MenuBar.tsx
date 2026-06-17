@@ -98,7 +98,7 @@ export const MenuBar = (): JSX.Element => {
   return (
     <nav
       aria-label="Menu Bar"
-      className="h-8 bg-surface border-b border-border flex items-center px-1 gap-0.5 flex-shrink-0"
+      className="h-9 bg-surface border-b border-border flex items-center px-1.5 gap-0.5 flex-shrink-0"
       data-testid="menu-bar"
     >
       {groups.map(({ label, icon: Icon, items }) => (
@@ -128,7 +128,7 @@ const MenuDropdown = ({
         <button
           type="button"
           className={cn(
-            'h-6 px-2.5 text-xs rounded flex items-center gap-1 transition-colors',
+            'h-7 px-3 text-[13px] font-medium rounded flex items-center gap-1 transition-colors',
             open ? 'bg-bg-elevated text-text' : 'text-text-muted hover:bg-bg-elevated hover:text-text'
           )}
           data-testid={`menu-${label.toLowerCase()}`}

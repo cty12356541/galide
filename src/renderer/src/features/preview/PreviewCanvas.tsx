@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Play, Square } from 'lucide-react'
+import { Play, Square, Box } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { useScript } from '../../lib/ipc/use-script'
 import { parse } from '../../../../shared/dsl/parser'
@@ -119,12 +119,23 @@ export const PreviewCanvas = (): JSX.Element => {
         )}
       </div>
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="relative w-full max-w-[640px] aspect-video rounded-2xl overflow-hidden shadow-md">
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0 w-full h-full bg-bg-elevated"
-            data-testid="preview-canvas"
-          />
+        <div className="relative w-full max-w-[640px] aspect-video rounded-2xl overflow-hidden shadow-md bg-bg-elevated">
+          {items.length === 0 ? (
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center text-text-muted gap-2"
+              data-testid="preview-empty"
+            >
+              <Box className="w-10 h-10 opacity-30" />
+              <span className="text-xs">剧本无场景</span>
+              <span className="text-[10px] opacity-60">在编辑器中写 [scene ...] 块</span>
+            </div>
+          ) : (
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 w-full h-full"
+              data-testid="preview-canvas"
+            />
+          )}
           <div className="absolute top-3 left-3 px-2 py-0.5 bg-surface/80 backdrop-blur rounded-md text-[10px] font-mono text-text-muted z-10">
             {sceneId ?? '—'}
           </div>

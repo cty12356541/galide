@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { FileText, Plus, RefreshCw, FilePlus } from 'lucide-react'
+import { FileText, Plus, RefreshCw, FilePlus, Copy, Trash2, Edit3 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { useUiStore } from '../../lib/store'
@@ -47,6 +47,60 @@ export const ScriptFileTree = (): JSX.Element => {
       setActiveScript(files[0] ?? null)
     }
   }, [files, activeScript, setActiveScript])
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: string } | null>(null)
+
+  // 全局点击关闭右键菜单
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = (): void => setContextMenu(null)
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [contextMenu])
+
+  const handleContextMenu = (e: React.MouseEvent, file: string): void => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, file })
+  }
+
+  const handleCopyName = (file: string): void => {
+    void navigator.clipboard.writeText(file).then(() => {
+      toast({ message: `已复制 ${file}`, variant: 'success' })
+    })
+    setContextMenu(null)
+  }
+
+  const handleRename = async (oldName: string): Promise<void> => {
+    setContextMenu(null)
+    const newName = window.prompt('重命名文件', oldName)
+    if (!newName || newName === oldName) return
+    const fileName = newName.endsWith('.gal') ? newName : `${newName}.gal`
+    if (files.includes(fileName)) {
+      pushError({
+        code: 'SCRIPT_EXISTS',
+        message: `文件已存在: ${fileName}`,
+        source: 'script:write'
+      })
+      return
+    }
+    try {
+      const text = (await script.read(projectPath, oldName)) ?? ''
+      await script.write(projectPath, fileName, text)
+      if (activeScript === oldName) setActiveScript(fileName)
+      toast({ message: `已重命名为 ${fileName}`, variant: 'success' })
+      await refresh()
+    } catch (err) {
+      pushError({
+        code: 'SCRIPT_RENAME_FAILED',
+        message: err instanceof Error ? err.message : String(err),
+        source: 'script:write'
+      })
+    }
+  }
 
   const handleNew = async (): Promise<void> => {
     if (!projectPath) return
@@ -105,6 +159,7 @@ export const ScriptFileTree = (): JSX.Element => {
                 <button
                   key={f}
                   onClick={() => setActiveScript(f)}
+                  onContextMenu={(e) => handleContextMenu(e, f)}
                   className={cn(
                     'w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] text-left transition-colors',
                     isActive
@@ -121,6 +176,41 @@ export const ScriptFileTree = (): JSX.Element => {
           )}
         </div>
       </ScrollArea>
+      {contextMenu ? (
+        <div
+          className="fixed z-50 min-w-[160px] bg-surface border border-border rounded-md shadow-lg py-1 text-xs"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          data-testid="file-context-menu"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => handleCopyName(contextMenu.file)}
+            className="w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated text-left"
+          >
+            <Copy className="w-3 h-3 text-text-muted" />
+            <span>复制文件名</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleRename(contextMenu.file)}
+            className="w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated text-left"
+          >
+            <Edit3 className="w-3 h-3 text-text-muted" />
+            <span>重命名</span>
+          </button>
+          <div className="my-1 border-t border-border" />
+          <button
+            type="button"
+            disabled
+            title="P5: 待加 script:delete IPC"
+            className="w-full px-2.5 py-1.5 flex items-center gap-2 hover:bg-bg-elevated text-left text-text-muted"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span>删除(暂未启用)</span>
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

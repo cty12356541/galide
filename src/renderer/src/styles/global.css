@@ -80,3 +80,75 @@
     transform: none;
   }
 }
+
+/* ============================================
+ * react-mosaic-component 边框覆盖
+ * ============================================
+ * 默认 blueprint 主题给每个 MosaicWindow 套了一圈 1px 灰边 + box-shadow,
+ * 4 个 panel 一起就显"贴便签感"。改:边改 1px 透明,hover/active 时给提示
+ */
+.mosaic-root {
+  background: var(--bg) !important;
+}
+
+.mosaic-tile {
+  margin: 0 !important;
+}
+
+/* MosaicWindow 的 chrome 容器:左边框淡出 */
+.mosaic-window {
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  border-radius: 6px !important;
+  background: var(--surface) !important;
+  outline: 1px solid var(--border) !important;
+  outline-offset: -1px !important;
+}
+
+/* drop target highlight(react-dnd 拖拽时) */
+.mosaic-window.__dropping-above__ {
+  box-shadow: inset 0 2px 0 0 var(--accent) !important;
+}
+.mosaic-window.__dropping-below__ {
+  box-shadow: inset 0 -2px 0 0 var(--accent) !important;
+}
+.mosaic-window.__dropping-left__ {
+  box-shadow: inset 2px 0 0 0 var(--accent) !important;
+}
+.mosaic-window.__dropping-right__ {
+  box-shadow: inset -2px 0 0 0 var(--accent) !important;
+}
+
+/* toolbar 高度小,内容居中 */
+.mosaic-window-toolbar {
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 8px !important;
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-top-left-radius: 6px !important;
+  border-top-right-radius: 6px !important;
+}
+
+.mosaic-window-title {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--text-muted) !important;
+  flex: 1 !important;
+}
+
+.mosaic-window-body {
+  background: var(--surface) !important;
+  border-bottom-left-radius: 6px !important;
+  border-bottom-right-radius: 6px !important;
+  overflow: hidden !important;
+}
+
+/* 分隔条(react-mosaic 自带 Splitter)细一点 */
+.mosaic-split {
+  background: var(--bg) !important;
+}
+.mosaic-split:hover {
+  background: var(--accent-soft) !important;
+}
