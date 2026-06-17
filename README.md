@@ -65,6 +65,45 @@ pnpm build:linux  # Linux
 ## 开发里程碑
 
 - MVP v0.1 ✅ IDE 编辑体验(CodeMirror + React Flow + PixiJS 预览)
-- MVP v0.2 AI 文案与逻辑
-- MVP v0.3 AI 视觉/听觉
-- MVP v0.4 多技术栈导出 (Web ✅, Ren'Py / Ink / Electron-desktop 后续)
+- MVP v0.2 ✅ AI 文案与逻辑(OpenAI / Claude / Ollama,流式输出)
+- MVP v0.3 ✅ AI 视觉/听觉(角色立绘、语音生成)
+- MVP v0.4 ✅ PyCharm 组件岛布局 + mosaic + floating 窗口(本次)
+
+## v0.4 状态(2026-06-17)
+
+### 新功能
+
+- **PyCharm 组件岛布局** — Menu Bar / Toolbar / Project Tabs / Left Tool Window /
+  Center Split / Status Bar(6 区块)
+- **Mosaic 中区可拆** — ScriptEditor / FlowView / PreviewCanvas 三个 panel 拖拽组合,
+  布局通过 electron-store 持久化(独立 `galide-mosaic` namespace,800ms debounce)
+- **浮出独立 BrowserWindow** — 任何 panel(script / flow / preview / left-tool / ai)
+  都能浮出为独立 OS 窗口,主窗口对应槽位自动隐藏
+  - 关闭浮出窗口自动恢复主窗口布局
+  - 浮出窗口加"返回主窗口"按钮快速聚焦
+  - 浮出上限 3 个,防误操作
+- **脏数据 UI 警告** — mosaic 持久化文件被破坏时,sanitize 检测并 toast 提示
+
+### 架构升级
+
+- 删 `workspaceLayout` 嵌套对象(治本,代码腐化主因)
+- 简化 `useUiStore` 5 个标量字段:`workspacePreset` / `leftPanelOpen` /
+  `leftPanel` / `aiPanelOpen` / `aiDockedLocation`
+- IPC 边界全部走 zod schema 校验(`IpcSchemaError` 透传 `SCHEMA_FAILED` code)
+- main 端 handler 入口 `tryRegister` 隔离,任一失败不阻断 `createWindow`
+- 共享 hook `usePanelFloat` / `useMosaicPersistence` 统一行为
+
+### 已知限制
+
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py / Ink / Electron-desktop ⏳(stub,UI 标注"即将支持")
+- 多窗口 IPC sync:export progress 按发送者路由,其他 IPC 暂用 default focused window
+- e2e 测试需本地有 GUI 环境跑
+
+## 测试与质量
+
+```bash
+pnpm typecheck    # 0 error
+pnpm lint         # 0 error
+pnpm test         # 21 文件 / 171 测试
+pnpm build        # 成功
+```
