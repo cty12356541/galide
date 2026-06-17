@@ -136,8 +136,8 @@
 }
 
 .mosaic-window {
-  /* 边框弱化(只 0.5px + 用 shadow 表达岛感),避免大灰色框突兀感 */
-  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent) !important;
+  /* 完全去边框,只 box-shadow 浮起 + 圆角 */
+  border: none !important;
   box-shadow: var(--shadow-panel) !important;
   border-radius: 12px !important;
   background: var(--surface) !important;
@@ -185,10 +185,29 @@
   overflow: hidden !important;
 }
 
-/* 分隔条(react-mosaic 自带 Splitter)— 1px 分隔线,hover 强调 */
+/* 分隔条(react-mosaic 自带 Splitter)— 0px,靠 panel 自身圆角间距 */
 .mosaic-split {
-  background: var(--border) !important;
+  background: transparent !important;
+  position: relative !important;
 }
-.mosaic-split:hover {
+.mosaic-split::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 25% 0 !important;
+  width: 1px !important;
+  background: var(--border) !important;
+  border-radius: 1px !important;
+  opacity: 0.4 !important;
+  transition: all 0.15s ease !important;
+}
+.mosaic-split:hover::before {
   background: var(--accent) !important;
+  opacity: 1 !important;
+}
+/* horizontal split 时(上下分),用 height 1px */
+.mosaic-split.-mosaic-split.-horizontal::before,
+div[class*="mosaic-split"]:not(.-vertical)::before {
+  width: auto !important;
+  height: 1px !important;
+  inset: 0 25% !important;
 }
