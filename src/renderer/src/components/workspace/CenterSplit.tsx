@@ -51,25 +51,19 @@ export const CenterSplit = (): JSX.Element => {
       {showLeft ? (
         <>
           <Panel defaultSize={20} minSize={12} maxSize={40} collapsible>
-            <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
-              <LeftToolWindow />
-            </div>
+            <LeftToolWindow />
           </Panel>
           <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
         </>
       ) : null}
       <Panel defaultSize={showAi ? 50 : 100} minSize={30}>
-        <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
-          <MosaicRoot />
-        </div>
+        <MosaicRoot />
       </Panel>
       {showAi ? (
         <>
           <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
           <Panel defaultSize={30} minSize={15} maxSize={60} collapsible>
-            <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
-              <AiToolWindow />
-            </div>
+            <AiToolWindow />
           </Panel>
         </>
       ) : null}
@@ -86,15 +80,11 @@ const CenterWithLeft = ({ leftOpen }: { leftOpen: boolean }): JSX.Element => {
   return (
     <PanelGroup direction="horizontal" autoSaveId="galide-center-bottom-left" className="h-full gap-2">
       <Panel defaultSize={20} minSize={12} maxSize={40} collapsible>
-        <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
-          <LeftToolWindow />
-        </div>
+        <LeftToolWindow />
       </Panel>
       <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
       <Panel defaultSize={80} minSize={30}>
-        <div className="h-full w-full rounded-xl border border-border overflow-hidden bg-surface shadow-[var(--shadow-panel)]">
-          <MosaicRoot />
-        </div>
+        <MosaicRoot />
       </Panel>
     </PanelGroup>
   )

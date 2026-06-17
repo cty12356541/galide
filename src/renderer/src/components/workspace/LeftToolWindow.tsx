@@ -1,13 +1,15 @@
 /**
  * LeftToolWindow — 左侧 Tool Window 主区
  *
- * 设计(P7):
+ * 设计(P8):
  *   - 主 tab(项目 / Git)由 ActivityBar 控制,本组件不再渲染
- *   - 只保留子 tab(文件 / 资产)+ 浮出 / 关闭按钮
+ *   - 项目 view:单层 header(剧本 标题 + 文件计数 + 刷新/新建 + view toggle 下拉
+ *     切换 脚本/资产)+ 文件列表
+ *   - Git view:GitPanel
  *   - 显示哪个 panel 由 store.activitySelection 决定
  */
 import { useState } from 'react'
-import { X, AppWindow } from 'lucide-react'
+import { X, AppWindow, FilePlus, Folder, ImageIcon, ChevronDown } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { ScriptFileTree } from '../../features/script-editor/ScriptFileTree'
@@ -15,7 +17,10 @@ import { AssetListPanel } from '../../features/asset/AssetListPanel'
 import { GitPanel } from '../../features/git/GitPanel'
 import { PlaceholderToolWindow } from './PlaceholderToolWindow'
 import { Search, Bug, Settings } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { cn } from '../../lib/utils'
+
+type ViewMode = 'files' | 'assets'
 
 export const LeftToolWindow = (): JSX.Element => {
   const leftPanel = useUiStore((s) => s.leftPanel)
@@ -23,13 +28,12 @@ export const LeftToolWindow = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
   const activitySelection = useUiStore((s) => s.activitySelection)
 
-  const [secondaryTab, setSecondaryTab] = useState<'files' | 'assets'>('files')
+  const [viewMode, setViewMode] = useState<ViewMode>('files')
   const float = usePanelFloat()
 
-  // ActivityBar 控制显示
   if (activitySelection === 'search') {
     return (
-      <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+      <aside className="h-full flex flex-col bg-bg" data-testid="left-tool-window">
         <Header float={float} onClose={toggleLeftPanel} />
         <PlaceholderToolWindow icon={Search} title="搜索" description="跨文件全文搜索(即将支持)" />
       </aside>
@@ -37,7 +41,7 @@ export const LeftToolWindow = (): JSX.Element => {
   }
   if (activitySelection === 'debug') {
     return (
-      <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+      <aside className="h-full flex flex-col bg-bg" data-testid="left-tool-window">
         <Header float={float} onClose={toggleLeftPanel} />
         <PlaceholderToolWindow icon={Bug} title="调试" description="运行/断点/变量查看(即将支持)" />
       </aside>
@@ -45,22 +49,21 @@ export const LeftToolWindow = (): JSX.Element => {
   }
   if (activitySelection === 'settings') {
     return (
-      <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+      <aside className="h-full flex flex-col bg-bg" data-testid="left-tool-window">
         <Header float={float} onClose={toggleLeftPanel} />
         <PlaceholderToolWindow icon={Settings} title="设置" description="IDE 偏好配置(即将支持)" />
       </aside>
     )
   }
 
-  // project / git 走 leftPanel 旧字段(向后兼容快捷键)
   const active = (leftPanel === 'closed' ? 'project' : leftPanel) as 'project' | 'git'
 
   return (
-    <aside className="group h-full flex flex-col bg-surface" data-testid="left-tool-window">
+    <aside className="group h-full flex flex-col bg-bg" data-testid="left-tool-window">
       <Header float={float} onClose={toggleLeftPanel} />
       <div className="flex-1 overflow-hidden">
         {active === 'project' ? (
-          <ProjectTab projectPath={projectPath} secondaryTab={secondaryTab} setSecondaryTab={setSecondaryTab} />
+          <ProjectTab projectPath={projectPath} viewMode={viewMode} setViewMode={setViewMode} />
         ) : (
           <GitPanel />
         )}
@@ -77,7 +80,7 @@ const Header = ({
   onClose: () => void
 }): JSX.Element => {
   return (
-    <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1 justify-end rounded-t-xl">
+    <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1 justify-end">
       <button
         type="button"
         onClick={() => float('left-tool-window')}
@@ -101,14 +104,17 @@ const Header = ({
   )
 }
 
+/**
+ * ProjectTab — 单层 header:左侧标题 + 文件计数,右侧 view 切换下拉
+ */
 const ProjectTab = ({
   projectPath,
-  secondaryTab,
-  setSecondaryTab
+  viewMode,
+  setViewMode
 }: {
   projectPath: string | null
-  secondaryTab: 'files' | 'assets'
-  setSecondaryTab: (t: 'files' | 'assets') => void
+  viewMode: ViewMode
+  setViewMode: (m: ViewMode) => void
 }): JSX.Element => {
   if (!projectPath) {
     return (
@@ -119,35 +125,92 @@ const ProjectTab = ({
   }
   return (
     <div className="h-full flex flex-col">
-      <div className="h-8 flex items-center bg-bg-elevated border-b border-border px-2 gap-1 text-[12px]">
-        <button
-          type="button"
-          onClick={() => setSecondaryTab('files')}
-          className={cn(
-            'h-7 px-2.5 rounded transition-colors font-medium relative',
-            secondaryTab === 'files'
-              ? 'bg-surface text-text border border-border shadow-sm'
-              : 'text-text-muted hover:text-text'
-          )}
-        >
-          文件
-        </button>
-        <button
-          type="button"
-          onClick={() => setSecondaryTab('assets')}
-          className={cn(
-            'h-7 px-2.5 rounded transition-colors font-medium relative',
-            secondaryTab === 'assets'
-              ? 'bg-surface text-text border border-border shadow-sm'
-              : 'text-text-muted hover:text-text'
-          )}
-        >
-          资产
-        </button>
-      </div>
+      <ProjectHeader viewMode={viewMode} setViewMode={setViewMode} />
       <div className="flex-1 overflow-auto">
-        {secondaryTab === 'files' ? <ScriptFileTree /> : <AssetListPanel />}
+        {viewMode === 'files' ? <ScriptFileTree /> : <AssetListPanel />}
       </div>
     </div>
   )
 }
+
+/**
+ * ProjectHeader — 单层 header,带 view toggle 下拉
+ * 文件 view:显示"剧本"标题 + 文件计数 + 刷新/新建
+ * 资产 view:显示"资产"标题 + 占位
+ */
+const ProjectHeader = ({
+  viewMode,
+  setViewMode
+}: {
+  viewMode: ViewMode
+  setViewMode: (m: ViewMode) => void
+}): JSX.Element => {
+  const isFiles = viewMode === 'files'
+  return (
+    <div className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1.5">
+      {isFiles ? (
+        <FilePlus className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+      ) : (
+        <ImageIcon className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+      )}
+      <span className="text-[13px] font-medium text-text">
+        {isFiles ? '剧本' : '资产'}
+      </span>
+      <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+      <div className="flex-1" />
+    </div>
+  )
+}
+
+/**
+ * ViewToggle — 右侧 view 切换下拉(脚本 / 资产)
+ */
+const ViewToggle = ({
+  viewMode,
+  setViewMode
+}: {
+  viewMode: ViewMode
+  setViewMode: (m: ViewMode) => void
+}): JSX.Element => {
+  const isFiles = viewMode === 'files'
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title="切换 view"
+          aria-label="切换 view"
+          data-testid="view-toggle"
+          className="h-6 px-1.5 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface transition-colors flex items-center gap-0.5"
+        >
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-32 p-1" sideOffset={4}>
+        <button
+          type="button"
+          onClick={() => setViewMode('files')}
+          className={cn(
+            'w-full px-2 py-1.5 rounded text-[13px] flex items-center gap-2 transition-colors text-left',
+            isFiles ? 'bg-accent-soft text-accent' : 'text-text hover:bg-bg-elevated'
+          )}
+        >
+          <Folder className="w-3 h-3" />
+          脚本
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('assets')}
+          className={cn(
+            'w-full px-2 py-1.5 rounded text-[13px] flex items-center gap-2 transition-colors text-left',
+            !isFiles ? 'bg-accent-soft text-accent' : 'text-text hover:bg-bg-elevated'
+          )}
+        >
+          <ImageIcon className="w-3 h-3" />
+          资产
+        </button>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
