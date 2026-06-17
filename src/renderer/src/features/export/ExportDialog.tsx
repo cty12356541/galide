@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Download, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Download, CheckCircle2, AlertCircle, Loader2, X } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '../../components/ui/dialog'
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '../../components/ui/sheet'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 
@@ -165,19 +165,19 @@ export const ExportDialog = (): JSX.Element => {
   const isError = stage === 'error'
 
   return (
-    <Dialog open={exportDialogOpen} onOpenChange={(open) => !open && closeExportDialog()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={exportDialogOpen} onOpenChange={(open) => !open && closeExportDialog()}>
+      <SheetContent className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <Download className="w-4 h-4" />
             导出项目
-          </DialogTitle>
-          <DialogDescription>
+          </SheetTitle>
+          <SheetDescription>
             将 <span className="font-medium text-text">{projectName ?? '当前项目'}</span> 编译为目标格式。
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-auto px-5 py-4 space-y-4">
           <div>
             <label className="text-xs text-text-muted">目标</label>
             <select
@@ -242,7 +242,7 @@ export const ExportDialog = (): JSX.Element => {
           )}
         </div>
 
-        <DialogFooter>
+        <SheetFooter>
           {isRunning ? (
             <Button variant="destructive" onClick={() => void handleCancel()}>
               取消
@@ -262,8 +262,8 @@ export const ExportDialog = (): JSX.Element => {
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }

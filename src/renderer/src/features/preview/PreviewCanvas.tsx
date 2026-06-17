@@ -46,12 +46,14 @@ export const PreviewCanvas = (): JSX.Element => {
   const [sceneId, setSceneId] = useState<string | null>(null)
   const [cursor, setCursor] = useState(0)
   const [runtimeState, setRuntimeState] = useState<PreviewState>('idle')
+  const [sceneEmpty, setSceneEmpty] = useState(true)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const runtimeRef = useRef<PreviewRuntime | null>(null)
   const loadSeqRef = useRef(0)
 
-  // mount-only: 创建 PixiJS runtime
+  // mount-only: 创建 PixiJS runtime(空场景时不挂,避免黑块)
   useEffect(() => {
+    if (sceneEmpty) return
     if (!canvasRef.current) return
     const runtime = createPreviewRuntime()
     runtimeRef.current = runtime
@@ -62,7 +64,7 @@ export const PreviewCanvas = (): JSX.Element => {
       runtime.unmount()
       runtimeRef.current = null
     }
-  }, [])
+  }, [sceneEmpty])
 
   const loadScene = useCallback(
     (targetId?: string): void => {
@@ -70,12 +72,34 @@ export const PreviewCanvas = (): JSX.Element => {
       const seq = ++loadSeqRef.current
       void script.read(projectPath, activeScript).then(async (text) => {
         if (seq !== loadSeqRef.current) return
-        if (!text) return
+        if (!text) {
+          setSceneEmpty(true)
+          setItems([])
+          setSceneId(null)
+          return
+        }
         const result = parse(text)
-        if (!result.ok) return
+        if (!result.ok) {
+          setSceneEmpty(true)
+          setItems([])
+          setSceneId(null)
+          return
+        }
         const scenes = collectScenes(result.value)
+        if (scenes.length === 0) {
+          setSceneEmpty(true)
+          setItems([])
+          setSceneId(null)
+          return
+        }
         const target = targetId ? scenes.find((s) => s.id === targetId) : scenes[0]
-        if (!target) return
+        if (!target) {
+          setSceneEmpty(true)
+          setItems([])
+          setSceneId(null)
+          return
+        }
+        setSceneEmpty(false)
         setSceneId(target.id)
         setItems(buildItems(target))
         setCursor(0)
@@ -118,7 +142,7 @@ export const PreviewCanvas = (): JSX.Element => {
           <span className="ml-auto text-[12px] font-mono text-text-muted">{sceneId}</span>
         )}
       </div>
-      {items.length === 0 ? (
+      {sceneEmpty ? (
         <div
           className="flex-1 flex flex-col items-center justify-center bg-canvas gap-3 text-text-muted"
           data-testid="preview-empty"

@@ -42,7 +42,7 @@ export const LeftToolWindow = (): JSX.Element => {
   const float = usePanelFloat()
 
   return (
-    <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+    <aside className="group h-full flex flex-col bg-surface" data-testid="left-tool-window">
       <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1">
         {TABS.map(({ id, icon: Icon, title }) => (
           <button
@@ -52,10 +52,11 @@ export const LeftToolWindow = (): JSX.Element => {
             title={title}
             data-testid={`left-tab-${id}`}
             className={cn(
-              'h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors',
+              'h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors relative',
               active === id
                 ? 'bg-accent-soft text-accent'
-                : 'text-text-muted hover:text-text hover:bg-bg-elevated'
+                : 'text-text-muted hover:text-text hover:bg-bg-elevated',
+              active === id && 'after:absolute after:left-0 after:top-1.5 after:bottom-1.5 after:w-0.5 after:bg-accent after:rounded-full'
             )}
           >
             <Icon className="w-4 h-4" />
@@ -69,7 +70,7 @@ export const LeftToolWindow = (): JSX.Element => {
           title="浮出到独立窗口"
           aria-label="浮出到独立窗口"
           data-testid="left-float"
-          className="h-8 w-8 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-colors"
+          className="h-8 w-8 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         >
           <AppWindow className="w-3.5 h-3.5" />
         </button>
@@ -117,9 +118,9 @@ const ProjectTab = ({
           type="button"
           onClick={() => setSecondaryTab('files')}
           className={cn(
-            'h-7 px-2.5 rounded transition-colors font-medium',
+            'h-7 px-2.5 rounded transition-colors font-medium relative',
             secondaryTab === 'files'
-              ? 'bg-bg-elevated text-text'
+              ? 'bg-surface text-text border border-border shadow-sm'
               : 'text-text-muted hover:text-text'
           )}
         >
@@ -129,9 +130,9 @@ const ProjectTab = ({
           type="button"
           onClick={() => setSecondaryTab('assets')}
           className={cn(
-            'h-7 px-2.5 rounded transition-colors font-medium',
+            'h-7 px-2.5 rounded transition-colors font-medium relative',
             secondaryTab === 'assets'
-              ? 'bg-bg-elevated text-text'
+              ? 'bg-surface text-text border border-border shadow-sm'
               : 'text-text-muted hover:text-text'
           )}
         >

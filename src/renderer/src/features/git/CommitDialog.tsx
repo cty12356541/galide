@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { GitCommit, Loader2, CheckCircle2, AlertCircle, GitBranch } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '../../components/ui/dialog'
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle
+} from '../../components/ui/sheet'
 import { Button } from '../../components/ui/button'
 import { Textarea } from '../../components/ui/textarea'
 import { useUiStore } from '../../lib/store'
@@ -76,21 +76,21 @@ export const CommitDialog = (): JSX.Element => {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={(o) => !o && close()}>
+      <SheetContent className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <GitCommit className="w-4 h-4" />
             Git 提交
-          </DialogTitle>
-          <DialogDescription>
+          </SheetTitle>
+          <SheetDescription>
             <span className="inline-flex items-center gap-1">
               <GitBranch className="w-3 h-3" />
               {currentBranch ?? '—'}
             </span>
             <span className="ml-2">{initialized ? `${dirtyCount} 个变更` : '项目尚未 git init'}</span>
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         {!initialized ? (
           <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -137,7 +137,7 @@ export const CommitDialog = (): JSX.Element => {
           <div className="text-xs text-red-600">{errorMsg}</div>
         )}
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="ghost" onClick={close}>
             关闭
           </Button>
@@ -152,8 +152,8 @@ export const CommitDialog = (): JSX.Element => {
             )}
             提交
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
