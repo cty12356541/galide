@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Send, Sparkles, Clock } from 'lucide-react'
+import { Send, Sparkles, Clock } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { ScrollArea } from '../../components/ui/scroll-area'
-import { useUiStore } from '../../lib/store'
 import { useErrorStore } from '../../lib/store'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { AiShortcutToolbar } from './AiShortcutToolbar'
@@ -25,7 +24,6 @@ type Message = {
 }
 
 export const AiPanel = (): JSX.Element => {
-  const toggleAi = useUiStore((s) => s.toggleAiPanel)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [provider, setProvider] = useState<Provider>('openai')
@@ -152,16 +150,7 @@ export const AiPanel = (): JSX.Element => {
   }
 
   return (
-    <aside className="w-96 bg-surface border-l border-border flex flex-col shrink-0">
-      <div className="h-10 px-3 flex items-center justify-between border-b border-border">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-accent" />
-          <span className="text-sm font-medium">AI 助手</span>
-        </div>
-        <Button variant="ghost" size="icon" onClick={() => toggleAi()}>
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
+    <div className="h-full bg-surface flex flex-col">
       <AiShortcutToolbar
         onShortcut={handleShortcut}
         provider={provider}
@@ -200,7 +189,7 @@ export const AiPanel = (): JSX.Element => {
           </Button>
         </form>
       </div>
-    </aside>
+    </div>
   )
 }
 
