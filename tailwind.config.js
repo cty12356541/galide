@@ -6,14 +6,22 @@ export default {
     extend: {
       colors: {
         bg: 'var(--bg)',
+        canvas: 'var(--canvas)',
         surface: 'var(--surface)',
         'bg-elevated': 'var(--bg-elevated)',
         border: 'var(--border)',
+        'border-strong': 'var(--border-strong)',
         text: 'var(--text)',
         'text-muted': 'var(--text-muted)',
         accent: 'var(--accent)',
         'accent-hover': 'var(--accent-hover)',
-        'accent-soft': 'var(--accent-soft)'
+        'accent-soft': 'var(--accent-soft)',
+        danger: 'var(--danger)',
+        'danger-soft': 'var(--danger-soft)',
+        warning: 'var(--warning)',
+        'warning-soft': 'var(--warning-soft)',
+        success: 'var(--success)',
+        'success-soft': 'var(--success-soft)'
       },
       fontFamily: {
         sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
