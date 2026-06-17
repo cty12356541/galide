@@ -108,7 +108,7 @@ export const MosaicRoot = (): JSX.Element => {
         )}
         value={tree as MosaicNode<PanelId>}
         onChange={(next) => setMosaicTree(sanitizeTree(next as WorkspaceMosaicNode))}
-        className="mosaic-blueprint-theme bp5-dark"
+        className=""
       />
     </div>
   )
