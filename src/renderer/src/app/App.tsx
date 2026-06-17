@@ -32,6 +32,7 @@ import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useMosaicPersistence } from '../lib/hooks/use-mosaic-persistence'
+import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -56,6 +57,11 @@ export const App = (): JSX.Element => {
     })
     return off
   }, [])
+
+  // 浮出模式:独立 BrowserWindow 加载 ?floating=1&panelId=xxx,只渲染对应 panel
+  if (isFloatingWindow()) {
+    return <FloatingPanelHost />
+  }
 
   // 偏好页是全屏覆盖,其他都在主区
   if (preferencesOpen) {
