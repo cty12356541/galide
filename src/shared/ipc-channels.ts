@@ -95,7 +95,12 @@ export const IPC = {
     /** PR2: 在独立 BrowserWindow 中浮出 panel(走 main 端 createWindow) */
     openPanel: 'workspace:openPanel',
     /** PR2: 浮出 panel 关闭时通知 renderer 清理 store */
-    panelClosed: 'workspace:panelClosed'
+    panelClosed: 'workspace:panelClosed',
+    /** PR2: mosaic 树形布局持久化(独立 store,namespace=galide-mosaic) */
+    mosaic: {
+      read: 'workspace:mosaic:read',
+      write: 'workspace:mosaic:write'
+    }
   }
 } as const
 

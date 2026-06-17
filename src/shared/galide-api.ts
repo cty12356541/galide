@@ -177,6 +177,9 @@ export type GalideApi = {
     onPanelClosed: (
       callback: (args: { panelId: 'script-editor' | 'flow-view' | 'preview-canvas' }) => void
     ) => () => void
+    /** PR2: mosaic 树持久化 */
+    readMosaic: () => Promise<{ ok: boolean; tree: unknown; error?: string }>
+    writeMosaic: (args: { tree: unknown }) => Promise<{ ok: boolean; error?: string; code?: string }>
   }
 }
 

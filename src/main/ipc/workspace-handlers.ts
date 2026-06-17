@@ -142,6 +142,38 @@ export const registerWorkspaceHandlers = (): void => {
       }
     }
   )
+
+  // PR2: 持久化 mosaic 树(读)
+  ipcMain.handle(
+    IPC.workspace.mosaic.read,
+    async (): Promise<{ ok: true; tree: unknown } | { ok: false; error: string }> => {
+      try {
+        // 入口 schema 校验(此处 args=undefined,仅作契约演示,真实校验在 write 端)
+        parseIpcArgs('workspace.mosaic.read', MosaicReadSchema, {})
+        return readMosaicTree()
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  // PR2: 持久化 mosaic 树(写)
+  ipcMain.handle(
+    IPC.workspace.mosaic.write,
+    async (
+      _e,
+      args: unknown
+    ): Promise<{ ok: true } | { ok: false; error: string; code?: string }> => {
+      try {
+        const { tree } = parseIpcArgs('workspace.mosaic.write', MosaicWriteSchema, args)
+        return writeMosaicTree(tree)
+      } catch (err) {
+        // IpcSchemaError 透传 code 让 renderer 区分 schema 失败 vs 写盘失败
+        const code = (err as { name?: string }).name === 'IpcSchemaError' ? 'SCHEMA_FAILED' : undefined
+        return { ok: false, error: err instanceof Error ? err.message : String(err), ...(code ? { code } : {}) }
+      }
+    }
+  )
 }
 /**
  * PR2: 浮出 panel — 独立 BrowserWindow
@@ -157,6 +189,8 @@ export const registerWorkspaceHandlers = (): void => {
  *   - 复用 main 端 preload 桥(单点维护)
  */
 import { BrowserWindow, type WebContents } from 'electron'
+import { readMosaicTree, writeMosaicTree } from '../workspace/mosaic-store.js'
+import { MosaicReadSchema, MosaicWriteSchema, parseIpcArgs } from './schemas/index.js'
 import { is } from '@electron-toolkit/utils'
 
 const MAX_FLOATING = 3

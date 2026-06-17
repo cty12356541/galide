@@ -249,7 +249,12 @@ const api = {
       ): void => callback(payload)
       ipcRenderer.on(IPC.workspace.panelClosed, listener)
       return () => ipcRenderer.removeListener(IPC.workspace.panelClosed, listener)
-    }
+    },
+    /** PR2: mosaic 树持久化 */
+    readMosaic: (): Promise<{ ok: boolean; tree: unknown; error?: string }> =>
+      ipcRenderer.invoke(IPC.workspace.mosaic.read),
+    writeMosaic: (args: { tree: unknown }): Promise<{ ok: boolean; error?: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.workspace.mosaic.write, args)
   }
 }
 

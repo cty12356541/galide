@@ -31,6 +31,7 @@ import { PreferencesDialog } from '../features/preferences/PreferencesDialog'
 import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
+import { useMosaicPersistence } from '../lib/hooks/use-mosaic-persistence'
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -44,6 +45,9 @@ export const App = (): JSX.Element => {
 
   // 全局快捷键(Cmd+K / Cmd+, / Cmd+L / Cmd+1 / Cmd+W)
   useKeyboardShortcuts()
+
+  // PR2: mosaic 树持久化(启动期 read + 变化时 debounced write)
+  useMosaicPersistence()
 
   // PR2: 浮出 panel 窗口关闭 → 同步 store
   useEffect(() => {
