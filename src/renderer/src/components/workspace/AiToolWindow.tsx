@@ -25,7 +25,7 @@ export const AiToolWindow = (): JSX.Element => {
 
   return (
     <section className="group h-full flex flex-col bg-surface" data-testid="ai-tool-window">
-      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-2">
+      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1.5 min-w-0">
         <Sparkles className="w-3.5 h-3.5 text-accent" />
         <span className="text-xs font-medium">AI 助手</span>
         <div className="flex-1" />
@@ -35,7 +35,7 @@ export const AiToolWindow = (): JSX.Element => {
           onClick={toggleAiPanel}
           title="关闭 AI"
           aria-label="关闭 AI"
-          className="h-8 w-8 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-colors"
+          className="h-8 w-8 ml-1 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-colors flex-shrink-0"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -70,7 +70,7 @@ const DockedLocationMenu = ({
         onClick={() => setOpen((v) => !v)}
         title="移动 AI"
         aria-label="移动 AI"
-        className="h-8 px-2.5 rounded-md flex items-center gap-1 text-text-muted hover:text-text hover:bg-surface transition-all text-[13px] font-medium opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        className="h-8 px-2.5 rounded-md flex items-center gap-1 text-text-muted hover:text-text hover:bg-surface transition-colors text-[13px] font-medium min-w-[64px] justify-between"
       >
         {opts.find((o) => o.id === location)?.label ?? '右侧'}
       </button>

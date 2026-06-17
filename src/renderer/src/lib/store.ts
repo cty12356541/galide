@@ -27,6 +27,8 @@ export type WorkspacePresetId = 'writing' | 'flow' | 'review'
  */
 export type WorkspaceMosaicNode = MosaicNode<PanelId>
 export type LeftPanelId = 'project' | 'git' | 'closed'
+
+export type ActivitySelection = 'project' | 'search' | 'git' | 'debug' | 'settings'
 export type AiDockedLocation = 'right' | 'bottom' | 'left' | 'floating'
 
 type Theme = 'light' | 'dark'
@@ -57,6 +59,7 @@ type UiState = {
   workspacePreset: WorkspacePresetId
   leftPanelOpen: boolean
   leftPanel: LeftPanelId
+  activitySelection: ActivitySelection
   aiPanelOpen: boolean
   aiDockedLocation: AiDockedLocation
   /** P2: mosaic 树,字符串叶子 = panel id。null = 还没初始化 */
@@ -87,6 +90,7 @@ type UiState = {
   setWorkspacePreset: (preset: WorkspacePresetId) => void
   toggleLeftPanel: () => void
   setLeftPanel: (id: LeftPanelId) => void
+  setActivitySelection: (sel: ActivitySelection) => void
   toggleAiPanel: () => void
   setAiDockedLocation: (loc: AiDockedLocation) => void
   setMosaicTree: (tree: WorkspaceMosaicNode) => void
@@ -118,6 +122,7 @@ export const useUiStore = create<UiState>((set) => ({
   workspacePreset: 'writing',
   leftPanelOpen: true,
   leftPanel: 'project',
+  activitySelection: 'project',
   aiPanelOpen: true,
   aiDockedLocation: 'right',
   mosaicTree: null,
@@ -140,6 +145,13 @@ export const useUiStore = create<UiState>((set) => ({
   setWorkspacePreset: (preset) => set({ workspacePreset: preset }),
   toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
   setLeftPanel: (id) => set({ leftPanel: id, leftPanelOpen: id !== 'closed' }),
+  setActivitySelection: (sel) =>
+    set(() => {
+      // project/git 同步 leftPanel(search/debug/settings 用 PlaceholderToolWindow)
+      if (sel === 'project') return { activitySelection: sel, leftPanel: 'project', leftPanelOpen: true }
+      if (sel === 'git') return { activitySelection: sel, leftPanel: 'git', leftPanelOpen: true }
+      return { activitySelection: sel, leftPanelOpen: true }
+    }),
   toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
   setAiDockedLocation: (loc) => set({ aiDockedLocation: loc }),
   setMosaicTree: (tree) => set({ mosaicTree: tree }),

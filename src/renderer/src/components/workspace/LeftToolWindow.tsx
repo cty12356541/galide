@@ -1,89 +1,63 @@
 /**
- * LeftToolWindow — PyCharm Project 风格左侧 Tool Window
+ * LeftToolWindow — 左侧 Tool Window 主区
  *
- * 设计:
- *   - 顶部 tab 列表(项目 / Git)— 点击切换
- *   - tab 数量小(2-3 个),不像旧 ActivityBar 6 个图标
- *   - tab 切换显示对应 panel(FileTree / GitPanel)
- *   - 当 leftPanel === 'closed' 或 leftPanelOpen === false 时不渲染
- *
- * 与旧 ActivityBar 对比:
- *   - 旧:6 个图标按钮 + 独立 SidePanel(multi-split) — 视觉杂乱、空间浪费
- *   - 新:tab + 单一 panel(PyCharm 习惯) — 紧凑、清晰
+ * 设计(P7):
+ *   - 主 tab(项目 / Git)由 ActivityBar 控制,本组件不再渲染
+ *   - 只保留子 tab(文件 / 资产)+ 浮出 / 关闭按钮
+ *   - 显示哪个 panel 由 store.activitySelection 决定
  */
 import { useState } from 'react'
-import { Folder, GitBranch, X, AppWindow } from 'lucide-react'
-import { useUiStore, type LeftPanelId } from '../../lib/store'
+import { X, AppWindow } from 'lucide-react'
+import { useUiStore } from '../../lib/store'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { ScriptFileTree } from '../../features/script-editor/ScriptFileTree'
 import { AssetListPanel } from '../../features/asset/AssetListPanel'
 import { GitPanel } from '../../features/git/GitPanel'
+import { PlaceholderToolWindow } from './PlaceholderToolWindow'
+import { Search, Bug, Settings } from 'lucide-react'
 import { cn } from '../../lib/utils'
-
-type Tab = {
-  id: Exclude<LeftPanelId, 'closed'>
-  icon: typeof Folder
-  title: string
-}
-
-const TABS: readonly Tab[] = [
-  { id: 'project', icon: Folder, title: '项目' },
-  { id: 'git', icon: GitBranch, title: 'Git' }
-]
 
 export const LeftToolWindow = (): JSX.Element => {
   const leftPanel = useUiStore((s) => s.leftPanel)
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
-  const setLeftPanel = useUiStore((s) => s.setLeftPanel)
   const projectPath = useUiStore((s) => s.projectPath)
+  const activitySelection = useUiStore((s) => s.activitySelection)
 
-  const active = (leftPanel === 'closed' ? 'project' : leftPanel) as Tab['id']
   const [secondaryTab, setSecondaryTab] = useState<'files' | 'assets'>('files')
   const float = usePanelFloat()
 
+  // ActivityBar 控制显示
+  if (activitySelection === 'search') {
+    return (
+      <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+        <Header float={float} onClose={toggleLeftPanel} />
+        <PlaceholderToolWindow icon={Search} title="搜索" description="跨文件全文搜索(即将支持)" />
+      </aside>
+    )
+  }
+  if (activitySelection === 'debug') {
+    return (
+      <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+        <Header float={float} onClose={toggleLeftPanel} />
+        <PlaceholderToolWindow icon={Bug} title="调试" description="运行/断点/变量查看(即将支持)" />
+      </aside>
+    )
+  }
+  if (activitySelection === 'settings') {
+    return (
+      <aside className="h-full flex flex-col bg-surface" data-testid="left-tool-window">
+        <Header float={float} onClose={toggleLeftPanel} />
+        <PlaceholderToolWindow icon={Settings} title="设置" description="IDE 偏好配置(即将支持)" />
+      </aside>
+    )
+  }
+
+  // project / git 走 leftPanel 旧字段(向后兼容快捷键)
+  const active = (leftPanel === 'closed' ? 'project' : leftPanel) as 'project' | 'git'
+
   return (
     <aside className="group h-full flex flex-col bg-surface" data-testid="left-tool-window">
-      <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1">
-        {TABS.map(({ id, icon: Icon, title }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setLeftPanel(id)}
-            title={title}
-            data-testid={`left-tab-${id}`}
-            className={cn(
-              'h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors relative',
-              active === id
-                ? 'bg-accent-soft text-accent'
-                : 'text-text-muted hover:text-text hover:bg-bg-elevated',
-              active === id && 'after:absolute after:left-0 after:top-1.5 after:bottom-1.5 after:w-0.5 after:bg-accent after:rounded-full'
-            )}
-          >
-            <Icon className="w-4 h-4" />
-            {title}
-          </button>
-        ))}
-        <div className="flex-1" />
-        <button
-          type="button"
-          onClick={() => float('left-tool-window')}
-          title="浮出到独立窗口"
-          aria-label="浮出到独立窗口"
-          data-testid="left-float"
-          className="h-8 w-8 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-        >
-          <AppWindow className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={toggleLeftPanel}
-          title="关闭 Tool Window"
-          aria-label="关闭 Tool Window"
-          className="h-7 w-7 rounded flex items-center justify-center text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </header>
+      <Header float={float} onClose={toggleLeftPanel} />
       <div className="flex-1 overflow-hidden">
         {active === 'project' ? (
           <ProjectTab projectPath={projectPath} secondaryTab={secondaryTab} setSecondaryTab={setSecondaryTab} />
@@ -92,6 +66,38 @@ export const LeftToolWindow = (): JSX.Element => {
         )}
       </div>
     </aside>
+  )
+}
+
+const Header = ({
+  float,
+  onClose
+}: {
+  float: (id: string) => void
+  onClose: () => void
+}): JSX.Element => {
+  return (
+    <header className="h-9 flex items-center bg-bg-elevated border-b border-border px-2.5 gap-1 justify-end">
+      <button
+        type="button"
+        onClick={() => float('left-tool-window')}
+        title="浮出到独立窗口"
+        aria-label="浮出到独立窗口"
+        data-testid="left-float"
+        className="h-7 w-7 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <AppWindow className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        title="关闭 Tool Window"
+        aria-label="关闭 Tool Window"
+        className="h-7 w-7 rounded-md flex items-center justify-center text-text-muted hover:text-text hover:bg-surface transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </header>
   )
 }
 

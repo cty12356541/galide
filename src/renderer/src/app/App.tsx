@@ -24,6 +24,7 @@ import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
 import { ProjectTabs } from './ProjectTabs'
 import { CenterSplit } from '../components/workspace/CenterSplit'
+import { ActivityBar } from '../components/workspace/ActivityBar'
 import { StatusBar } from './StatusBar'
 import { WelcomeScreen } from './WelcomeScreen'
 import { CommandPalette } from '../features/command-palette/CommandPalette'
@@ -100,6 +101,7 @@ export const App = (): JSX.Element => {
       <Toolbar />
       <ProjectTabs />
       <main className="flex-1 min-h-0 flex overflow-hidden">
+        <ActivityBar />
         {projectPath ? (
           <CenterSplit />
         ) : (
