@@ -109,12 +109,14 @@ export const ScriptEditor = (): JSX.Element => {
     const state = EditorState.create({ doc: defaultContent, extensions })
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+    // 捕获到局部变量,cleanup 时读局部而非 ref.current(避免 ref 已变)
+    const seq = parseSeqRef
     return () => {
-      parseSeqRef.current++ // 取消未完成 parse
+      seq.current++ // 取消未完成 parse
       view.destroy()
       viewRef.current = null
     }
-  // script 与 pushError 是稳定引用,只 mount 一次
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 切 activeScript 时:重新读文件,全量替换 doc

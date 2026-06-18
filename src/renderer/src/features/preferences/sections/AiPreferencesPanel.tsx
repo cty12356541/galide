@@ -322,6 +322,7 @@ export const AiPreferencesPanel = (): JSX.Element => {
     if (current !== sp) setCurrent(sp)
     if (stored.model && stored.model !== model) setModel(stored.model)
     if (stored.baseUrl && stored.baseUrl !== baseUrl) setBaseUrl(stored.baseUrl)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stored])
 
   // 测试连接流式状态(从 useAiConfigForm 派生)

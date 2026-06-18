@@ -110,5 +110,6 @@ export const useMosaicPersistence = (opts: { debounceMs?: number } = {}): void =
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

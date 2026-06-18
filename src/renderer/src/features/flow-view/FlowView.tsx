@@ -83,6 +83,7 @@ export const FlowView = (): JSX.Element => {
     void script.read(projectPath, activeScript).then((text) => {
       if (text) setSource(text)
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectPath, activeScript])
 
   const { nodes, edges } = useMemo<{ nodes: SceneFlowNode[]; edges: Edge[] }>(() => {

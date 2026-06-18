@@ -29,7 +29,6 @@ vi.mock('electron', () => ({
 }))
 
 import { app } from 'electron'
-const { initKeyStore, apiKeyStore } = await import('./key-store.js')
 
 const tmpRoots: string[] = []
 afterEach(() => {

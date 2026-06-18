@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import { PreferenceEditor } from '../components/PreferenceEditor'
 import { ToggleEditor } from '../components/ToggleEditor'
 import { Button } from '../../../components/ui/button'
@@ -22,7 +22,10 @@ export const AdvancedPreferencesPanel = (): JSX.Element => {
   const cacheDirQuery = useCacheDir()
   const clearCacheMut = useClearCache()
   const draft = query.data as AdvancedPreferences | undefined
-  const update = (next: AdvancedPreferences): Promise<unknown> => save.mutateAsync(next)
+  const update = useCallback(
+    (next: AdvancedPreferences): Promise<unknown> => save.mutateAsync(next),
+    [save]
+  )
 
   // 把 main 端真实路径回填到 draft.cacheDir(用户首次打开面板时 sync 一次)
   useEffect(() => {

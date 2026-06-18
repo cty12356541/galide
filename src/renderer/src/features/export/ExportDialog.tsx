@@ -77,7 +77,8 @@ export const ExportDialog = (): JSX.Element => {
     return () => {
       cancelled = true
     }
-  // 仅在 dialog 打开时读一次
+  // 仅在 dialog 打开时读一次(storeApi 稳定,无需列入)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exportDialogOpen])
 
   useEffect(() => {
