@@ -13,6 +13,7 @@ import { useScript } from '../../lib/ipc/use-script'
 import { parse } from '../../../../shared/dsl/parser'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type {
+  AstNode,
   ChoiceNode,
   DialogueNode,
   GotoNode,
@@ -28,6 +29,20 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
   const edges: Edge[] = []
   const xSpacing = 260
   const ySpacing = 180
+
+  // 找节点所属 scene:scene 内节点查 s.children;root 平铺层节点取前序 scene
+  // (root.children 中该节点之前最近的 scene),跨场景 goto/choice 的视觉源
+  const findSourceScene = (node: AstNode): SceneNode | undefined => {
+    const inScene = scenes.find((s) => s.children.includes(node))
+    if (inScene) return inScene
+    // root 平铺层:线性找前序 scene
+    const idx = ast.children.indexOf(node)
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = ast.children[i]
+      if (prev.type === 'scene') return prev
+    }
+    return undefined
+  }
   scenes.forEach((scene, i) => {
     const dialogueCount = collectNodes(scene, (n): n is DialogueNode => n.type === 'dialogue')
       .length
@@ -40,7 +55,7 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
   })
   const choices = collectNodes(ast, (n): n is ChoiceNode => n.type === 'choice')
   for (const choice of choices) {
-    const sourceScene = scenes.find((s) => s.children.includes(choice))
+    const sourceScene = findSourceScene(choice)
     if (!sourceScene) continue
     for (const opt of choice.options) {
       if (opt.target && sceneIds.has(opt.target)) {
@@ -59,7 +74,7 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
   const gotos = collectNodes(ast, (n): n is GotoNode => n.type === 'goto')
   for (const goto of gotos) {
     if (!sceneIds.has(goto.target)) continue
-    const sourceScene = scenes.find((s) => s.children.includes(goto))
+    const sourceScene = findSourceScene(goto)
     if (!sourceScene) continue
     edges.push({
       id: `${sourceScene.id}-${goto.target}-goto`,

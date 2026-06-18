@@ -38,7 +38,7 @@ type Pending = {
   pendingPosition: 'left' | 'right' | 'center' | undefined
 }
 
-const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): void => {
+const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], root: ScriptNode): void => {
   const first = line[0]
   if (!first) return
   switch (first.type) {
@@ -117,6 +117,9 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): vo
       }
       if (pending.currentScene) {
         pending.currentScene.children.push(dialogue)
+      } else {
+        // scene 外的 dialogue 挂到 root 平铺层(方向 B:不再静默丢弃)
+        root.children.push(dialogue)
       }
       pending.currentDialogue = dialogue
       return
@@ -144,6 +147,8 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): vo
       }
       if (pending.currentScene) {
         pending.currentScene.children.push(choice)
+      } else {
+        root.children.push(choice)
       }
       return
     }
@@ -157,12 +162,8 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): vo
       if (pending.currentScene) {
         pending.currentScene.children.push(marker)
       } else {
-        errors.push({
-          message: `节点 "${first.value}" 必须在场景内`,
-          line: first.line,
-          column: first.column,
-          severity: 'warning'
-        })
+        // scene 外的 marker 挂到 root 平铺层(跨场景跳转目标)
+        root.children.push(marker)
       }
       return
     }
@@ -175,6 +176,8 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): vo
       }
       if (pending.currentScene) {
         pending.currentScene.children.push(goto)
+      } else {
+        root.children.push(goto)
       }
       return
     }
@@ -206,7 +209,7 @@ export const parse = (source: string): Result<ScriptNode> => {
 
   for (const line of lines) {
     const first = line[0]
-    buildLineAst(line, pending, errors)
+    buildLineAst(line, pending, errors, root)
     // P1-5 修复: 仅在 scene 行(new scene 进入时)做"是否已存在"判定与合并,
     // 不能每行都做 — 否则 pending.currentScene 在对话/选项行已经累积了 children,
     // 合并会触发自引用数组展开,导致 children 长度指数级翻倍。

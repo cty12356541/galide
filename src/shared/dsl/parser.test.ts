@@ -192,3 +192,61 @@ describe('gal parser — sprite/position stage semantics (Batch 3)', () => {
     }
   })
 })
+
+describe('gal parser — 场景外节点不再丢弃(方向 B)', () => {
+  it('dialogue outside scene attaches to root.children (not dropped)', () => {
+    const src = `旁白: "故事开始了"\n## 场景\n小雪: "你好"\n`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    // root.children 应含: 1 个 dialogue(旁白)+ 1 个 scene
+    const rootDialogues = result.value.children.filter((c) => c.type === 'dialogue')
+    expect(rootDialogues.length).toBe(1)
+    if (rootDialogues[0]?.type === 'dialogue') {
+      expect(rootDialogues[0].character).toBe('旁白')
+    }
+  })
+
+  it('choice outside scene attaches to root.children', () => {
+    const src = `* "开始游戏" -> 场景A\n## 场景A\n小雪: "hi"\n`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const rootChoices = result.value.children.filter((c) => c.type === 'choice')
+    expect(rootChoices.length).toBe(1)
+  })
+
+  it('goto outside scene attaches to root.children (cross-scene jump)', () => {
+    const src = `## 场景A\n小雪: "hi"\n[跳转:场景B]\n## 场景B\n小雪: "bye"\n`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    // 这个 goto 在场景A内,应挂在 场景A.children
+    const sceneA = result.value.children.find(
+      (c): c is SceneNode => c.type === 'scene' && c.id === '场景A'
+    )
+    const inSceneGoto = sceneA?.children.find((c) => c.type === 'goto')
+    expect(inSceneGoto).toBeDefined()
+  })
+
+  it('goto at top level (before any scene) attaches to root.children', () => {
+    const src = `[跳转:场景B]\n## 场景B\n小雪: "bye"\n`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const rootGotos = result.value.children.filter((c) => c.type === 'goto')
+    expect(rootGotos.length).toBe(1)
+  })
+
+  it('marker outside scene attaches to root.children (no warning, was dropped)', () => {
+    const src = `=== 开场 ===\n## 场景\n小雪: "hi"\n`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const rootMarkers = result.value.children.filter((c) => c.type === 'marker')
+    expect(rootMarkers.length).toBe(1)
+    if (rootMarkers[0]?.type === 'marker') {
+      expect(rootMarkers[0].id).toBe('开场')
+    }
+  })
+})

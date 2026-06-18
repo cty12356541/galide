@@ -151,14 +151,30 @@ export class WebComposer implements Composer<WebAst, MultiFileOutput> {
   async transform(ctx: ExportContext): Promise<WebAst> {
     // 消费 ctx.asts(export-handlers 已解析),不再自行读 .gal 原文
     const scenes: Record<string, WebScene> = {}
+    // scene 外的 dialogue/choice(挂 root 平铺层)归入合成场景,保证可播放
+    const globalItems: WebItem[] = []
     for (const entry of ctx.asts) {
       for (const child of entry.ast.children) {
         if (child.type === 'scene') {
           const ws = toWebScene(child as SceneNode)
           // 同名场景后者覆盖(与主解析器合并语义一致)
           scenes[ws.id] = ws
+        } else if (child.type === 'dialogue') {
+          const d = child as DialogueNode
+          globalItems.push({
+            type: 'dialogue',
+            character: d.character,
+            text: d.lines[0] ?? '',
+            ...(d.sprite !== undefined ? { sprite: d.sprite } : {}),
+            ...(d.position !== undefined ? { position: d.position } : {})
+          })
+        } else if (child.type === 'choice') {
+          globalItems.push({ type: 'choice', options: (child as ChoiceNode).options })
         }
       }
+    }
+    if (globalItems.length > 0) {
+      scenes['__global__'] = { id: '__global__', items: globalItems }
     }
     // 复制 assets 目录到 outputDir/assets
     const assetsOutDir = join(ctx.outputDir, 'assets')
