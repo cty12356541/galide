@@ -28,7 +28,7 @@ export type WorkspacePresetId = 'writing' | 'flow' | 'review'
 export type WorkspaceMosaicNode = MosaicNode<PanelId>
 export type LeftPanelId = 'project' | 'git' | 'closed'
 
-export type ActivitySelection = 'project' | 'search' | 'git' | 'debug' | 'settings'
+export type ActivitySelection = 'project' | 'search' | 'git' | 'outline' | 'character' | 'voice' | 'asset' | 'debug' | 'settings'
 export type AiDockedLocation = 'right' | 'bottom' | 'left' | 'floating'
 
 type Theme = 'light' | 'dark'
@@ -60,6 +60,8 @@ type UiState = {
   leftPanelOpen: boolean
   leftPanel: LeftPanelId
   activitySelection: ActivitySelection
+  /** 左槽当前显示的侧边岛(功能模块即岛,ActivityBar 单选) */
+  activeSidePanel: PanelId
   aiPanelOpen: boolean
   aiDockedLocation: AiDockedLocation
   /** P2: mosaic 树,字符串叶子 = panel id。null = 还没初始化 */
@@ -91,6 +93,7 @@ type UiState = {
   toggleLeftPanel: () => void
   setLeftPanel: (id: LeftPanelId) => void
   setActivitySelection: (sel: ActivitySelection) => void
+  setActiveSidePanel: (panel: PanelId) => void
   toggleAiPanel: () => void
   setAiDockedLocation: (loc: AiDockedLocation) => void
   setMosaicTree: (tree: WorkspaceMosaicNode) => void
@@ -123,6 +126,7 @@ export const useUiStore = create<UiState>((set) => ({
   leftPanelOpen: true,
   leftPanel: 'project',
   activitySelection: 'project',
+  activeSidePanel: 'project',
   aiPanelOpen: true,
   aiDockedLocation: 'right',
   mosaicTree: null,
@@ -147,11 +151,16 @@ export const useUiStore = create<UiState>((set) => ({
   setLeftPanel: (id) => set({ leftPanel: id, leftPanelOpen: id !== 'closed' }),
   setActivitySelection: (sel) =>
     set(() => {
-      // project/git 同步 leftPanel(search/debug/settings 用 PlaceholderToolWindow)
-      if (sel === 'project') return { activitySelection: sel, leftPanel: 'project', leftPanelOpen: true }
-      if (sel === 'git') return { activitySelection: sel, leftPanel: 'git', leftPanelOpen: true }
+      // 6 个真实功能岛同步 activeSidePanel(search/debug/settings 走占位)
+      if (sel === 'project' || sel === 'git') {
+        return { activitySelection: sel, leftPanel: sel, activeSidePanel: sel, leftPanelOpen: true }
+      }
+      if (sel === 'outline' || sel === 'character' || sel === 'voice' || sel === 'asset') {
+        return { activitySelection: sel, activeSidePanel: sel, leftPanelOpen: true }
+      }
       return { activitySelection: sel, leftPanelOpen: true }
     }),
+  setActiveSidePanel: (panel) => set({ activeSidePanel: panel, leftPanelOpen: true }),
   toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
   setAiDockedLocation: (loc) => set({ aiDockedLocation: loc }),
   setMosaicTree: (tree) => set({ mosaicTree: tree }),

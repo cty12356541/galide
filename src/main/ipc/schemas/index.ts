@@ -360,8 +360,13 @@ export const OpenPanelIdSchema = z.enum([
   'script-editor',
   'flow-view',
   'preview-canvas',
-  'left-tool-window',
-  'ai-tool-window'
+  'ai-tool-window',
+  'project',
+  'git',
+  'outline',
+  'character',
+  'voice',
+  'asset'
 ])
 
 export const WorkspaceOpenPanelSchema = z.object({

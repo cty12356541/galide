@@ -8,10 +8,12 @@ import { useCallback } from 'react'
 import { useUiStore, useErrorStore } from '../store'
 import {
   isToolWindow,
+  isSidePanel,
+  SIDE_PANEL_IDS,
   type PanelId
 } from '../../components/workspace/mosaic/panel-registry'
 import { sanitizeTree, DEFAULT_TREE } from '../../components/workspace/mosaic/MosaicRoot'
-import type { WorkspaceMosaicNode } from '../store'
+import type { WorkspaceMosaicNode, ActivitySelection } from '../store'
 
 
 /**
@@ -51,6 +53,21 @@ export const usePanelFloat = (): ((panelId: PanelId) => void) => {
           // 树被掏空(用户把所有 panel 都浮出了),重置为默认
           useUiStore.getState().setMosaicTree(DEFAULT_TREE)
         }
+      }
+    }
+
+    // 侧边岛浮出:左槽切到下一个未浮出的侧边岛,全浮出则收起左槽
+    if (isSidePanel(panelId)) {
+      const st = useUiStore.getState()
+      const visible = SIDE_PANEL_IDS.find(
+        (id) => id !== panelId && !st.floatingPanels.includes(id)
+      )
+      if (visible) {
+        st.setActiveSidePanel(visible)
+        st.setActivitySelection(visible as ActivitySelection)
+      } else {
+        // 所有侧边岛都浮出了,收起左槽
+        st.toggleLeftPanel()
       }
     }
 

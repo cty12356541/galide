@@ -54,16 +54,16 @@ describe('usePanelFloat', () => {
     expect(useUiStore.getState().floatingPanels).toContain('script-editor')
   })
 
-  it('浮出 ToolWindow(left-tool-window)→ 不动 mosaic 树', async () => {
+  it('浮出侧边岛(git)→ 不动 mosaic 树', async () => {
     setGalideMock({ openPanel: () => Promise.resolve({ ok: true, windowId: 1 }) })
     const { result } = renderHook(() => usePanelFloat())
     act(() => {
-      result.current('left-tool-window')
+      result.current('git')
     })
     await waitFor(() => {
-      expect(useUiStore.getState().floatingPanels).toContain('left-tool-window')
+      expect(useUiStore.getState().floatingPanels).toContain('git')
     })
-    // mosaic 树不变(ToolWindow 不在树中)
+    // mosaic 树不变(侧边岛不在树中)
     expect(useUiStore.getState().mosaicTree).toEqual(DEFAULT_TREE)
   })
 

@@ -9,7 +9,7 @@
  *
  * ActivityBar 控制 store.activitySelection,LeftToolWindow 据此显示对应 panel。
  */
-import { Folder, Search, GitBranch, Bug, Settings } from 'lucide-react'
+import { Folder, Search, GitBranch, Bug, Settings, ListTree, Users, Mic, Image } from 'lucide-react'
 import { useUiStore, type ActivitySelection } from '../../lib/store'
 import { cn } from '../../lib/utils'
 
@@ -19,10 +19,15 @@ type ActivityItem = {
   label: string
 }
 
+// PyCharm 风格:6 个真实功能岛 + 3 个占位(search/debug/settings 待实现)
 const ITEMS: readonly ActivityItem[] = [
   { id: 'project', icon: Folder, label: '项目' },
   { id: 'search', icon: Search, label: '搜索' },
   { id: 'git', icon: GitBranch, label: 'Git' },
+  { id: 'outline', icon: ListTree, label: '大纲' },
+  { id: 'character', icon: Users, label: '角色' },
+  { id: 'voice', icon: Mic, label: '语音' },
+  { id: 'asset', icon: Image, label: '资产' },
   { id: 'debug', icon: Bug, label: '调试' },
   { id: 'settings', icon: Settings, label: '设置' }
 ]

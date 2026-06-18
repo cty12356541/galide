@@ -23,6 +23,24 @@ vi.mock('@renderer/features/flow-view/FlowView', () => ({
 vi.mock('@renderer/features/script-editor/ScriptEditor', () => ({
   ScriptEditor: () => <div data-testid="editor-stub" />
 }))
+vi.mock('@renderer/features/script-editor/ScriptFileTree', () => ({
+  ScriptFileTree: () => <div data-testid="project-stub" />
+}))
+vi.mock('@renderer/features/git/GitPanel', () => ({
+  GitPanel: () => <div data-testid="git-stub" />
+}))
+vi.mock('@renderer/features/outline/OutlinePanel', () => ({
+  OutlinePanel: () => <div data-testid="outline-stub" />
+}))
+vi.mock('@renderer/features/character/CharacterListPanel', () => ({
+  CharacterListPanel: () => <div data-testid="character-stub" />
+}))
+vi.mock('@renderer/features/voice/VoicePanel', () => ({
+  VoicePanel: () => <div data-testid="voice-stub" />
+}))
+vi.mock('@renderer/features/asset/AssetListPanel', () => ({
+  AssetListPanel: () => <div data-testid="asset-stub" />
+}))
 
 // 在 beforeEach 重置时挂上 focusMain stub(每个 test 独立)
 const focusMainMock = vi.fn(() => Promise.resolve({ ok: true }))
@@ -126,6 +144,18 @@ describe('FloatingPanelHost', () => {
 
   it('panel 切换:script-editor / flow-view / preview-canvas 都能渲染', () => {
     const ids = ['script-editor', 'flow-view', 'preview-canvas']
+    for (const id of ids) {
+      resetSearch()
+      setSearch(`?floating=1&panelId=${id}`)
+      const { unmount } = render(<FloatingPanelHost />)
+      expect(screen.getByTestId('floating-host')).toBeTruthy()
+      expect(screen.getByTestId('floating-content')).toBeTruthy()
+      unmount()
+    }
+  })
+
+  it('侧边岛浮出:6 个功能岛都能渲染', () => {
+    const ids = ['project', 'git', 'outline', 'character', 'voice', 'asset']
     for (const id of ids) {
       resetSearch()
       setSearch(`?floating=1&panelId=${id}`)

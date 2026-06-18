@@ -232,8 +232,13 @@ const api = {
           | 'script-editor'
           | 'flow-view'
           | 'preview-canvas'
-          | 'left-tool-window'
           | 'ai-tool-window'
+          | 'project'
+          | 'git'
+          | 'outline'
+          | 'character'
+          | 'voice'
+          | 'asset'
       }
     ): Promise<
       { ok: true; windowId: number } | { ok: false; error: string; code?: string }
@@ -246,8 +251,13 @@ const api = {
             | 'script-editor'
             | 'flow-view'
             | 'preview-canvas'
-            | 'left-tool-window'
             | 'ai-tool-window'
+            | 'project'
+            | 'git'
+            | 'outline'
+            | 'character'
+            | 'voice'
+            | 'asset'
         }
       ) => void
     ): (() => void) => {
@@ -258,8 +268,13 @@ const api = {
             | 'script-editor'
             | 'flow-view'
             | 'preview-canvas'
-            | 'left-tool-window'
             | 'ai-tool-window'
+            | 'project'
+            | 'git'
+            | 'outline'
+            | 'character'
+            | 'voice'
+            | 'asset'
         }
       ): void => callback(payload)
       ipcRenderer.on(IPC.workspace.panelClosed, listener)

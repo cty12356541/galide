@@ -35,7 +35,8 @@ import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useMosaicPersistence } from '../lib/hooks/use-mosaic-persistence'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
 import { sanitizeTree, getAllLeafIds } from '../components/workspace/mosaic/MosaicRoot'
-import type { WorkspaceMosaicNode } from '../lib/store'
+import { isSidePanel } from '../components/workspace/mosaic/panel-registry'
+import type { WorkspaceMosaicNode, ActivitySelection } from '../lib/store'
 
 const insertPanelIntoTree = (
   tree: WorkspaceMosaicNode,
@@ -70,18 +71,21 @@ export const App = (): JSX.Element => {
     const off = window.galide.workspace.onPanelClosed(({ panelId }) => {
       useUiStore.getState().removeFloatingPanel(panelId)
       // 中区 panel 关闭时,把该 panel 插回 mosaic 树
-      if (panelId !== 'left-tool-window' && panelId !== 'ai-tool-window') {
+      if (panelId !== 'ai-tool-window' && !isSidePanel(panelId)) {
         const cur = useUiStore.getState().mosaicTree
         if (cur) {
           // 检查 panel 是否已在树里(避免重复)
           const leaves = getAllLeafIds(cur)
           if (!leaves.includes(panelId)) {
-            const next = insertPanelIntoTree(cur, panelId)
-            useUiStore.getState().setMosaicTree(sanitizeTree(next))
-          }
+          const next = insertPanelIntoTree(cur, panelId as 'script-editor' | 'flow-view' | 'preview-canvas')
+          useUiStore.getState().setMosaicTree(sanitizeTree(next))
         }
       }
-    })
+    } else if (isSidePanel(panelId)) {
+      // 侧边岛关闭浮出 → 放回左槽原 dock 位(同步 ActivityBar 高亮)
+      useUiStore.getState().setActivitySelection(panelId as ActivitySelection)
+    }
+  })
     return off
   }, [])
 
@@ -95,7 +99,7 @@ export const App = (): JSX.Element => {
       <MenuBar />
       <Toolbar />
       <ProjectTabs />
-      <main className="flex-1 min-h-0 flex overflow-hidden bg-canvas p-2 gap-2">
+      <main className="flex-1 min-h-0 flex overflow-hidden bg-canvas p-3 gap-3">
         <ActivityBar />
         {projectPath ? (
           <CenterSplit />

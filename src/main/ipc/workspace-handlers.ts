@@ -109,7 +109,7 @@ export const registerWorkspaceHandlers = (): void => {
  *   - 监听窗口 'closed' → 给 owner 推 workspace:panelClosed 通知,renderer 收到后 removeFloatingPanel
  *
  * 注意点:
- *   - 限制同时浮出窗口数(防误操作刷屏)— MAX_FLOATING = 3
+ *   - 限制同时浮出窗口数(防误操作刷屏)— MAX_FLOATING = 5
  *   - BrowserWindow 配置用最简的(无 toolbar,只显示内容)
  *   - 复用 main 端 preload 桥(单点维护)
  */
@@ -118,7 +118,7 @@ import { readMosaicTree, writeMosaicTree } from '../workspace/mosaic-store.js'
 import { MosaicReadSchema, MosaicWriteSchema, WorkspaceOpenPanelSchema, parseIpcArgs } from './schemas/index.js'
 import { is } from '@electron-toolkit/utils'
 
-const MAX_FLOATING = 3
+const MAX_FLOATING = 5
 
 type FloatingRegistryEntry = {
   panelId: string
@@ -132,13 +132,28 @@ const ownerByWebContentsId = new Map<number, number>()
 
 const isValidPanelId = (
   v: unknown
-): v is 'script-editor' | 'flow-view' | 'preview-canvas' | 'left-tool-window' | 'ai-tool-window' => {
+): v is
+  | 'script-editor'
+  | 'flow-view'
+  | 'preview-canvas'
+  | 'ai-tool-window'
+  | 'project'
+  | 'git'
+  | 'outline'
+  | 'character'
+  | 'voice'
+  | 'asset' => {
   return (
     v === 'script-editor' ||
     v === 'flow-view' ||
     v === 'preview-canvas' ||
-    v === 'left-tool-window' ||
-    v === 'ai-tool-window'
+    v === 'ai-tool-window' ||
+    v === 'project' ||
+    v === 'git' ||
+    v === 'outline' ||
+    v === 'character' ||
+    v === 'voice' ||
+    v === 'asset'
   )
 }
 
@@ -160,8 +175,13 @@ export const createFloatingPanelWindow = (
     | 'script-editor'
     | 'flow-view'
     | 'preview-canvas'
-    | 'left-tool-window'
     | 'ai-tool-window'
+    | 'project'
+    | 'git'
+    | 'outline'
+    | 'character'
+    | 'voice'
+    | 'asset'
 ): BrowserWindow => {
   if (floatingRegistry.size >= MAX_FLOATING) {
     throw new Error(`已到达最大浮出数 ${MAX_FLOATING},请先关闭部分浮出窗口`)
