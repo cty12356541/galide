@@ -26,6 +26,8 @@
 
 import Store from 'electron-store'
 import { app, safeStorage as electronSafeStorage, type SafeStorage } from 'electron'
+import { existsSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
 
 /** safeStorage 注入接口,便于测试 mock(happy-dom/jsdom 无 OS keychain) */
 export type SafeStorageLike = Pick<SafeStorage, 'encryptString' | 'decryptString' | 'isEncryptionAvailable'>
@@ -35,6 +37,23 @@ const KEY_PREFIX = 'apiKey:'
 
 let keyStore: Store | null = null
 let crypto: SafeStorageLike | null = null
+
+/**
+ * 构造 secrets store。落盘文件损坏或为旧版 electron-store.encryptionKey
+ * 加密残留(迁移到 safeStorage 后旧密文无法被 conf 当 JSON 解析)时,
+ * 删除孤儿文件后重建空 store,而非让进程启动崩溃。
+ * 安全可接受:损坏/旧密文里的 key 本就不可恢复,用户需重配 API Key。
+ */
+const createStore = (): Store => {
+  const cwd = app.getPath('userData')
+  try {
+    return new Store({ name: STORE_NAME, cwd })
+  } catch {
+    const file = join(cwd, `${STORE_NAME}.json`)
+    if (existsSync(file)) unlinkSync(file)
+    return new Store({ name: STORE_NAME, cwd })
+  }
+}
 
 /**
  * 初始化 KeyStore。必须在 app ready 之后、所有 IPC handler 注册之前调用一次。
@@ -48,11 +67,8 @@ export const initKeyStore = (opts?: { safeStorage?: SafeStorageLike }): void => 
       '[galide] safeStorage 不可用(OS keychain 缺失)。API Key 加密存储无法初始化,拒绝启动。'
     )
   }
-  keyStore = new Store({
-    name: STORE_NAME,
-    cwd: app.getPath('userData')
-    // 不再传 encryptionKey:落盘的是 safeStorage 密文,store 本身无需再加密
-  })
+  // 落盘文件损坏/旧版 encryptionKey 加密残留 → createStore 内部删除重建空 store
+  keyStore = createStore()
   void keyStore.size
 }
 

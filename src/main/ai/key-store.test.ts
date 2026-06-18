@@ -9,7 +9,7 @@
  *  - 密文损坏 → get 返 undefined(让用户重配)
  */
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Store from 'electron-store'
@@ -124,5 +124,19 @@ describe('corrupted ciphertext', () => {
       throw new Error('decrypt failed')
     })
     expect(apiKeyStore.get('openai')).toBeUndefined()
+  })
+})
+
+describe('legacy corrupt store file (encryptionKey 迁移残留)', () => {
+  it('落盘文件为旧版 AES 密文(非 JSON)→ initKeyStore 不崩溃,重建空 store', async () => {
+    const dir = freshStore()
+    // 模拟旧版 electron-store.encryptionKey 写出的二进制密文(conf 当 JSON 读会抛)
+    writeFileSync(join(dir, 'galide-secrets.json'), Buffer.from([0x54, 0xbd, 0x4e, 0x1d, 0x62, 0xfa]))
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    expect(() => initKeyStore()).not.toThrow()
+    // 重建后是空 store,get 返 undefined(用户需重配),set/get 仍可用
+    expect(apiKeyStore.get('openai')).toBeUndefined()
+    apiKeyStore.set('openai', 'sk-fresh')
+    expect(apiKeyStore.get('openai')).toBe('sk-fresh')
   })
 })
