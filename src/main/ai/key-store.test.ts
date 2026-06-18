@@ -1,27 +1,35 @@
 /**
- * key-store 单测
- * 规约: layers/main-process/conventions.yaml:26 — API Key 加密存储,
- *       启动时必须能复用或生成 token,损坏的 token 触发重生成。
+ * key-store 单测(第三版:safeStorage)
+ *
+ * 规约: layers/main-process/conventions.yaml:26 — API Key 加密存储
+ * 验证:
+ *  - safeStorage 不可用 → initKeyStore throw(不静默降级)
+ *  - set/get round-trip 可逆
+ *  - 落盘文件只含 base64 密文,不含明文 key
+ *  - 密文损坏 → get 返 undefined(让用户重配)
  */
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import Store from 'electron-store'
 
-// electron 的 app.getPath 需要 mock,把它移到最前面
-vi.mock('electron', () => ({
-  app: {
-    getPath: vi.fn()
+// electron mock:app.getPath + safeStorage。用 vi.hoisted 确保 vi.mock factory 能引用。
+const { mockSafeStorage } = vi.hoisted(() => ({
+  mockSafeStorage: {
+    isEncryptionAvailable: vi.fn(() => true),
+    encryptString: vi.fn((plain: string) => Buffer.from(`enc:${plain}`, 'utf-8')),
+    decryptString: vi.fn((buf: Buffer) => buf.toString('utf-8').replace(/^enc:/, ''))
   }
 }))
 
-// 静态 import 放在 vi.mock 之后
-import { app } from 'electron'
-const { deriveEncryptionKey, deriveEncryptionKeyFromFs } = await import('./key-store.js')
+vi.mock('electron', () => ({
+  app: { getPath: vi.fn() },
+  safeStorage: mockSafeStorage
+}))
 
-afterEach(() => {
-  vi.clearAllMocks()
-})
+import { app } from 'electron'
+const { initKeyStore, apiKeyStore } = await import('./key-store.js')
 
 const tmpRoots: string[] = []
 afterEach(() => {
@@ -29,66 +37,93 @@ afterEach(() => {
     const r = tmpRoots.pop()
     if (r) rmSync(r, { recursive: true, force: true })
   }
+  vi.clearAllMocks()
+  // 重置 keyStore 单例(模块级 let)
+  vi.resetModules()
 })
 
-const makeFs = (dir: string) => ({
-  keychainPath: join(dir, 'galide-keychain.token'),
-  exists: () => existsSync(join(dir, 'galide-keychain.token')),
-  read: () => readFileSync(join(dir, 'galide-keychain.token'), 'utf-8'),
-  mode: () => statSync(join(dir, 'galide-keychain.token')).mode & 0o777
-})
+const freshStore = (): string => {
+  const dir = mkdtempSync(join(tmpdir(), 'galide-key-'))
+  tmpRoots.push(dir)
+  vi.mocked(app.getPath).mockReturnValue(dir)
+  return dir
+}
 
-describe('deriveEncryptionKeyFromFs', () => {
-  it('generates new token when file does not exist', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'galide-key-'))
-    tmpRoots.push(dir)
-    const fs = makeFs(dir)
-    expect(fs.exists()).toBe(false)
-    const token = deriveEncryptionKeyFromFs({ keychainPath: fs.keychainPath })
-    expect(token.length).toBeGreaterThanOrEqual(32)
-    expect(fs.exists()).toBe(true)
-    // 文件权限 0o600
-    expect(fs.mode()).toBe(0o600)
+describe('initKeyStore — safeStorage 可用性', () => {
+  it('throws when safeStorage unavailable (no silent fallback)', async () => {
+    freshStore()
+    mockSafeStorage.isEncryptionAvailable.mockReturnValueOnce(false)
+    const { initKeyStore } = await import('./key-store.js')
+    expect(() => initKeyStore()).toThrow(/safeStorage 不可用/)
   })
 
-  it('reuses existing token when length >= 32', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'galide-key-'))
-    tmpRoots.push(dir)
-    const fs = makeFs(dir)
-    const existing = 'a'.repeat(40)
-    writeFileSync(fs.keychainPath, existing)
-    const token = deriveEncryptionKeyFromFs({ keychainPath: fs.keychainPath })
-    expect(token).toBe(existing)
-  })
-
-  it('regenerates token when existing is too short', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'galide-key-'))
-    tmpRoots.push(dir)
-    const fs = makeFs(dir)
-    writeFileSync(fs.keychainPath, 'short')
-    const token = deriveEncryptionKeyFromFs({ keychainPath: fs.keychainPath })
-    expect(token.length).toBeGreaterThanOrEqual(32)
-    expect(token).not.toBe('short')
-  })
-
-  it('strips whitespace from existing token before checking length', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'galide-key-'))
-    tmpRoots.push(dir)
-    const fs = makeFs(dir)
-    const padded = `  ${'b'.repeat(40)}  \n`
-    writeFileSync(fs.keychainPath, padded)
-    const token = deriveEncryptionKeyFromFs({ keychainPath: fs.keychainPath })
-    expect(token).toBe('b'.repeat(40))
+  it('initializes when safeStorage available', async () => {
+    freshStore()
+    const { initKeyStore } = await import('./key-store.js')
+    expect(() => initKeyStore()).not.toThrow()
   })
 })
 
-describe('deriveEncryptionKey (electron adapter)', () => {
-  it('uses app.getPath("userData") + keychain filename', () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'galide-userdata-'))
-    tmpRoots.push(tmp)
-    vi.mocked(app.getPath).mockReturnValue(tmp)
-    const token = deriveEncryptionKey()
-    expect(token.length).toBeGreaterThanOrEqual(32)
-    expect(existsSync(join(tmp, 'galide-keychain.token'))).toBe(true)
+describe('apiKeyStore round-trip', () => {
+  it('set then get returns the original plaintext', async () => {
+    freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    apiKeyStore.set('openai', 'sk-secret-123')
+    expect(apiKeyStore.get('openai')).toBe('sk-secret-123')
+  })
+
+  it('get returns undefined for unknown provider', async () => {
+    freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    expect(apiKeyStore.get('claude')).toBeUndefined()
+  })
+
+  it('set rejects empty key', async () => {
+    freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    expect(() => apiKeyStore.set('openai', '')).toThrow(/不能为空/)
+    expect(() => apiKeyStore.set('openai', '   ')).toThrow(/不能为空/)
+  })
+
+  it('delete removes the key', async () => {
+    freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    apiKeyStore.set('openai', 'sk-x')
+    apiKeyStore.delete('openai')
+    expect(apiKeyStore.get('openai')).toBeUndefined()
+  })
+})
+
+describe('plaintext never hits disk', () => {
+  it('store file contains base64 ciphertext, not raw key', async () => {
+    const dir = freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    apiKeyStore.set('openai', 'sk-plaintext-secret')
+    // electron-store 落盘文件 config.json
+    const raw = readFileSync(join(dir, 'galide-secrets.json'), 'utf-8')
+    expect(raw).not.toContain('sk-plaintext-secret')
+    // 密文应含 enc: 前缀(base64 后)
+    expect(raw).toContain('ZW5jOnNrL') // 'enc:sk-' 的 base64 起始
+  })
+})
+
+describe('corrupted ciphertext', () => {
+  it('get returns undefined when decrypt fails', async () => {
+    const dir = freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    apiKeyStore.set('openai', 'sk-good')
+    // 直接写坏密文
+    const s = new Store({ name: 'galide-secrets', cwd: dir })
+    s.set('apiKey:openai', '!!!not-valid-base64-cipher!!!')
+    mockSafeStorage.decryptString.mockImplementationOnce(() => {
+      throw new Error('decrypt failed')
+    })
+    expect(apiKeyStore.get('openai')).toBeUndefined()
   })
 })

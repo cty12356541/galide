@@ -1,26 +1,19 @@
-import Store from 'electron-store'
-import { app } from 'electron'
-import { randomBytes } from 'node:crypto'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
-
 /**
  * 加密存储 API Key
  *
- * 安全设计(P0-4 修复 v2):
- * - 源码中不出现任何 encryptionKey 字面量
- * - electron-store 的 encryptionKey 是 32 字节随机 token
- * - token 明文写入 userData/galide-keychain.token(文件权限 0o600)
- * - 启动时读 token → 用于 electron-store 的对称加密
- * - token 文件不存在 → 首次启动,生成新 token
- * - 文件存在但读不出(损坏/权限) → throw,阻断进程启动
+ * 安全设计(第三版,改用 OS keychain):
+ * - 每条 API Key 用 Electron safeStorage(OS keychain:macOS Keychain /
+ *   Windows DPAPI / Linux libsecret)加密,存为 base64 字符串
+ * - 落盘文件只含密文,无明文 key,无明文 token
+ * - safeStorage 不可用(无 keychain / 测试环境)→ initKeyStore throw,
+ *   不静默退化到无加密
  *
- * 之前用 safeStorage 派生 key 的方案被弃用:
- * - safeStorage.encryptString() 输出 raw Buffer,跨 round-trip 不可靠
- *   (Buffer.from(rawBytes, 'utf-8') 在 binary 路径上解码出错)
- * - 既然 electron-store 自身的 encryptionKey 是对称的,
- *   OS-level 保护不是必需的;用文件权限 0o600 就够了
- * - 进一步加固:文件路径在 userData(用户私有),其他用户读不到
+ * 为何弃用旧「明文 token 文件 + electron-store.encryptionKey」方案:
+ * - token 明文写在 userData,任何能读 userData 的本机进程都能解密所有 key
+ *   「加密 at rest」对本地攻击者形同虚设
+ * - safeStorage 把密钥托管给 OS,密文即使被读到也无法离机解密
+ * - round-trip 可靠性:safeStorage.encryptString 返回 Buffer,
+ *   存 base64(ASCII)读回再 Buffer.from(base64) 即可,无 binary 解码坑
  *
  * 调用约定:
  * - 必须先 initKeyStore(),然后才能使用 apiKeyStore.get/set/delete
@@ -31,82 +24,66 @@ import { dirname } from 'node:path'
  * - .cursor/rules/ai-conventions.mdc:11 "Key 存储走 electron-store 加密"
  */
 
-const KEYCHAIN_FILE = 'galide-keychain.token'
+import Store from 'electron-store'
+import { app, safeStorage as electronSafeStorage, type SafeStorage } from 'electron'
+
+/** safeStorage 注入接口,便于测试 mock(happy-dom/jsdom 无 OS keychain) */
+export type SafeStorageLike = Pick<SafeStorage, 'encryptString' | 'decryptString' | 'isEncryptionAvailable'>
+
 const STORE_NAME = 'galide-secrets'
-const MIN_TOKEN_LENGTH = 32
-
-const keychainPath = (): string => {
-  const userData = app.getPath('userData')
-  return `${userData}/${KEYCHAIN_FILE}`
-}
-
-/**
- * 纯函数版本:从给定路径读取/生成 token。
- * 拆出来便于 vitest 注入 tmp 目录。
- */
-export const deriveEncryptionKeyFromFs = (opts: { keychainPath: string }): string => {
-  const path = opts.keychainPath
-  mkdirSync(dirname(path), { recursive: true })
-
-  let token: string | null = null
-  try {
-    const raw = readFileSync(path, 'utf-8').trim()
-    if (raw.length >= MIN_TOKEN_LENGTH) {
-      token = raw
-    }
-  } catch {
-    token = null
-  }
-
-  if (!token) {
-    token = randomBytes(32).toString('base64')
-    writeFileSync(path, token, { mode: 0o600 })
-  }
-  return token
-}
-
-/**
- * 适配器:用 electron app.getPath('userData') 作为根目录。
- */
-export const deriveEncryptionKey = (): string =>
-  deriveEncryptionKeyFromFs({ keychainPath: keychainPath() })
+const KEY_PREFIX = 'apiKey:'
 
 let keyStore: Store | null = null
+let crypto: SafeStorageLike | null = null
 
 /**
  * 初始化 KeyStore。必须在 app ready 之后、所有 IPC handler 注册之前调用一次。
- * 失败立即 throw,阻断进程启动(避免后续静默退化到无加密状态)。
+ * safeStorage 不可用 → throw 阻断启动(不静默退化到无加密)。
  */
-export const initKeyStore = (): void => {
+export const initKeyStore = (opts?: { safeStorage?: SafeStorageLike }): void => {
   if (keyStore) return
-  const encryptionKey = deriveEncryptionKey()
+  crypto = opts?.safeStorage ?? electronSafeStorage
+  if (!crypto.isEncryptionAvailable()) {
+    throw new Error(
+      '[galide] safeStorage 不可用(OS keychain 缺失)。API Key 加密存储无法初始化,拒绝启动。'
+    )
+  }
   keyStore = new Store({
     name: STORE_NAME,
-    cwd: app.getPath('userData'),
-    encryptionKey
+    cwd: app.getPath('userData')
+    // 不再传 encryptionKey:落盘的是 safeStorage 密文,store 本身无需再加密
   })
-  // 触发 store 真实打开(若 encryptionKey 错会立即抛)
   void keyStore.size
 }
 
-const requireStore = (): Store => {
-  if (!keyStore) {
+const requireStore = (): { store: Store; crypto: SafeStorageLike } => {
+  if (!keyStore || !crypto) {
     throw new Error('[galide] apiKeyStore 在 initKeyStore() 之前被使用')
   }
-  return keyStore
+  return { store: keyStore, crypto }
 }
 
 export const apiKeyStore = {
   get: (provider: string): string | undefined => {
-    return requireStore().get(`apiKey:${provider}`) as string | undefined
+    const { store, crypto } = requireStore()
+    const cipherB64 = store.get(`${KEY_PREFIX}${provider}`) as string | undefined
+    if (!cipherB64) return undefined
+    try {
+      return crypto.decryptString(Buffer.from(cipherB64, 'base64'))
+    } catch {
+      // 密文损坏 / keychain 换机器 → 视为无 key,让用户重配
+      return undefined
+    }
   },
   set: (provider: string, key: string): void => {
     if (!key || key.trim().length === 0) {
       throw new Error('[galide] apiKeyStore.set: key 不能为空')
     }
-    requireStore().set(`apiKey:${provider}`, key)
+    const { store, crypto } = requireStore()
+    const cipher = crypto.encryptString(key)
+    store.set(`${KEY_PREFIX}${provider}`, cipher.toString('base64'))
   },
   delete: (provider: string): void => {
-    requireStore().delete(`apiKey:${provider}`)
+    requireStore().store.delete(`${KEY_PREFIX}${provider}`)
   }
 }
