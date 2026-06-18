@@ -12,9 +12,8 @@
  * 与 store.ts:setTheme 的关系:
  *  - store.ts:setTheme 写入时已经 toggle('dark'),这里订阅 store 后再次 toggle 是
  *    idempotent — 同一状态 toggle 两次等于无操作。
- *  - 真正的作用是:hydrate 后 disk 数据反序列化 → store hydrateWorkspaceLayout 时
- *    不调用 setTheme(只 set workspaceLayout),但 useAppearanceEffect 监听 theme 变化
- *    同步生效。
+ *  - 真正的作用是:外部修改 theme(zustand devtools / 测试 setState)时,
+ *    useAppearanceEffect 监听 theme 变化同步 DOM class。
  */
 
 import { useEffect } from 'react'

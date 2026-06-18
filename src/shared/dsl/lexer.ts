@@ -1,33 +1,46 @@
 /**
  * gal DSL 词法分析器
  * 输出 Token[] ,每行最多一个语义节点(保护 git diff 线性)
+ *
+ * 行类型检测正则来自 line-rules.ts(单一事实源),与 lezer-parser.ts 共用,
+ * 消除「同一行在不同上下文被识别为不同类型」的漂移。
  */
 
 import type { Token, TokenType } from './types.js'
+import {
+  BACKGROUND_RE,
+  BGM_RE,
+  CHAPTER_RE,
+  CHOICE_FULL_RE,
+  COMMENT_RE,
+  DIALOGUE_RE,
+  GOTO_RE,
+  MARKER_RE,
+  SCENE_RE,
+  SPRITE_RE
+} from './line-rules.js'
 
 type LineRule = {
   test: (line: string) => boolean
   tokenize: (line: string, lineNo: number) => Token[]
 }
 
-const isWhitespace = (s: string): boolean => /^\s+$/.test(s)
-
 const chapterRule: LineRule = {
-  test: (line) => line.startsWith('# ') && !line.startsWith('## '),
+  test: (line) => CHAPTER_RE.test(line) && !SCENE_RE.test(line),
   tokenize: (line, lineNo) => [
     { type: 'chapter', value: line.slice(2).trim(), line: lineNo, column: 1 }
   ]
 }
 
 const sceneRule: LineRule = {
-  test: (line) => line.startsWith('## '),
+  test: (line) => SCENE_RE.test(line),
   tokenize: (line, lineNo) => [
     { type: 'scene', value: line.slice(3).trim(), line: lineNo, column: 1 }
   ]
 }
 
 const backgroundRule: LineRule = {
-  test: (line) => line.startsWith('背景:') || line.startsWith('background:'),
+  test: (line) => BACKGROUND_RE.test(line),
   tokenize: (line, lineNo) => {
     const prefix = line.startsWith('背景:') ? '背景:' : 'background:'
     return [
@@ -37,7 +50,7 @@ const backgroundRule: LineRule = {
 }
 
 const bgmRule: LineRule = {
-  test: (line) => line.startsWith('BGM:') || line.startsWith('bgm:'),
+  test: (line) => BGM_RE.test(line),
   tokenize: (line, lineNo) => {
     const prefix = line.startsWith('BGM:') ? 'BGM:' : 'bgm:'
     return [
@@ -46,12 +59,20 @@ const bgmRule: LineRule = {
   }
 }
 
+/**
+ * 立绘行: [角色:名字 | 立绘:asset.png | 位置:left]
+ *
+ * 发出可区分 token(修复:之前 character/asset/position 全 emit 成 'sprite',
+ * parser 无法区分 → sprite 数据丢失):
+ *  - character: 丢弃(DialogueNode 无对应字段,且与对白行的角色名冗余)
+ *  - asset:     type='sprite'(立绘资源路径)
+ *  - position:  type='position'(left/right/center)
+ */
 const spriteRule: LineRule = {
-  test: (line) => line.startsWith('[角色:') || line.startsWith('[character:'),
+  test: (line) => SPRITE_RE.test(line),
   tokenize: (line, lineNo) => {
     const body = line.replace(/^\[(角色|character):/, '').replace(/\]$/, '')
     const parts = body.split('|').map((p) => p.trim())
-    const character = parts[0] ?? ''
     const spritePart = parts.find((p) => p.startsWith('立绘:') || p.startsWith('sprite:'))
     const positionPart = parts.find((p) => p.startsWith('位置:') || p.startsWith('position:'))
     const sprite = spritePart?.split(':')[1]?.trim()
@@ -60,18 +81,19 @@ const spriteRule: LineRule = {
       | 'right'
       | 'center'
       | undefined
-    return [
-      { type: 'sprite', value: character, line: lineNo, column: 1 },
-      ...(sprite ? [{ type: 'sprite' as TokenType, value: sprite, line: lineNo, column: 1 }] : []),
-      ...(position
-        ? [{ type: 'sprite' as TokenType, value: position, line: lineNo, column: 1 }]
-        : [])
-    ]
+    const tokens: Token[] = []
+    if (sprite) {
+      tokens.push({ type: 'sprite', value: sprite, line: lineNo, column: 1 })
+    }
+    if (position) {
+      tokens.push({ type: 'position', value: position, line: lineNo, column: 1 })
+    }
+    return tokens
   }
 }
 
 const gotoRule: LineRule = {
-  test: (line) => line.startsWith('[跳转:') || line.startsWith('[goto:'),
+  test: (line) => GOTO_RE.test(line),
   tokenize: (line, lineNo) => {
     const target = line.replace(/^\[(跳转|goto):/, '').replace(/\]$/, '').trim()
     return [{ type: 'goto', value: target, line: lineNo, column: 1 }]
@@ -79,9 +101,9 @@ const gotoRule: LineRule = {
 }
 
 const dialogueRule: LineRule = {
-  test: (line) => /^[^\s[][^:]*: "/.test(line),
+  test: (line) => /^[^\s[]/.test(line) && DIALOGUE_RE.test(line),
   tokenize: (line, lineNo) => {
-    const match = line.match(/^([^:]+): "(.*)"$/)
+    const match = line.match(DIALOGUE_RE)
     if (!match) return []
     const character = match[1]?.trim() ?? ''
     const text = match[2] ?? ''
@@ -93,9 +115,9 @@ const dialogueRule: LineRule = {
 }
 
 const choiceRule: LineRule = {
-  test: (line) => line.trimStart().startsWith('* "'),
+  test: (line) => CHOICE_FULL_RE.test(line),
   tokenize: (line, lineNo) => {
-    const match = line.match(/^\s*\* "(.+?)"(?:\s*->\s*(.+))?$/)
+    const match = line.match(CHOICE_FULL_RE)
     if (!match) return []
     return [
       { type: 'choice', value: match[1] ?? '', line: lineNo, column: 1 },
@@ -107,7 +129,7 @@ const choiceRule: LineRule = {
 }
 
 const markerRule: LineRule = {
-  test: (line) => /^===\s*[^=]+\s*===$/.test(line),
+  test: (line) => MARKER_RE.test(line),
   tokenize: (line, lineNo) => {
     const id = line.replace(/^===\s*/, '').replace(/\s*===$/, '').trim()
     return [{ type: 'marker', value: id, line: lineNo, column: 1 }]
@@ -115,14 +137,14 @@ const markerRule: LineRule = {
 }
 
 const commentRule: LineRule = {
-  test: (line) => line.trimStart().startsWith('//'),
+  test: (line) => COMMENT_RE.test(line),
   tokenize: (line, lineNo) => [
     { type: 'comment', value: line.replace(/^\s*\/\/\s*/, ''), line: lineNo, column: 1 }
   ]
 }
 
 const emptyRule: LineRule = {
-  test: isWhitespace,
+  test: (line) => line.trim() === '',
   tokenize: () => []
 }
 

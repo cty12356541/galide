@@ -78,6 +78,7 @@ export type TokenType =
   | 'background'
   | 'bgm'
   | 'sprite'
+  | 'position'
   | 'dialogue'
   | 'choice'
   | 'marker'

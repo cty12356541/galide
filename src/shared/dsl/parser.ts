@@ -34,6 +34,8 @@ const collectLines = (tokens: Token[]): Token[][] => {
 type Pending = {
   currentScene: SceneNode | null
   currentDialogue: DialogueNode | null
+  pendingSprite: string | undefined
+  pendingPosition: 'left' | 'right' | 'center' | undefined
 }
 
 const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): void => {
@@ -82,7 +84,24 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): vo
       pending.currentScene.bgm = first.value
       return
     }
-    case 'sprite': {
+    case 'sprite':
+    case 'position': {
+      // 立绘舞台行:扫描行内 sprite / position token,更新 pending
+      // galgame 语义:持续到下次 sprite 行改变,后续 dialogue 继承
+      const spriteToken = line.find((t) => t.type === 'sprite')
+      const positionToken = line.find((t) => t.type === 'position')
+      if (spriteToken) pending.pendingSprite = spriteToken.value
+      if (positionToken) {
+        const v = positionToken.value
+        pending.pendingPosition =
+          v === 'left' || v === '左'
+            ? 'left'
+            : v === 'right' || v === '右'
+              ? 'right'
+              : v === 'center' || v === '中'
+                ? 'center'
+                : undefined
+      }
       return
     }
     case 'dialogue': {
@@ -92,7 +111,9 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[]): vo
         character: first.value,
         line: first.line,
         column: first.column,
-        lines: textToken ? [textToken.value] : []
+        lines: textToken ? [textToken.value] : [],
+        sprite: pending.pendingSprite,
+        position: pending.pendingPosition
       }
       if (pending.currentScene) {
         pending.currentScene.children.push(dialogue)
@@ -176,7 +197,12 @@ export const parse = (source: string): Result<ScriptNode> => {
     children: [],
     errors: []
   }
-  const pending: Pending = { currentScene: null, currentDialogue: null }
+  const pending: Pending = {
+    currentScene: null,
+    currentDialogue: null,
+    pendingSprite: undefined,
+    pendingPosition: undefined
+  }
 
   for (const line of lines) {
     const first = line[0]

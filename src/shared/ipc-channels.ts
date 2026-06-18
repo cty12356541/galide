@@ -88,10 +88,6 @@ export const IPC = {
     resolve: 'asset:resolve'
   },
   workspace: {
-    readProject: 'workspace:readProject',
-    writeProject: 'workspace:writeProject',
-    readGlobal: 'workspace:readGlobal',
-    writeGlobal: 'workspace:writeGlobal',
     /** PR2: 在独立 BrowserWindow 中浮出 panel(走 main 端 createWindow) */
     openPanel: 'workspace:openPanel',
     /** PR2: 浮出 panel 关闭时通知 renderer 清理 store */

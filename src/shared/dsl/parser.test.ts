@@ -130,3 +130,65 @@ BGM: assets/bgm/gentle_piano.mp3
     expect(scene?.column).toBe(1)
   })
 })
+
+describe('gal parser — sprite/position stage semantics (Batch 3)', () => {
+  it('attaches sprite + position to subsequent dialogue (persistent stage)', () => {
+    const src = `## 教室
+[角色:小雪 | 立绘:小雪_校服_微笑.png | 位置:左]
+小雪: "今天的樱花,真漂亮呢。"
+`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const scene = result.value.children.find((c): c is SceneNode => c.type === 'scene')
+    const dlg = scene?.children.find((c) => c.type === 'dialogue')
+    if (dlg?.type === 'dialogue') {
+      expect(dlg.sprite).toBe('小雪_校服_微笑.png')
+      expect(dlg.position).toBe('left')
+    }
+  })
+
+  it('persists sprite/position across multiple dialogues until changed', () => {
+    const src = `## 教室
+[角色:小雪 | 立绘:a.png | 位置:左]
+小雪: "第一句"
+小雪: "第二句"
+`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const scene = result.value.children.find((c): c is SceneNode => c.type === 'scene')
+    const dialogues = scene?.children.filter((c) => c.type === 'dialogue') ?? []
+    expect(dialogues.length).toBe(2)
+    if (dialogues[0]?.type === 'dialogue' && dialogues[1]?.type === 'dialogue') {
+      expect(dialogues[0].sprite).toBe('a.png')
+      expect(dialogues[0].position).toBe('left')
+      expect(dialogues[1].sprite).toBe('a.png')
+      expect(dialogues[1].position).toBe('left')
+    }
+  })
+
+  it('dialogue without preceding sprite line has no sprite/position', () => {
+    const src = `## 教室
+小雪: "没有立绘"
+`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const scene = result.value.children.find((c): c is SceneNode => c.type === 'scene')
+    const dlg = scene?.children.find((c) => c.type === 'dialogue')
+    if (dlg?.type === 'dialogue') {
+      expect(dlg.sprite).toBeUndefined()
+      expect(dlg.position).toBeUndefined()
+    }
+  })
+
+  it('recognizes both ===x=== and === x === as marker (unified rule)', () => {
+    const src1 = `## 场景\n=== 樱花树下 ===\n`
+    const src2 = `## 场景\n===樱花树下===\n`
+    for (const src of [src1, src2]) {
+      const result = parse(src)
+      expect(result.ok).toBe(true)
+    }
+  })
+})

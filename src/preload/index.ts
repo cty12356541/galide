@@ -2,7 +2,6 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../shared/types'
 import type { Result, ScriptNode, ParseError } from '../shared/dsl/types'
-import type { WorkspaceLayout } from '../shared/workspace-layout.js'
 
 type GitStatus = {
   initialized: boolean
@@ -225,15 +224,7 @@ const api = {
       error?: string
     }> => ipcRenderer.invoke(IPC.asset.resolve, args.projectPath, args.relPath)
   },
-  workspace: {
-    readProject: (projectPath: string): Promise<{ ok: boolean; layout: WorkspaceLayout | null }> =>
-      ipcRenderer.invoke(IPC.workspace.readProject, projectPath),
-    writeProject: (projectPath: string, layout: WorkspaceLayout): Promise<{ ok: boolean }> =>
-      ipcRenderer.invoke(IPC.workspace.writeProject, projectPath, layout),
-    readGlobal: (): Promise<{ ok: boolean; layout: WorkspaceLayout | null }> =>
-      ipcRenderer.invoke(IPC.workspace.readGlobal),
-    writeGlobal: (layout: WorkspaceLayout): Promise<{ ok: boolean }> =>
-      ipcRenderer.invoke(IPC.workspace.writeGlobal, layout),
+ workspace: {
     /** PR2/PR3-A: 浮出 panel 到独立 BrowserWindow(5 个 panel) */
     openPanel: (
       args: {

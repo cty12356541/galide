@@ -30,6 +30,18 @@
 import { tags as t } from '@lezer/highlight'
 import { HighlightStyle } from '@codemirror/language'
 import type { StreamParser } from '@codemirror/language'
+import {
+  BACKGROUND_RE,
+  BGM_RE,
+  CHAPTER_RE,
+  CHOICE_RE,
+  COMMENT_RE,
+  GOTO_RE,
+  MARKER_RE,
+  SCENE_RE,
+  SPRITE_RE,
+  DIALOGUE_RE
+} from './line-rules.js'
 
 /* ------------------------------------------------------------------ *
  * Token 字符串常量 — StreamParser 返回这些字面量,galTagMap 再做映射
@@ -64,15 +76,6 @@ export interface GalStreamState {
  * StreamParser — line-oriented tokenizer
  * 6 种 DSL 行类型全覆盖 + 注释 / 标记 / 对白 / 跳转 / 立绘
  * ------------------------------------------------------------------ */
-const HEADING1_RE = /^# [^#\s].*/
-const HEADING2_RE = /^## .*/
-const PROPERTY_BG_RE = /^(背景|background):.*/
-const PROPERTY_BGM_RE = /^(BGM|bgm):.*/
-const SPRITE_RE = /^\[(角色|character):.*\]/
-const GOTO_RE = /^\[(跳转|goto):.*\]/
-const MARKER_RE = /^=== [^=].* ===\s*$/
-const COMMENT_RE = /^\/\/.*/
-const CHOICE_RE = /^\* .*/
 
 export const galParser: StreamParser<GalStreamState> = {
   name: 'gal',
@@ -106,12 +109,12 @@ export const galParser: StreamParser<GalStreamState> = {
     }
 
     // Chapter heading: # 标题
-    if (state.atLineStart && stream.match(HEADING1_RE)) {
+    if (state.atLineStart && stream.match(CHAPTER_RE)) {
       return GAL_TOKEN.Heading1
     }
 
     // Scene heading: ## 场景
-    if (state.atLineStart && stream.match(HEADING2_RE)) {
+    if (state.atLineStart && stream.match(SCENE_RE)) {
       return GAL_TOKEN.Heading2
     }
 
@@ -124,16 +127,16 @@ export const galParser: StreamParser<GalStreamState> = {
     }
 
     // 属性行: 背景:/BGM:
-    if (state.atLineStart && stream.match(PROPERTY_BG_RE)) {
+    if (state.atLineStart && stream.match(BACKGROUND_RE)) {
       return GAL_TOKEN.Property
     }
-    if (state.atLineStart && stream.match(PROPERTY_BGM_RE)) {
+    if (state.atLineStart && stream.match(BGM_RE)) {
       return GAL_TOKEN.Property
     }
 
     // 对白: 角色名: "对白"
     if (state.atLineStart) {
-      if (stream.match(/^([^:\s][^:]*?):\s+".*"/)) {
+      if (stream.match(DIALOGUE_RE)) {
         return GAL_TOKEN.Function
       }
     }

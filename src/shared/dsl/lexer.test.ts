@@ -96,3 +96,23 @@ describe('gal lexer', () => {
     })
   })
 })
+
+describe('gal lexer — sprite token (Batch 3)', () => {
+  it('emits distinguishable sprite + position tokens (not character)', () => {
+    const tokens = tokenize('[角色:小雪 | 立绘:a.png | 位置:左]')
+    const sprite = tokens.find((t) => t.type === 'sprite')
+    const position = tokens.find((t) => t.type === 'position')
+    expect(sprite?.value).toBe('a.png')
+    expect(position?.value).toBe('左')
+    // character name 不再作为 token emit(DialogueNode 无对应字段)
+    const charCount = tokens.filter((t) => t.type === 'sprite').length
+    expect(charCount).toBe(1)
+  })
+
+  it('handles sprite line with only position (no asset)', () => {
+    const tokens = tokenize('[角色:小雪 | 位置:右]')
+    const position = tokens.find((t) => t.type === 'position')
+    expect(position?.value).toBe('右')
+    expect(tokens.find((t) => t.type === 'sprite')).toBeUndefined()
+  })
+})

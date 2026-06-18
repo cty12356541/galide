@@ -19,3 +19,9 @@ secrets/
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# Tooling caches / worktrees (never commit)
+.opencode/
+.mavis/
+.worktrees/
+bun.lock

@@ -5,8 +5,7 @@
  * 这是产线"按 9 commit 设计意图补全"的最低 e2e 验证:
  *  - 每个新组件能 React mount 不 throw
  *  - DOM 中能找到关键 testid / 文本节点,证明 layout 真在工作
- *  - workspace-layout 默认值与合并行为符合规约
- *
+*
  * 这是 in-flight 周期的回归基线,后续 PR 应在此基础上扩展真实的:
  *  - 拖拽 / 多区域切换行为
  *  - dockview 多 group 布局
@@ -19,7 +18,16 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { useUiStore } from '../lib/store'
+
+const wrapWithQueryClient = (ui: ReactNode): ReactNode => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+  })
+  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+}
 
 // 任何 window.galide 访问都返回 null(测试不依赖 preload)
 const setGalideEmpty = (): void => {
@@ -38,51 +46,6 @@ beforeEach(() => {
   })
 })
 
-describe('supplement-11-files: shared types + utilities', () => {
-  it('applyWorkspacePreset(writing) sets expected layout', async () => {
-    const { applyWorkspacePreset, DEFAULT_WORKSPACE_LAYOUT } = await import(
-      '../../../shared/workspace-layout'
-    )
-    const next = applyWorkspacePreset(DEFAULT_WORKSPACE_LAYOUT, 'writing')
-    expect(next.activeActivity).toEqual(['scripts', 'characters'])
-    expect(next.openCenterTabs).toEqual(['editor', 'outline'])
-    expect(next.rightDock).toBeNull()
-    expect(next.preset).toBe('writing')
-  })
-
-  it('applyWorkspacePreset(flow) opens AI right dock', async () => {
-    const { applyWorkspacePreset } = await import('../../../shared/workspace-layout')
-    const next = applyWorkspacePreset(
-      {
-        activeActivity: [],
-        openCenterTabs: ['editor'],
-        rightDock: null,
-        preset: 'writing',
-        schemaVersion: 1
-      },
-      'flow'
-    )
-    expect(next.rightDock).toBe('ai')
-    expect(next.activeActivity).toEqual(['scripts', 'outline'])
-    expect(next.openCenterTabs).toEqual(['flow', 'editor'])
-  })
-
-  it('applyWorkspacePreset(review) opens AI + git panel', async () => {
-    const { applyWorkspacePreset } = await import('../../../shared/workspace-layout')
-    const next = applyWorkspacePreset(
-      {
-        activeActivity: [],
-        openCenterTabs: ['editor'],
-        rightDock: null,
-        preset: 'writing',
-        schemaVersion: 1
-      },
-      'review'
-    )
-    expect(next.rightDock).toBe('ai')
-    expect(next.activeActivity).toContain('git')
-    expect(next.openCenterTabs).toContain('preview')
-  })
 describe('supplement-11-files: OutlinePanel', () => {
   it('shows empty state when manifest is null', async () => {
     const { OutlinePanel } = await import('../features/outline/OutlinePanel')
@@ -169,8 +132,8 @@ describe('supplement-11-files: GitPanel', () => {
   it('shows git-not-initialized state when status is empty', async () => {
     useUiStore.setState({ projectPath: '/fake' })
     // useGitStatus 内部走 window.galide.git.status — 测试中未注入,降级到 null
-    const { GitPanel } = await import('../features/git/GitPanel')
-    render(<GitPanel />)
-    expect(screen.getByText(/项目尚未初始化 Git 仓库/)).toBeTruthy()
-  })
-})})
+   const { GitPanel } = await import('../features/git/GitPanel')
+    render(wrapWithQueryClient(<GitPanel />))
+   expect(screen.getByText(/项目尚未初始化 Git 仓库/)).toBeTruthy()
+ })
+})

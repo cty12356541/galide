@@ -34,7 +34,7 @@ export const OutlinePanel = (): JSX.Element => {
 
   if (!manifest) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-text-muted bg-bg p-8">
+      <div className="h-full flex flex-col items-center justify-center text-text-muted bg-bg p-8" data-testid="outline-panel">
         <ListTree className="w-8 h-8 mb-2 opacity-40" />
         <div className="text-xs">打开项目以查看大纲</div>
         {projectName && <div className="text-[10px] mt-1 opacity-60">{projectName}</div>}
