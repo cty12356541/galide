@@ -355,20 +355,27 @@ export const MosaicWriteSchema = z.object({
 
 // =================== 浮出 panel (PR3-A) ===================
 
-/** 浮出 panel id — 含 3 个中区 + 2 个 ToolWindow(共 5) */
+/** 浮出 id 全集 — 编辑器大陆(3)+ 主岛(5)+ 可脱离子岛(4: scripts/assets/profiles/voice) */
 export const OpenPanelIdSchema = z.enum([
   'script-editor',
   'flow-view',
   'preview-canvas',
-  'ai-tool-window',
   'project',
   'git',
   'outline',
   'character',
-  'voice',
-  'asset'
+  'ai',
+  'scripts',
+  'assets',
+  'profiles',
+  'voice'
 ])
 
 export const WorkspaceOpenPanelSchema = z.object({
+  panelId: OpenPanelIdSchema
+})
+
+/** 收回浮出窗口 — 同一 panelId 全集 */
+export const WorkspaceClosePanelSchema = z.object({
   panelId: OpenPanelIdSchema
 })

@@ -1,110 +1,95 @@
 /**
- * CenterSplit — 主区分栏(react-resizable-panels + react-mosaic)
+ * CenterSplit — 主区分栏(功能即岛 v2:三槽 + 编辑器大陆)
  *
- * PR3-A 重构(2026-06-17):
- *   - ToolWindow(left/ai)浮出时主窗口相应槽位隐藏(避免双渲染)
- *   - 浮出状态由 useUiStore.floatingPanels 数组决定
- *   - 否则保持 PR1/PR2 行为
+ * 布局:
+ *   - 左槽(visiblePerSide.left)| 编辑器大陆(mosaic)| 右槽(visiblePerSide.right)
+ *   - 底部槽(visiblePerSide.bottom)横跨大陆下方
+ *   - 槽内主岛若已浮出则该槽隐藏(避免双渲染)
+ *   - 占位主岛(search/debug/settings)走 LeftToolWindow;真实主岛走 SideToolWindow
  *
- * 行为:
- *   - leftPanelOpen=true && !floating.includes('left-tool-window') → 渲染左槽
- *   - aiPanelOpen=true && !floating.includes('ai-tool-window') → 渲染右槽
- *   - AI 在 bottom 时:外层 PanelGroup 改 vertical
- *   - aiDockedLocation === 'floating' 时,AI 仅当 floating 数组含它时走独立窗口
+ * 沿用 react-resizable-panels,泛化原 AI 的 right/bottom 分支为通用三槽。
  */
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useUiStore } from '../../lib/store'
 import { LeftToolWindow } from './LeftToolWindow'
 import { SideToolWindow } from './SideToolWindow'
-import { AiToolWindow } from './AiToolWindow'
 import { MosaicRoot } from './mosaic/MosaicRoot'
-import type { PanelId } from './mosaic/panel-registry'
+import {
+  isToolWindowId,
+  isPlaceholderId,
+  type ToolWindowId,
+  type PlaceholderId
+} from './mosaic/panel-registry'
+
+const renderSlot = (content: ToolWindowId | PlaceholderId | null): JSX.Element | null => {
+  if (content === null) return null
+  if (isPlaceholderId(content)) return <LeftToolWindow placeholderId={content} />
+  if (isToolWindowId(content)) return <SideToolWindow toolWindowId={content} />
+  return null
+}
 
 export const CenterSplit = (): JSX.Element => {
-  const leftPanelOpen = useUiStore((s) => s.leftPanelOpen)
-  const aiPanelOpen = useUiStore((s) => s.aiPanelOpen)
-  const aiDockedLocation = useUiStore((s) => s.aiDockedLocation)
+  const visiblePerSide = useUiStore((s) => s.visiblePerSide)
   const floatingPanels = useUiStore((s) => s.floatingPanels)
-  const activeSidePanel = useUiStore((s) => s.activeSidePanel)
-  const activitySelection = useUiStore((s) => s.activitySelection)
 
-  // 当前侧边岛是否已浮出(功能模块即岛:activeSidePanel 在 floatingPanels 里)
-  const sideFloating = floatingPanels.includes(activeSidePanel)
-  const aiFloating = floatingPanels.includes('ai-tool-window')
-  // 占位项(search/debug/settings)不走 SideToolWindow,仍用 LeftToolWindow
-  const isPlaceholder = activitySelection === 'search' || activitySelection === 'debug' || activitySelection === 'settings'
-  // 实际主窗口要不要渲染左槽 = 开关 + (占位走 LeftToolWindow / 真实岛没被浮出)
-  const showLeft = leftPanelOpen && (isPlaceholder || !sideFloating)
-  const showAi = aiPanelOpen && !aiFloating
+  // 某侧可见内容若已浮出 → 该槽隐藏
+  const leftContent = visiblePerSide.left
+  const rightContent = visiblePerSide.right
+  const bottomContent = visiblePerSide.bottom
+  const leftFloating =
+    leftContent !== null && isToolWindowId(leftContent) && floatingPanels.includes(leftContent)
+  const rightFloating =
+    rightContent !== null && isToolWindowId(rightContent) && floatingPanels.includes(rightContent)
+  const bottomFloating =
+    bottomContent !== null && isToolWindowId(bottomContent) && floatingPanels.includes(bottomContent)
 
-  // AI 在底部:上下分栏(center 上 / ai 下)
-  if (showAi && aiDockedLocation === 'bottom') {
-    return (
-      <PanelGroup direction="vertical" autoSaveId="galide-center-bottom" className="flex-1 min-h-0 gap-2">
-        <Panel defaultSize={70} minSize={30}>
-          <CenterWithLeft
-            leftOpen={showLeft}
-            activeSidePanel={activeSidePanel}
-            isPlaceholder={isPlaceholder}
-          />
-        </Panel>
-        <PanelResizeHandle className="h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1" />
-        <Panel defaultSize={30} minSize={15} maxSize={60}>
-          <AiToolWindow />
-        </Panel>
-      </PanelGroup>
-    )
-  }
+  const showLeft = leftContent !== null && !leftFloating
+  const showRight = rightContent !== null && !rightFloating
+  const showBottom = bottomContent !== null && !bottomFloating
 
-  // AI 在右侧(默认):左右分栏(left | center | right)
-  return (
-    <PanelGroup direction="horizontal" autoSaveId="galide-center-right" className="flex-1 min-h-0 gap-2">
+  // 中区行:左 | 大陆 | 右
+  const CenterRow = (): JSX.Element => (
+    <PanelGroup direction="horizontal" autoSaveId="galide-center-row" className="h-full gap-3">
       {showLeft ? (
         <>
-          <Panel defaultSize={20} minSize={12} maxSize={40} collapsible>
-            {isPlaceholder ? <LeftToolWindow /> : <SideToolWindow panelId={activeSidePanel} />}
+          <Panel defaultSize={20} minSize={12} maxSize={40} collapsible order={1}>
+            {renderSlot(leftContent)}
           </Panel>
           <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
         </>
       ) : null}
-      <Panel defaultSize={showAi ? 50 : 100} minSize={30}>
+      <Panel defaultSize={showLeft ? (showRight ? 60 : 80) : showRight ? 80 : 100} minSize={30} order={2}>
         <MosaicRoot />
       </Panel>
-      {showAi ? (
+      {showRight ? (
         <>
           <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
-          <Panel defaultSize={30} minSize={15} maxSize={60} collapsible>
-            <AiToolWindow />
+          <Panel defaultSize={22} minSize={15} maxSize={50} collapsible order={3}>
+            {renderSlot(rightContent)}
           </Panel>
         </>
       ) : null}
     </PanelGroup>
   )
-}
 
-/**
- * CenterWithLeft — 当 AI 在底部时,center 区域本身可拆左/中
- * (用嵌套 PanelGroup 实现 left | center)
- */
-const CenterWithLeft = ({
-  leftOpen,
-  activeSidePanel,
-  isPlaceholder
-}: {
-  leftOpen: boolean
-  activeSidePanel: PanelId
-  isPlaceholder: boolean
-}): JSX.Element => {
-  if (!leftOpen) return <MosaicRoot />
+  // 有底部槽:垂直 [中区行 | 底部]
+  if (showBottom) {
+    return (
+      <PanelGroup direction="vertical" autoSaveId="galide-center-bottom" className="flex-1 min-h-0 gap-3">
+        <Panel defaultSize={70} minSize={30}>
+          <CenterRow />
+        </Panel>
+        <PanelResizeHandle className="h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1" />
+        <Panel defaultSize={30} minSize={15} maxSize={60} collapsible>
+          {renderSlot(bottomContent)}
+        </Panel>
+      </PanelGroup>
+    )
+  }
+
   return (
-    <PanelGroup direction="horizontal" autoSaveId="galide-center-bottom-left" className="h-full gap-2">
-      <Panel defaultSize={20} minSize={12} maxSize={40} collapsible>
-        {isPlaceholder ? <LeftToolWindow /> : <SideToolWindow panelId={activeSidePanel} />}
-      </Panel>
-      <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
-      <Panel defaultSize={80} minSize={30}>
-        <MosaicRoot />
-      </Panel>
-    </PanelGroup>
+    <div className="flex-1 min-h-0">
+      <CenterRow />
+    </div>
   )
 }

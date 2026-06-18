@@ -1,31 +1,32 @@
 /**
- * usePanelFloat — 浮出 panel 通用 hook
+ * usePanelFloat — 浮出 panel 通用 hook(功能即岛 v2)
  *
- * 封装 addFloatingPanel + openPanel + 失败回滚逻辑
- * 区分 ok:false(resolve 但返错)和 reject(promise throw)两种失败
+ * 三分支:
+ *   - EditorDoc(编辑器大陆):浮出时从 mosaic 树移除,避免主窗与浮出窗双渲染
+ *   - ToolWindow(主岛):addFloatingPanel + openPanel;主窗该侧槽由 CenterSplit 据浮出态隐藏
+ *   - SubIsland(子岛):addFloatingPanel + openPanel;父主岛 tab 标记浮出态
+ *
+ * 失败回滚:openPanel 返 ok:false 或 reject → removeFloatingPanel + error store
  */
 import { useCallback } from 'react'
 import { useUiStore, useErrorStore } from '../store'
 import {
-  isToolWindow,
-  isSidePanel,
-  SIDE_PANEL_IDS,
-  type PanelId
+  isEditorDoc,
+  type EditorDocId,
+  type ToolWindowId,
+  type SubIslandId
 } from '../../components/workspace/mosaic/panel-registry'
 import { sanitizeTree, DEFAULT_TREE } from '../../components/workspace/mosaic/MosaicRoot'
-import type { WorkspaceMosaicNode, ActivitySelection } from '../store'
+import type { WorkspaceMosaicNode } from '../store'
 
+type FloatableId = EditorDocId | ToolWindowId | SubIslandId
 
 /**
- * 把指定 panel 从 mosaic 树中移除(浮出时)
- * - 如果 panel 不在树中(原本就不在),不动
- * - 如果整树只剩这一个 panel(变成单 leaf),保留它(不破坏树结构)
- * - 如果 panel 是某个分支的 leaf,删 leaf 后该分支收缩为另一个子树
- * - 如果 panel 是嵌套的某个内部节点(理论上不会发生),保留不动
+ * 把指定编辑器大陆 doc 从 mosaic 树中移除(浮出时)
  */
 const removePanelFromTree = (
   tree: WorkspaceMosaicNode,
-  panelId: PanelId
+  panelId: EditorDocId
 ): WorkspaceMosaicNode | null => {
   if (typeof tree === 'string') {
     return tree === panelId ? null : tree
@@ -38,38 +39,23 @@ const removePanelFromTree = (
   return { direction: tree.direction, first, second }
 }
 
-export const usePanelFloat = (): ((panelId: PanelId) => void) => {
-  return useCallback((panelId: PanelId) => {
+export const usePanelFloat = (): ((panelId: FloatableId) => void) => {
+  return useCallback((panelId: FloatableId) => {
     useUiStore.getState().addFloatingPanel(panelId)
 
-    // 中区 panel:从 mosaic 树移除,避免主窗口和浮出窗口双渲染
-    if (!isToolWindow(panelId)) {
+    // 编辑器大陆:从 mosaic 树移除
+    if (isEditorDoc(panelId)) {
       const cur = useUiStore.getState().mosaicTree
       if (cur) {
         const next = removePanelFromTree(cur, panelId)
         if (next) {
           useUiStore.getState().setMosaicTree(sanitizeTree(next))
         } else {
-          // 树被掏空(用户把所有 panel 都浮出了),重置为默认
           useUiStore.getState().setMosaicTree(DEFAULT_TREE)
         }
       }
     }
-
-    // 侧边岛浮出:左槽切到下一个未浮出的侧边岛,全浮出则收起左槽
-    if (isSidePanel(panelId)) {
-      const st = useUiStore.getState()
-      const visible = SIDE_PANEL_IDS.find(
-        (id) => id !== panelId && !st.floatingPanels.includes(id)
-      )
-      if (visible) {
-        st.setActiveSidePanel(visible)
-        st.setActivitySelection(visible as ActivitySelection)
-      } else {
-        // 所有侧边岛都浮出了,收起左槽
-        st.toggleLeftPanel()
-      }
-    }
+    // 主岛 / 子岛:不动 mosaic 树(CenterSplit 据 floatingPanels 隐藏槽位 / tab 标记浮出态)
 
     void window.galide.workspace
       .openPanel({ panelId })

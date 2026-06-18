@@ -137,3 +137,24 @@ describe('supplement-11-files: GitPanel', () => {
    expect(screen.getByText(/项目尚未初始化 Git 仓库/)).toBeTruthy()
  })
 })
+
+/**
+ * 功能即岛 v2:e2e mount(主岛壳 / ActivityBar / dock 菜单)
+ */
+describe('supplement-11-files: 功能即岛 v2 主岛壳', () => {
+  it('ActivityBar mount 不 throw 且含 5 主岛 + 3 占位', async () => {
+    const { ActivityBar } = await import('../components/workspace/ActivityBar')
+    render(<ActivityBar />)
+    for (const id of ['project', 'git', 'outline', 'character', 'ai', 'search', 'debug', 'settings']) {
+      expect(screen.getByTestId(`activity-${id}`)).toBeTruthy()
+    }
+  })
+
+  it('点击 ActivityBar 主岛 → showToolWindow(置该侧可见)', async () => {
+    const { ActivityBar } = await import('../components/workspace/ActivityBar')
+    render(<ActivityBar />)
+    // git 默认 left,点击后左槽切到 git
+    fireEvent.click(screen.getByTestId('activity-git'))
+    expect(useUiStore.getState().visiblePerSide.left).toBe('git')
+  })
+})

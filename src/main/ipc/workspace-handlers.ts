@@ -63,12 +63,27 @@ export const registerWorkspaceHandlers = (): void => {
         return { ok: false }
       }
       if (ownerWin.isMinimized()) ownerWin.restore()
-      ownerWin.focus()
-      return { ok: true }
+     ownerWin.focus()
+     return { ok: true }
+   }
+ )
+
+  // 功能即岛 v2:从主窗口按 panelId 收回浮出窗口(主岛/子岛召回)
+  ipcMain.handle(
+    IPC.workspace.closePanel,
+    async (_e, args: unknown): Promise<{ ok: true } | { ok: false; error: string; code?: string }> => {
+      try {
+        const { panelId } = parseIpcArgs('workspace.closePanel', WorkspaceClosePanelSchema, args)
+        closeFloatingPanelByPanelId(panelId)
+        return { ok: true }
+      } catch (err) {
+        const code = (err as { name?: string }).name === 'IpcSchemaError' ? 'SCHEMA_FAILED' : undefined
+        return { ok: false, error: err instanceof Error ? err.message : String(err), ...(code ? { code } : {}) }
+      }
     }
   )
 
-  // PR2: 持久化 mosaic 树(读)
+ // PR2: 持久化 mosaic 树(读)
   ipcMain.handle(
     IPC.workspace.mosaic.read,
     async (): Promise<{ ok: true; tree: unknown } | { ok: false; error: string }> => {
@@ -115,7 +130,7 @@ export const registerWorkspaceHandlers = (): void => {
  */
 import { BrowserWindow, type WebContents } from 'electron'
 import { readMosaicTree, writeMosaicTree } from '../workspace/mosaic-store.js'
-import { MosaicReadSchema, MosaicWriteSchema, WorkspaceOpenPanelSchema, parseIpcArgs } from './schemas/index.js'
+import { MosaicReadSchema, MosaicWriteSchema, WorkspaceOpenPanelSchema, WorkspaceClosePanelSchema, parseIpcArgs } from './schemas/index.js'
 import { is } from '@electron-toolkit/utils'
 
 const MAX_FLOATING = 5
@@ -130,32 +145,37 @@ const floatingRegistry = new Map<number, FloatingRegistryEntry>()
 // 反向索引:从浮出窗口 webContents.id 找 ownerId(用于 focusMain IPC)
 const ownerByWebContentsId = new Map<number, number>()
 
-const isValidPanelId = (
-  v: unknown
-): v is
+const FLOATABLE_PANEL_IDS = new Set<string>([
+  'script-editor',
+  'flow-view',
+  'preview-canvas',
+  'project',
+  'git',
+  'outline',
+  'character',
+  'ai',
+  'scripts',
+  'assets',
+  'profiles',
+  'voice'
+])
+
+type FloatablePanelId =
   | 'script-editor'
   | 'flow-view'
   | 'preview-canvas'
-  | 'ai-tool-window'
   | 'project'
   | 'git'
   | 'outline'
   | 'character'
+  | 'ai'
+  | 'scripts'
+  | 'assets'
+  | 'profiles'
   | 'voice'
-  | 'asset' => {
-  return (
-    v === 'script-editor' ||
-    v === 'flow-view' ||
-    v === 'preview-canvas' ||
-    v === 'ai-tool-window' ||
-    v === 'project' ||
-    v === 'git' ||
-    v === 'outline' ||
-    v === 'character' ||
-    v === 'voice' ||
-    v === 'asset'
-  )
-}
+
+const isValidPanelId = (v: unknown): v is FloatablePanelId =>
+  typeof v === 'string' && FLOATABLE_PANEL_IDS.has(v)
 
 const findOwner = (id: number): WebContents | null => {
   const c = BrowserWindow.fromId(id)?.webContents
@@ -171,17 +191,7 @@ export const _internalFns = { isValidPanelId }
  */
 export const createFloatingPanelWindow = (
   ownerWebContents: WebContents,
-  panelId:
-    | 'script-editor'
-    | 'flow-view'
-    | 'preview-canvas'
-    | 'ai-tool-window'
-    | 'project'
-    | 'git'
-    | 'outline'
-    | 'character'
-    | 'voice'
-    | 'asset'
+  panelId: FloatablePanelId
 ): BrowserWindow => {
   if (floatingRegistry.size >= MAX_FLOATING) {
     throw new Error(`已到达最大浮出数 ${MAX_FLOATING},请先关闭部分浮出窗口`)
@@ -233,8 +243,22 @@ export const createFloatingPanelWindow = (
 
   floatingRegistry.set(win.id, { panelId, ownerId, window: win })
   // win.webContents.id 在 loadURL 后才稳定,延后记反向索引
-  win.webContents.once('did-finish-load', () => {
-    ownerByWebContentsId.set(win.webContents.id, ownerId)
-  })
-  return win
+ win.webContents.once('did-finish-load', () => {
+   ownerByWebContentsId.set(win.webContents.id, ownerId)
+ })
+ return win
+}
+
+/**
+ * 按 panelId 收回浮出窗口(主窗口召回子岛/主岛)。
+ * 关闭窗口会触发已有 'closed' → panelClosed 通知,renderer 据此 restore。
+ * 找不到对应浮出窗口时静默返回(可能已被用户手动关闭)。
+ */
+export const closeFloatingPanelByPanelId = (panelId: string): void => {
+  for (const entry of floatingRegistry.values()) {
+    if (entry.panelId === panelId) {
+      if (!entry.window.isDestroyed()) entry.window.close()
+      return
+    }
+  }
 }

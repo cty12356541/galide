@@ -41,6 +41,11 @@ vi.mock('@renderer/features/voice/VoicePanel', () => ({
 vi.mock('@renderer/features/asset/AssetListPanel', () => ({
   AssetListPanel: () => <div data-testid="asset-stub" />
 }))
+vi.mock('@renderer/features/ai-panel/AiPanel', () => ({
+  AiPanel: () => <div data-testid="ai-stub" />
+}))
+// SideToolWindow(主岛壳)在 floating 模式不访问 window.galide 渲染期;
+// usePanelFloat 仅 useCallback,无需 mock
 
 // 在 beforeEach 重置时挂上 focusMain stub(每个 test 独立)
 const focusMainMock = vi.fn(() => Promise.resolve({ ok: true }))
@@ -154,8 +159,20 @@ describe('FloatingPanelHost', () => {
     }
   })
 
-  it('侧边岛浮出:6 个功能岛都能渲染', () => {
-    const ids = ['project', 'git', 'outline', 'character', 'voice', 'asset']
+  it('主岛浮出:5 个主岛渲染主岛壳(floating-island)', () => {
+    const ids = ['project', 'git', 'outline', 'character', 'ai']
+    for (const id of ids) {
+      resetSearch()
+      setSearch(`?floating=1&panelId=${id}`)
+      const { unmount } = render(<FloatingPanelHost />)
+      expect(screen.getByTestId('floating-host')).toBeTruthy()
+      expect(screen.getByTestId(`floating-island-${id}`)).toBeTruthy()
+      unmount()
+    }
+  })
+
+  it('子岛浮出:4 个可脱离子岛渲染简化 header + content', () => {
+    const ids = ['scripts', 'assets', 'profiles', 'voice']
     for (const id of ids) {
       resetSearch()
       setSearch(`?floating=1&panelId=${id}`)

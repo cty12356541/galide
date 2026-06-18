@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { FileText, Edit3, Eye, Wrench, HelpCircle, Plus, Folder, Settings, Download, GitCommit, Sparkles, ChevronDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
 import { useUiStore, type WorkspacePresetId } from '../lib/store'
+import { usePanelFloat } from '../lib/hooks/use-panel-float'
 import { cn } from '../lib/utils'
 
 type MenuItemSpec = {
@@ -39,6 +40,7 @@ export const MenuBar = (): JSX.Element => {
   const setWorkspacePreset = useUiStore((s) => s.setWorkspacePreset)
   const workspacePreset = useUiStore((s) => s.workspacePreset)
   const setAiDockedLocation = useUiStore((s) => s.setAiDockedLocation)
+  const float = usePanelFloat()
   const closeProject = useUiStore((s) => s.closeProject)
 
   const groups: MenuGroup[] = [
@@ -75,7 +77,8 @@ export const MenuBar = (): JSX.Element => {
         { label: 'AI Tool Window', shortcut: '⌘L', onClick: toggleAiPanel, separatorAfter: true },
         { label: 'AI 移到右侧', onClick: () => setAiDockedLocation('right') },
         { label: 'AI 移到底部', onClick: () => setAiDockedLocation('bottom') },
-        { label: 'AI 浮出', onClick: () => setAiDockedLocation('floating') }
+        { label: 'AI 移到左侧', onClick: () => setAiDockedLocation('left') },
+        { label: 'AI 浮出', onClick: () => float('ai') }
       ]
     },
     {

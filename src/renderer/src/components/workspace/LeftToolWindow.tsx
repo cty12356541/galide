@@ -1,33 +1,25 @@
 /**
- * LeftToolWindow — 占位 Tool Window(search / debug / settings)
+ * LeftToolWindow — 占位主岛(search / debug / settings)
  *
- * 功能模块即岛重构后,6 个真实功能岛(project/git/outline/character/voice/asset)
- * 统一走 SideToolWindow。本组件仅渲染 3 个尚未实现的占位项,保持布局稳定,
- * 后续接通具体功能时直接升级为真实岛。
- *
- * 占位项不可浮出(PyCharm 行为:未实现工具窗无 float action),仅提供关闭。
+ * 功能即岛 v2:6 个真实功能主岛统一走 SideToolWindow;本组件仅渲染
+ * 3 个尚未实现的占位项,保持布局稳定。占位主岛不可浮出(无 float action)。
  */
 import { X, Search, Bug, Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { PlaceholderToolWindow } from './PlaceholderToolWindow'
+import type { PlaceholderId } from './mosaic/panel-registry'
 
-type PlaceholderKey = 'search' | 'debug' | 'settings'
-
-const PLACEHOLDERS: Record<PlaceholderKey, { icon: LucideIcon; title: string; description: string }> = {
+const PLACEHOLDERS: Record<PlaceholderId, { icon: LucideIcon; title: string; description: string }> = {
   search: { icon: Search, title: '搜索', description: '跨文件全文搜索(即将支持)' },
   debug: { icon: Bug, title: '调试', description: '运行/断点/变量查看(即将支持)' },
   settings: { icon: Settings, title: '设置', description: 'IDE 偏好配置(即将支持)' }
 }
 
-export const LeftToolWindow = (): JSX.Element => {
-  const activitySelection = useUiStore((s) => s.activitySelection)
-  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
-
-  const key: PlaceholderKey =
-    activitySelection === 'debug' || activitySelection === 'settings' ? activitySelection : 'search'
-  const meta = PLACEHOLDERS[key]
+export const LeftToolWindow = ({ placeholderId }: { placeholderId: PlaceholderId }): JSX.Element => {
+  const meta = PLACEHOLDERS[placeholderId]
   const Icon = meta.icon
+  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
 
   return (
     <aside

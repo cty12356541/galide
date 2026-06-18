@@ -1,21 +1,14 @@
 /**
- * App.tsx — Galide 顶层布局(PyCharm 2026 组件岛风格)
+ * App.tsx — Galide 顶层布局(功能即岛 v2:主岛/子岛二级群岛)
  *
  * 设计:
- *   - 3 层顶栏: Menu Bar(应用菜单) + Toolbar(项目操作) + Project Tabs(已开文件)
- *   - 主区: LeftToolWindow | CenterSplit | (可选 AI 右侧 dock) | (可选 AI 底部 dock)
- *   - 6 区块 StatusBar:git / 错误 / 消息 / 光标 / 缩放 / AI 状态
+ *   - 3 层顶栏: Menu Bar + Toolbar + Project Tabs
+ *   - 主区: ActivityBar | CenterSplit(左槽/编辑器大陆/右槽/底部槽)
+ *   - 6 区块 StatusBar
  *
- * P1 重构(2026-06-17):
- *   - 删 3 个 useEffect(hydrate / persist / beforeunload flush)
- *   - 删 workspace_layout 序列化(改由 zustand 标量 + React 自管)
- *   - 删 useRef × 3(治本:之前用 ref 绕 exhaustive-deps 是历史遗留)
- *   - 简化 useUiStore 字段(workspaceLayout → 5 个标量)
- *
- * 状态语义:
- *   - leftPanelOpen / leftPanel:左侧 Tool Window(PyCharm Project 风格)
- *   - aiPanelOpen / aiDockedLocation:右侧 / 底部 / 浮动的 AI Tool Window
- *   - workspacePreset:writing / flow / review 单值 enum
+ * 功能即岛 v2(2026-06-19):
+ *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 mosaic / 主岛回 dockSide 槽 / 子岛回 tab)
+ *   - 状态语义改 dockSide + visiblePerSide + activeSubIsland(见 store)
  */
 import { useEffect } from 'react'
 import { useUiStore } from '../lib/store'
@@ -35,12 +28,18 @@ import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useMosaicPersistence } from '../lib/hooks/use-mosaic-persistence'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
 import { sanitizeTree, getAllLeafIds } from '../components/workspace/mosaic/MosaicRoot'
-import { isSidePanel } from '../components/workspace/mosaic/panel-registry'
-import type { WorkspaceMosaicNode, ActivitySelection } from '../lib/store'
+import {
+  isEditorDoc,
+  isToolWindowId,
+  isSubIslandId,
+  parentOfSubIsland,
+  type EditorDocId
+} from '../components/workspace/mosaic/panel-registry'
+import type { WorkspaceMosaicNode } from '../lib/store'
 
 const insertPanelIntoTree = (
   tree: WorkspaceMosaicNode,
-  panelId: 'script-editor' | 'flow-view' | 'preview-canvas'
+  panelId: EditorDocId
 ): WorkspaceMosaicNode => {
   if (typeof tree === 'string') {
     return tree === panelId
@@ -57,39 +56,36 @@ export const App = (): JSX.Element => {
   const exportDialogOpen = useUiStore((s) => s.exportDialogOpen)
   const commitDialogOpen = useUiStore((s) => s.commitDialogOpen)
 
-  // 主题同步(订阅 store.theme,effect 内 toggle .dark class)
   useAppearanceEffect()
-
-  // 全局快捷键(Cmd+K / Cmd+, / Cmd+L / Cmd+1 / Cmd+W)
   useKeyboardShortcuts()
-
-  // PR2: mosaic 树持久化(启动期 read + 变化时 debounced write)
   useMosaicPersistence()
 
-  // PR2/PR3-D: 浮出 panel 窗口关闭 → 同步 store(中区 panel 插回 mosaic 树)
+  // 浮出窗口关闭 → 同步 store + restore(编辑器大陆 / 主岛 / 子岛 三分支)
   useEffect(() => {
     const off = window.galide.workspace.onPanelClosed(({ panelId }) => {
       useUiStore.getState().removeFloatingPanel(panelId)
-      // 中区 panel 关闭时,把该 panel 插回 mosaic 树
-      if (panelId !== 'ai-tool-window' && !isSidePanel(panelId)) {
+      if (isEditorDoc(panelId)) {
         const cur = useUiStore.getState().mosaicTree
         if (cur) {
-          // 检查 panel 是否已在树里(避免重复)
           const leaves = getAllLeafIds(cur)
           if (!leaves.includes(panelId)) {
-          const next = insertPanelIntoTree(cur, panelId as 'script-editor' | 'flow-view' | 'preview-canvas')
-          useUiStore.getState().setMosaicTree(sanitizeTree(next))
+            const next = insertPanelIntoTree(cur, panelId)
+            useUiStore.getState().setMosaicTree(sanitizeTree(next))
+          }
+        }
+      } else if (isToolWindowId(panelId)) {
+        useUiStore.getState().showToolWindow(panelId)
+      } else if (isSubIslandId(panelId)) {
+        const parent = parentOfSubIsland(panelId)
+        if (parent) {
+          useUiStore.getState().setActiveSubIsland(parent, panelId)
+          useUiStore.getState().showToolWindow(parent)
         }
       }
-    } else if (isSidePanel(panelId)) {
-      // 侧边岛关闭浮出 → 放回左槽原 dock 位(同步 ActivityBar 高亮)
-      useUiStore.getState().setActivitySelection(panelId as ActivitySelection)
-    }
-  })
+    })
     return off
   }, [])
 
-  // 浮出模式:独立 BrowserWindow 加载 ?floating=1&panelId=xxx,只渲染对应 panel
   if (isFloatingWindow()) {
     return <FloatingPanelHost />
   }
@@ -101,11 +97,7 @@ export const App = (): JSX.Element => {
       <ProjectTabs />
       <main className="flex-1 min-h-0 flex overflow-hidden bg-canvas p-3 gap-3">
         <ActivityBar />
-        {projectPath ? (
-          <CenterSplit />
-        ) : (
-          <WelcomeScreen />
-        )}
+        {projectPath ? <CenterSplit /> : <WelcomeScreen />}
       </main>
       <StatusBar />
       {commandPaletteOpen && <CommandPalette />}

@@ -1,65 +1,85 @@
 /**
- * useUiStore 简化后状态形状验证
- * P1 重构(2026-06-17): 验证 5 个标量字段 + 4 个 action + 兼容 ErrorEntry
+ * useUiStore — 功能即岛 v2 dock 模型验证
  */
 import { describe, expect, it, beforeEach } from 'vitest'
 import { useUiStore, useErrorStore } from './store'
 
-describe('useUiStore — P1 简化', () => {
+describe('useUiStore — v2 dock 模型', () => {
   beforeEach(() => {
     useUiStore.setState({
       workspacePreset: 'writing',
-      leftPanelOpen: true,
-      leftPanel: 'project',
-      aiPanelOpen: true,
-      aiDockedLocation: 'right'
+      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
+      visiblePerSide: { left: 'project', right: 'ai', bottom: null },
+      activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
+      floatingPanels: []
     })
   })
 
-  it('默认 5 个标量字段', () => {
+  it('默认 dockSide / visiblePerSide / activeSubIsland', () => {
     const s = useUiStore.getState()
-    expect(s.workspacePreset).toBe('writing')
-    expect(s.leftPanelOpen).toBe(true)
-    expect(s.leftPanel).toBe('project')
-    expect(s.aiPanelOpen).toBe(true)
-    expect(s.aiDockedLocation).toBe('right')
+    expect(s.dockSide.ai).toBe('right')
+    expect(s.visiblePerSide.left).toBe('project')
+    expect(s.visiblePerSide.right).toBe('ai')
+    expect(s.activeSubIsland.project).toBe('scripts')
   })
 
-  it('setWorkspacePreset 切换 writing/flow/review', () => {
-    useUiStore.getState().setWorkspacePreset('flow')
-    expect(useUiStore.getState().workspacePreset).toBe('flow')
-    useUiStore.getState().setWorkspacePreset('review')
-    expect(useUiStore.getState().workspacePreset).toBe('review')
+  it('showToolWindow 把主岛置入其 dockSide 侧', () => {
+    useUiStore.getState().showToolWindow('git')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('git')
   })
 
-  it('toggleLeftPanel 翻转 leftPanelOpen', () => {
-    expect(useUiStore.getState().leftPanelOpen).toBe(true)
+  it('hideToolWindow 收起该侧(仅当该侧正是它)', () => {
+    useUiStore.getState().hideToolWindow('project')
+    expect(useUiStore.getState().visiblePerSide.left).toBeNull()
+  })
+
+  it('toggleToolWindow 切换可见性', () => {
+    useUiStore.getState().toggleToolWindow('project')
+    expect(useUiStore.getState().visiblePerSide.left).toBeNull()
+    useUiStore.getState().toggleToolWindow('project')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('project')
+  })
+
+  it('setDockSide 移动主岛:旧侧清空、新侧承接(若原可见)', () => {
+    useUiStore.getState().setDockSide('project', 'bottom')
+    expect(useUiStore.getState().dockSide.project).toBe('bottom')
+    expect(useUiStore.getState().visiblePerSide.left).toBeNull()
+    expect(useUiStore.getState().visiblePerSide.bottom).toBe('project')
+  })
+
+  it('setActiveSubIsland 切 tab', () => {
+    useUiStore.getState().setActiveSubIsland('character', 'voice')
+    expect(useUiStore.getState().activeSubIsland.character).toBe('voice')
+  })
+
+  it('toggleLeftPanel 切换左槽(有内容收起,无则显 project)', () => {
     useUiStore.getState().toggleLeftPanel()
-    expect(useUiStore.getState().leftPanelOpen).toBe(false)
+    expect(useUiStore.getState().visiblePerSide.left).toBeNull()
     useUiStore.getState().toggleLeftPanel()
-    expect(useUiStore.getState().leftPanelOpen).toBe(true)
+    expect(useUiStore.getState().visiblePerSide.left).toBe('project')
   })
 
-  it('setLeftPanel(\'closed\') 自动关 leftPanelOpen', () => {
-    useUiStore.getState().setLeftPanel('git')
-    expect(useUiStore.getState().leftPanel).toBe('git')
-    expect(useUiStore.getState().leftPanelOpen).toBe(true)
-    useUiStore.getState().setLeftPanel('closed')
-    expect(useUiStore.getState().leftPanel).toBe('closed')
-    expect(useUiStore.getState().leftPanelOpen).toBe(false)
-  })
-
-  it('toggleAiPanel 翻转 aiPanelOpen', () => {
-    expect(useUiStore.getState().aiPanelOpen).toBe(true)
+  it('toggleAiPanel 切换 AI 主岛可见性', () => {
+    expect(useUiStore.getState().visiblePerSide.right).toBe('ai')
     useUiStore.getState().toggleAiPanel()
-    expect(useUiStore.getState().aiPanelOpen).toBe(false)
+    expect(useUiStore.getState().visiblePerSide.right).toBeNull()
+    useUiStore.getState().toggleAiPanel()
+    expect(useUiStore.getState().visiblePerSide.right).toBe('ai')
   })
 
-  it('setAiDockedLocation 切到 bottom/left/floating', () => {
+  it('setAiDockedLocation 移 AI 到指定侧并显示', () => {
     useUiStore.getState().setAiDockedLocation('bottom')
-    expect(useUiStore.getState().aiDockedLocation).toBe('bottom')
-    useUiStore.getState().setAiDockedLocation('floating')
-    expect(useUiStore.getState().aiDockedLocation).toBe('floating')
+    expect(useUiStore.getState().dockSide.ai).toBe('bottom')
+    expect(useUiStore.getState().visiblePerSide.right).toBeNull()
+    expect(useUiStore.getState().visiblePerSide.bottom).toBe('ai')
+  })
+
+  it('addFloatingPanel 三类 id 均可加入且去重', () => {
+    useUiStore.getState().addFloatingPanel('script-editor')
+    useUiStore.getState().addFloatingPanel('git')
+    useUiStore.getState().addFloatingPanel('voice')
+    useUiStore.getState().addFloatingPanel('git')
+    expect(useUiStore.getState().floatingPanels).toEqual(['script-editor', 'git', 'voice'])
   })
 
   it('closeProject 清理 projectPath/name/manifest', () => {
@@ -81,15 +101,11 @@ describe('useErrorStore — P1 兼容输入', () => {
   })
 
   it('push 接受宽松输入(无 id / timestamp)', () => {
-    useErrorStore.getState().push({
-      code: 'TEST',
-      message: 'hi',
-      source: 'unit-test'
-    })
-    const e = useErrorStore.getState().entries[0]
-    expect(e?.id).toBeTruthy()
-    expect(typeof e?.timestamp).toBe('number')
-    expect(e?.code).toBe('TEST')
+    useErrorStore.getState().push({ code: 'TEST', message: 'hi', source: 'unit-test' })
+    const entry = useErrorStore.getState().entries[0]
+    expect(entry?.id).toBeTruthy()
+    expect(typeof entry?.timestamp).toBe('number')
+    expect(entry?.code).toBe('TEST')
   })
 
   it('push 同 id 去重', () => {

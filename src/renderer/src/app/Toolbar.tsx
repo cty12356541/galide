@@ -14,7 +14,7 @@ export const Toolbar = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
   const projectName = useUiStore((s) => s.projectName)
   const activeScriptFile = useUiStore((s) => s.activeScriptFile)
-  const aiPanelOpen = useUiStore((s) => s.aiPanelOpen)
+  const aiPanelOpen = useUiStore((s) => s.visiblePerSide[s.dockSide.ai] === 'ai')
   const toggleAiPanel = useUiStore((s) => s.toggleAiPanel)
   const theme = useUiStore((s) => s.theme)
   const setTheme = useUiStore((s) => s.setTheme)

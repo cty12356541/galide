@@ -1,34 +1,30 @@
 /**
- * FloatingPanelHost — 浮出 BrowserWindow 内容宿主
+ * FloatingPanelHost — 浮出 BrowserWindow 内容宿主(功能即岛 v2)
  *
- * 触发:
- *   - URL 含 `?floating=1&panelId=script-editor|flow-view|preview-canvas`
- *   - 走独立 BrowserWindow 加载(由 workspace.openPanel 创建)
- *   - 只渲染对应 panel 全屏,加 header(标题 + 关闭按钮)
+ * 触发:URL 含 `?floating=1&panelId=<id>`,按 id 类型分发:
+ *   - EditorDoc:文档组件 + 简化 header(标题来自 EDITOR_DOC_META)
+ *   - ToolWindow:主岛壳 SideToolWindow(floating),含 tab + 关闭(关闭=window.close)
+ *   - SubIsland:子岛组件 + 简化 header(标题来自 SUB_ISLANDS)
  *
- * 设计:
- *   - URL query 解析在 mount 时一次(useEffect)
- *   - 非法 panelId 渲染 fallback 提示(避免黑屏)
- *   - 关闭按钮:window.close()(走 BrowserWindow 关闭事件 → 通知 owner)
+ * 非法 panelId → 返 null(避免黑屏)
  */
 import { useEffect, useState } from 'react'
 import { X, ArrowLeft } from 'lucide-react'
-import { getPanelComponent, PANEL_META, ALL_PANEL_IDS, type PanelId } from '../components/workspace/mosaic/panel-registry'
+import {
+  getFloatingContent,
+  FLOATABLE_IDS
+} from '../components/workspace/mosaic/panel-registry'
+import { SideToolWindow } from '../components/workspace/SideToolWindow'
 
-type FloatingMode = {
-  enabled: true
-  panelId: PanelId
-} | {
-  enabled: false
-}
+type FloatingMode = { enabled: true; panelId: string } | { enabled: false }
 
 const parseFloatingMode = (): FloatingMode => {
   if (typeof window === 'undefined') return { enabled: false }
   const params = new URLSearchParams(window.location.search)
   if (params.get('floating') !== '1') return { enabled: false }
   const raw = params.get('panelId') ?? ''
-  if (ALL_PANEL_IDS.includes(raw as PanelId)) {
-    return { enabled: true, panelId: raw as PanelId }
+  if (FLOATABLE_IDS.includes(raw)) {
+    return { enabled: true, panelId: raw }
   }
   return { enabled: false }
 }
@@ -36,7 +32,6 @@ const parseFloatingMode = (): FloatingMode => {
 export const FloatingPanelHost = (): JSX.Element | null => {
   const [mode, setMode] = useState<FloatingMode>(() => parseFloatingMode())
 
-  // 兜底:SSR / 首次 mount 拿不到 location 时再尝试一次
   useEffect(() => {
     if (!mode.enabled) {
       const m = parseFloatingMode()
@@ -44,22 +39,29 @@ export const FloatingPanelHost = (): JSX.Element | null => {
     }
   }, [mode.enabled])
 
-  if (!mode.enabled) {
-    // 非 floating 模式 — 不应挂载(由 App.tsx 控制)
-    return null
+  if (!mode.enabled) return null
+
+  const content = getFloatingContent(mode.panelId)
+  if (!content) return null
+
+  // 主岛:渲染主岛壳(floating 模式自带 header + tab + 关闭)
+  if (content.kind === 'toolwindow') {
+    return (
+      <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden" data-testid="floating-host">
+        <SideToolWindow toolWindowId={content.id} floating />
+      </div>
+    )
   }
 
-  const meta = PANEL_META[mode.panelId]
-  const Panel = getPanelComponent(mode.panelId)
-
+  // 编辑器大陆 doc / 子岛:简化 header + 内容组件
+  const Comp = content.component
   return (
     <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden" data-testid="floating-host">
       <header
         className="h-9 flex items-center border-b border-border px-3 gap-2 flex-shrink-0 bg-surface"
         data-testid="floating-header"
       >
-        {meta.icon ? <meta.icon className="w-3.5 h-3.5 text-accent" /> : null}
-        <span className="text-xs font-medium">{meta.title}</span>
+        <span className="text-xs font-medium">{content.title}</span>
         <span className="ml-1 px-1.5 rounded bg-bg-elevated text-[9px] uppercase text-text-muted">
           浮出
         </span>
@@ -67,7 +69,6 @@ export const FloatingPanelHost = (): JSX.Element | null => {
         <button
           type="button"
           onClick={() => {
-            // 聚焦主窗口(不关闭浮出窗口,用户可继续使用)
             void window.galide.workspace.focusMain()
           }}
           title="返回主窗口(聚焦主窗口)"
@@ -90,7 +91,7 @@ export const FloatingPanelHost = (): JSX.Element | null => {
         </button>
       </header>
       <main className="flex-1 min-h-0 overflow-hidden" data-testid="floating-content">
-        <Panel />
+        <Comp />
       </main>
     </div>
   )

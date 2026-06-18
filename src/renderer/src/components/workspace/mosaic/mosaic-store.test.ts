@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_TREE, getAllLeafIds, sanitizeTree } from './MosaicRoot'
-import { MOSAIC_PANEL_IDS, type PanelId } from './panel-registry'
+import { MOSAIC_PANEL_IDS, type EditorDocId } from './panel-registry'
 
 describe('sanitizeTree', () => {
   it('null → DEFAULT_TREE', () => {
@@ -25,7 +25,7 @@ describe('sanitizeTree', () => {
   })
 
   it('非法字符串叶子回退到 script-editor', () => {
-    expect(sanitizeTree('nope' as unknown as PanelId)).toBe('script-editor')
+    expect(sanitizeTree('nope' as unknown as EditorDocId)).toBe('script-editor')
   })
 
   it('合法树保留', () => {
@@ -45,7 +45,7 @@ describe('sanitizeTree', () => {
     const dirty = {
       direction: 'row' as const,
       first: 'script-editor' as const,
-      second: 'bogus-panel' as unknown as PanelId
+      second: 'bogus-panel' as unknown as EditorDocId
     }
     const clean = sanitizeTree(dirty)
     expect(clean).toEqual({

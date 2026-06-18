@@ -224,26 +224,28 @@ const api = {
       error?: string
     }> => ipcRenderer.invoke(IPC.asset.resolve, args.projectPath, args.relPath)
   },
- workspace: {
-    /** PR2/PR3-A: 浮出 panel 到独立 BrowserWindow(5 个 panel) */
+workspace: {
+    /** 浮出 panel 到独立 BrowserWindow(编辑器大陆/主岛/可脱离子岛) */
     openPanel: (
       args: {
         panelId:
           | 'script-editor'
           | 'flow-view'
           | 'preview-canvas'
-          | 'ai-tool-window'
           | 'project'
           | 'git'
           | 'outline'
           | 'character'
+          | 'ai'
+          | 'scripts'
+          | 'assets'
+          | 'profiles'
           | 'voice'
-          | 'asset'
       }
     ): Promise<
       { ok: true; windowId: number } | { ok: false; error: string; code?: string }
     > => ipcRenderer.invoke(IPC.workspace.openPanel, args),
-    /** PR2/PR3-A: 浮出窗口关闭时回调(用于清理 store) */
+    /** 浮出窗口关闭时回调(用于清理 store + restore) */
     onPanelClosed: (
       callback: (
         payload: {
@@ -251,13 +253,15 @@ const api = {
             | 'script-editor'
             | 'flow-view'
             | 'preview-canvas'
-            | 'ai-tool-window'
             | 'project'
             | 'git'
             | 'outline'
             | 'character'
+            | 'ai'
+            | 'scripts'
+            | 'assets'
+            | 'profiles'
             | 'voice'
-            | 'asset'
         }
       ) => void
     ): (() => void) => {
@@ -268,18 +272,39 @@ const api = {
             | 'script-editor'
             | 'flow-view'
             | 'preview-canvas'
-            | 'ai-tool-window'
             | 'project'
             | 'git'
             | 'outline'
             | 'character'
+            | 'ai'
+            | 'scripts'
+            | 'assets'
+            | 'profiles'
             | 'voice'
-            | 'asset'
         }
       ): void => callback(payload)
       ipcRenderer.on(IPC.workspace.panelClosed, listener)
       return () => ipcRenderer.removeListener(IPC.workspace.panelClosed, listener)
     },
+    /** 功能即岛 v2:从主窗口按 panelId 收回浮出窗口 */
+    closePanel: (
+      args: {
+        panelId:
+          | 'script-editor'
+          | 'flow-view'
+          | 'preview-canvas'
+          | 'project'
+          | 'git'
+          | 'outline'
+          | 'character'
+          | 'ai'
+          | 'scripts'
+          | 'assets'
+          | 'profiles'
+          | 'voice'
+      }
+    ): Promise<{ ok: true } | { ok: false; error: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.workspace.closePanel, args),
     /** PR2: mosaic 树持久化 */
     readMosaic: (): Promise<{ ok: boolean; tree: unknown; error?: string }> =>
       ipcRenderer.invoke(IPC.workspace.mosaic.read),

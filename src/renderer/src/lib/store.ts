@@ -1,35 +1,36 @@
 /**
  * Galide renderer 端 zustand store
  *
- * P1 重构(2026-06-17): 删掉 `workspaceLayout: WorkspaceLayout` 嵌套对象(治本)
- *   - 不再序列化、不再 hydrate、不再 debounce 写盘、不再用 useRef + useEffect 绕 deps
- *   - 改 5 个独立标量字段: workspacePreset / leftPanelOpen / leftPanel / aiPanelOpen / aiPanelDocked
- *   - 单一职责,UI 状态走 React,持久化(如有需要)走 useUiStore.subscribe + IPC 监听
+ * 功能即岛 v2(2026-06-19):主岛/子岛二级群岛 + dock 可移动
+ *   - 删除 v1 的 leftPanelOpen/leftPanel/activitySelection/activeSidePanel/
+ *     aiPanelOpen/aiDockedLocation 标量
+ *   - 改 dockSide(每主岛 dock 侧)+ visiblePerSide(每侧可见主岛)+
+ *     activeSubIsland(每主岛当前 tab)三组状态
+ *   - 保留 toggleLeftPanel/toggleAiPanel/setAiDockedLocation 动作名,
+ *     在新模型上重实现,避免 MenuBar/Toolbar/StatusBar/快捷键大面积改动
  *
  * 设计原则:
  *   - 标量字段优先于嵌套对象:细粒度订阅,避免无关组件 re-render
- *   - action 简短(1-2 行 set),复杂逻辑(preset 应用)放 hook 层
- *   - 主题切换 setTheme 仍包含 DOM 副作用(toggle .dark class),但用 useEffect 在 App 层
- *     监听 theme 变化统一处理,不在 set 中(避免 SSR / happy-dom 环境下崩)
+ *   - 主题切换 setTheme 含 DOM 副作用,用 App 层 effect 统一处理(不在 set 内)
  */
 import { create } from 'zustand'
 import type { ProjectManifest } from '../../../shared/types'
 import type { PreferencesSection } from '../../../shared/preferences'
 import type { RecentProject, ErrorEntry, SelectedNode } from './types'
-import type { PanelId } from '../components/workspace/mosaic/panel-registry'
+import type {
+  EditorDocId,
+  ToolWindowId,
+  SubIslandId,
+  PlaceholderId,
+  DockSide,
+  SlotContent
+} from '../components/workspace/mosaic/panel-registry'
 import type { MosaicNode } from 'react-mosaic-component'
 
 export type WorkspacePresetId = 'writing' | 'flow' | 'review'
 
-/**
- * Mosaic 树节点 — 字符串叶子是 panel id
- * 与 PR2 组件岛风格配合
- */
-export type WorkspaceMosaicNode = MosaicNode<PanelId>
-export type LeftPanelId = 'project' | 'git' | 'closed'
-
-export type ActivitySelection = 'project' | 'search' | 'git' | 'outline' | 'character' | 'voice' | 'asset' | 'debug' | 'settings'
-export type AiDockedLocation = 'right' | 'bottom' | 'left' | 'floating'
+/** Mosaic 树节点 — 字符串叶子是 EditorDocId(编辑器大陆) */
+export type WorkspaceMosaicNode = MosaicNode<EditorDocId>
 
 type Theme = 'light' | 'dark'
 
@@ -48,6 +49,16 @@ const defaultLayout: EditorLayout = {
   preview: 18
 }
 
+/** 每侧可见内容 */
+type VisiblePerSide = {
+  left: SlotContent | null
+  right: SlotContent | null
+  bottom: SlotContent | null
+}
+
+/** 浮出 id(主岛 / 子岛 / 编辑器大陆) */
+type FloatingId = ToolWindowId | SubIslandId | EditorDocId
+
 type UiState = {
   // project
   projectPath: string | null
@@ -55,19 +66,13 @@ type UiState = {
   manifest: ProjectManifest | null
   activeScriptFile: string | null
 
-  // workspace (P1 重构: 标量化)
+  // workspace(功能即岛 v2:dock 模型)
   workspacePreset: WorkspacePresetId
-  leftPanelOpen: boolean
-  leftPanel: LeftPanelId
-  activitySelection: ActivitySelection
-  /** 左槽当前显示的侧边岛(功能模块即岛,ActivityBar 单选) */
-  activeSidePanel: PanelId
-  aiPanelOpen: boolean
-  aiDockedLocation: AiDockedLocation
-  /** P2: mosaic 树,字符串叶子 = panel id。null = 还没初始化 */
+  dockSide: Record<ToolWindowId, DockSide>
+  visiblePerSide: VisiblePerSide
+  activeSubIsland: Record<ToolWindowId, SubIslandId>
   mosaicTree: WorkspaceMosaicNode | null
-  /** P2: 浮出独立 BrowserWindow 的 panel 列表 */
-  floatingPanels: readonly PanelId[]
+  floatingPanels: readonly FloatingId[]
 
   // editor layout (保留兼容)
   layout: EditorLayout
@@ -90,16 +95,20 @@ type UiState = {
   setProject: (projectPath: string, manifest: ProjectManifest) => void
   setActiveScript: (fileName: string | null) => void
   setWorkspacePreset: (preset: WorkspacePresetId) => void
+  setDockSide: (tw: ToolWindowId, side: DockSide) => void
+  showToolWindow: (tw: ToolWindowId) => void
+  hideToolWindow: (tw: ToolWindowId) => void
+  toggleToolWindow: (tw: ToolWindowId) => void
+  setActiveSubIsland: (tw: ToolWindowId, sub: SubIslandId) => void
+  showPlaceholder: (p: PlaceholderId) => void
+  // 兼容动作(在新模型上重实现)
   toggleLeftPanel: () => void
-  setLeftPanel: (id: LeftPanelId) => void
-  setActivitySelection: (sel: ActivitySelection) => void
-  setActiveSidePanel: (panel: PanelId) => void
   toggleAiPanel: () => void
-  setAiDockedLocation: (loc: AiDockedLocation) => void
+  setAiDockedLocation: (loc: DockSide) => void
   setMosaicTree: (tree: WorkspaceMosaicNode) => void
-  setFloatingPanels: (panels: readonly PanelId[]) => void
-  addFloatingPanel: (panel: PanelId) => void
-  removeFloatingPanel: (panel: PanelId) => void
+  setFloatingPanels: (panels: readonly FloatingId[]) => void
+  addFloatingPanel: (panel: FloatingId) => void
+  removeFloatingPanel: (panel: FloatingId) => void
   setLayout: (layout: Partial<EditorLayout>) => void
   setRecentProjects: (recent: RecentProject[]) => void
   setTheme: (theme: Theme) => void
@@ -117,18 +126,39 @@ type UiState = {
   setShortcutRecording: (recording: boolean) => void
 }
 
+// 默认值硬编码(不从 registry 运行时导入,避免 store ↔ panel-registry ↔ feature 循环依赖
+// 在模块求值期读到未完成的 registry 导出)。与 panel-registry 默认值保持一致。
+const DEFAULT_DOCK_SIDE: Record<ToolWindowId, DockSide> = {
+  project: 'left',
+  git: 'left',
+  outline: 'left',
+  character: 'left',
+  ai: 'right'
+}
+
+const DEFAULT_ACTIVE_SUB: Record<ToolWindowId, SubIslandId> = {
+  project: 'scripts',
+  git: 'git',
+  outline: 'outline',
+  character: 'profiles',
+  ai: 'ai'
+}
+
+const DEFAULT_VISIBLE: VisiblePerSide = {
+  left: 'project',
+  right: 'ai',
+  bottom: null
+}
+
 export const useUiStore = create<UiState>((set) => ({
   projectPath: null,
   projectName: null,
   manifest: null,
   activeScriptFile: 'chapter1.gal',
   workspacePreset: 'writing',
-  leftPanelOpen: true,
-  leftPanel: 'project',
-  activitySelection: 'project',
-  activeSidePanel: 'project',
-  aiPanelOpen: true,
-  aiDockedLocation: 'right',
+  dockSide: { ...DEFAULT_DOCK_SIDE },
+  visiblePerSide: { ...DEFAULT_VISIBLE },
+  activeSubIsland: { ...DEFAULT_ACTIVE_SUB },
   mosaicTree: null,
   floatingPanels: [],
   layout: defaultLayout,
@@ -147,22 +177,78 @@ export const useUiStore = create<UiState>((set) => ({
     set({ projectPath, manifest, projectName: manifest.name }),
   setActiveScript: (fileName) => set({ activeScriptFile: fileName }),
   setWorkspacePreset: (preset) => set({ workspacePreset: preset }),
-  toggleLeftPanel: () => set((s) => ({ leftPanelOpen: !s.leftPanelOpen })),
-  setLeftPanel: (id) => set({ leftPanel: id, leftPanelOpen: id !== 'closed' }),
-  setActivitySelection: (sel) =>
-    set(() => {
-      // 6 个真实功能岛同步 activeSidePanel(search/debug/settings 走占位)
-      if (sel === 'project' || sel === 'git') {
-        return { activitySelection: sel, leftPanel: sel, activeSidePanel: sel, leftPanelOpen: true }
+
+  setDockSide: (tw, side) =>
+    set((s) => {
+      const old = s.dockSide[tw]
+      const wasVisible = s.visiblePerSide[old] === tw
+      const nextDock = { ...s.dockSide, [tw]: side }
+      let vis = { ...s.visiblePerSide }
+      // 若该主岛原侧可见,跟随移到新侧(旧侧清空)
+      if (wasVisible) {
+        vis = { ...vis, [old]: null, [side]: tw }
       }
-      if (sel === 'outline' || sel === 'character' || sel === 'voice' || sel === 'asset') {
-        return { activitySelection: sel, activeSidePanel: sel, leftPanelOpen: true }
-      }
-      return { activitySelection: sel, leftPanelOpen: true }
+      return { dockSide: nextDock, visiblePerSide: vis }
     }),
-  setActiveSidePanel: (panel) => set({ activeSidePanel: panel, leftPanelOpen: true }),
-  toggleAiPanel: () => set((s) => ({ aiPanelOpen: !s.aiPanelOpen })),
-  setAiDockedLocation: (loc) => set({ aiDockedLocation: loc }),
+
+  showToolWindow: (tw) =>
+    set((s) => {
+      const side = s.dockSide[tw]
+      return { visiblePerSide: { ...s.visiblePerSide, [side]: tw } }
+    }),
+
+  hideToolWindow: (tw) =>
+    set((s) => {
+      const side = s.dockSide[tw]
+      if (s.visiblePerSide[side] !== tw) return s
+      return { visiblePerSide: { ...s.visiblePerSide, [side]: null } }
+    }),
+
+  toggleToolWindow: (tw) =>
+    set((s) => {
+      const side = s.dockSide[tw]
+      const visible = s.visiblePerSide[side] === tw
+      return {
+        visiblePerSide: { ...s.visiblePerSide, [side]: visible ? null : tw }
+      }
+    }),
+
+  setActiveSubIsland: (tw, sub) =>
+    set((s) => ({ activeSubIsland: { ...s.activeSubIsland, [tw]: sub } })),
+
+  showPlaceholder: (p) =>
+    set((s) => ({ visiblePerSide: { ...s.visiblePerSide, left: p } })),
+
+  // 兼容动作:toggleLeftPanel = 切换左槽(有内容则收起,无则显 project)
+  toggleLeftPanel: () =>
+    set((s) => ({
+      visiblePerSide: {
+        ...s.visiblePerSide,
+        left: s.visiblePerSide.left !== null ? null : 'project'
+      }
+    })),
+
+  // 兼容动作:toggleAiPanel = 切换 AI 主岛可见性
+  toggleAiPanel: () =>
+    set((s) => {
+      const side = s.dockSide.ai
+      const visible = s.visiblePerSide[side] === 'ai'
+      return {
+        visiblePerSide: { ...s.visiblePerSide, [side]: visible ? null : 'ai' }
+      }
+    }),
+
+  // 兼容动作:setAiDockedLocation = 移 AI 到指定侧并显示
+  setAiDockedLocation: (loc) =>
+    set((s) => {
+      const old = s.dockSide.ai
+      const nextDock = { ...s.dockSide, ai: loc }
+      let vis = { ...s.visiblePerSide }
+      if (vis[old] === 'ai') vis = { ...vis, [old]: null }
+      vis = { ...vis, [loc]: 'ai' }
+      return { dockSide: nextDock, visiblePerSide: vis }
+    }),
+
   setMosaicTree: (tree) => set({ mosaicTree: tree }),
   setFloatingPanels: (panels) => set({ floatingPanels: panels }),
   addFloatingPanel: (panel) =>
@@ -222,7 +308,6 @@ export const useErrorStore = create<ErrorState>((set) => ({
   entries: [],
   push: (entry) =>
     set((s) => {
-      // P1 重构: 接受宽松输入(id / timestamp 缺省时自动补),兼容老调用方
       const id = entry.id ?? crypto.randomUUID()
       const timestamp = entry.timestamp ?? Date.now()
       const without = s.entries.filter((e) => e.id !== id)

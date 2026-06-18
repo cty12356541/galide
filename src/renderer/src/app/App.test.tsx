@@ -19,10 +19,9 @@ beforeEach(() => {
     manifest: null,
     activeScriptFile: 'chapter1.gal',
     workspacePreset: 'writing',
-    leftPanelOpen: true,
-    leftPanel: 'project',
-    aiPanelOpen: true,
-    aiDockedLocation: 'right',
+    dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
+    visiblePerSide: { left: 'project', right: 'ai', bottom: null },
+    activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
     theme: 'light',
     preferencesOpen: false,
     commandPaletteOpen: false,
@@ -61,7 +60,7 @@ describe('Toolbar', () => {
     const aiBtn = screen.getByTestId('toolbar-ai-toggle')
     expect(aiBtn).toBeTruthy()
     fireEvent.click(aiBtn)
-    expect(useUiStore.getState().aiPanelOpen).toBe(false)
+    expect(useUiStore.getState().visiblePerSide.right).toBeNull()
   })
 
   it('无 project 时显示"打开项目"按钮', () => {
@@ -82,7 +81,7 @@ describe('StatusBar', () => {
   it('AI 状态按钮 toggle', () => {
     render(<StatusBar />)
     fireEvent.click(screen.getByTestId('status-ai-toggle'))
-    expect(useUiStore.getState().aiPanelOpen).toBe(false)
+    expect(useUiStore.getState().visiblePerSide.right).toBeNull()
   })
 })
 

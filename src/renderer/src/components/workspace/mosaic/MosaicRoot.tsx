@@ -18,7 +18,7 @@ import {
 } from 'react-mosaic-component'
 import 'react-mosaic-component/react-mosaic-component.css'
 import { useUiStore, type WorkspaceMosaicNode } from '../../../lib/store'
-import { MOSAIC_PANEL_IDS, getPanelComponent, PANEL_META, type PanelId } from './panel-registry'
+import { MOSAIC_PANEL_IDS, EDITOR_DOC_META, type EditorDocId } from './panel-registry'
 
 /** 默认布局:row → script | (column: flow / preview) */
 export const DEFAULT_TREE: WorkspaceMosaicNode = {
@@ -53,7 +53,7 @@ export const sanitizeTreeWithResult = (
 ): SanitizeResult => {
   if (!node) return { tree: DEFAULT_TREE, repaired: false }
   if (typeof node === 'string') {
-    if (MOSAIC_PANEL_IDS.includes(node as PanelId)) {
+    if (MOSAIC_PANEL_IDS.includes(node as EditorDocId)) {
       return { tree: node, repaired: false }
     }
     return { tree: 'script-editor', repaired: true }
@@ -82,11 +82,11 @@ export const MosaicRoot = (): JSX.Element => {
 
   return (
     <div className="h-full w-full" data-testid="mosaic-root">
-      <Mosaic<PanelId>
-        renderTile={(id, path) => (
-          <MosaicWindow<PanelId>
-            path={path}
-            title={PANEL_META[id]?.title ?? id}
+     <Mosaic<EditorDocId>
+       renderTile={(id, path) => (
+         <MosaicWindow<EditorDocId>
+           path={path}
+           title={EDITOR_DOC_META[id]?.title ?? id}
             renderToolbar={() => (
               // 必须是原生 DOM 元素(react-mosaic 内部用 react-dnd 包 toolbar,
               // 需要 ref attach 到原生 element)— 抽出 FloatButton 组件会触发
@@ -94,8 +94,8 @@ export const MosaicRoot = (): JSX.Element => {
               <button
                 type="button"
                 onClick={() => float(id)}
-                title={`浮出 ${PANEL_META[id]?.title ?? id}`}
-                aria-label={`浮出 ${PANEL_META[id]?.title ?? id}`}
+               title={`浮出 ${EDITOR_DOC_META[id]?.title ?? id}`}
+               aria-label={`浮出 ${EDITOR_DOC_META[id]?.title ?? id}`}
                 data-testid={`float-${id}`}
                 className="px-2 py-1 text-xs rounded hover:bg-bg-elevated text-text-muted hover:text-text transition-colors"
               >
@@ -106,7 +106,7 @@ export const MosaicRoot = (): JSX.Element => {
             {renderPanel(id)}
           </MosaicWindow>
         )}
-        value={tree as MosaicNode<PanelId>}
+        value={tree as MosaicNode<EditorDocId>}
         onChange={(next) => setMosaicTree(sanitizeTree(next as WorkspaceMosaicNode))}
         className=""
       />
@@ -114,13 +114,13 @@ export const MosaicRoot = (): JSX.Element => {
   )
 }
 
-const renderPanel = (id: PanelId): JSX.Element => {
-  const Comp = getPanelComponent(id)
+const renderPanel = (id: EditorDocId): JSX.Element => {
+  const Comp = EDITOR_DOC_META[id].component
   return <Comp />
 }
 
 /** 收集所有叶子(用于工具栏 + floating 检查) */
-export const getAllLeafIds = (node: WorkspaceMosaicNode): PanelId[] => {
+export const getAllLeafIds = (node: WorkspaceMosaicNode): EditorDocId[] => {
   if (typeof node === 'string') return [node]
   return [...getAllLeafIds(node.first), ...getAllLeafIds(node.second)]
 }

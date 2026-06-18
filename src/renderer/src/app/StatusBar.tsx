@@ -15,7 +15,7 @@ import { cn } from '../lib/utils'
 
 export const StatusBar = (): JSX.Element => {
   const workspacePreset = useUiStore((s) => s.workspacePreset)
-  const aiPanelOpen = useUiStore((s) => s.aiPanelOpen)
+  const aiPanelOpen = useUiStore((s) => s.visiblePerSide[s.dockSide.ai] === 'ai')
   const toggleAiPanel = useUiStore((s) => s.toggleAiPanel)
   const errorCount = useErrorStore((s) => s.entries.filter((e) => e.code !== 'INFO').length)
   const infoCount = useErrorStore((s) => s.entries.filter((e) => e.code === 'INFO').length)
