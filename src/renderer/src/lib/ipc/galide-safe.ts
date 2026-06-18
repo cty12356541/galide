@@ -19,6 +19,16 @@
 
 import type { GalideApi } from '../../../../preload'
 
+/**
+ * 全局 Window 类型增强:preload 通过 contextBridge 把 galide API 挂到 window。
+ * 此声明让 renderer 各处 `window.galide.*` 强类型(原声明随 galide-api.ts 删除丢失,补回)。
+ */
+declare global {
+  interface Window {
+    galide: GalideApi
+  }
+}
+
 /** 拿到 window.galide(任何阶段为 undefined 返回 null,不抛) */
 export const getGalide = (): GalideApi | null => {
   if (typeof window === 'undefined') return null
