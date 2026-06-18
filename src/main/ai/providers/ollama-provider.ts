@@ -9,15 +9,16 @@ export const createOllamaProvider = (baseUrl = 'http://localhost:11434', model =
       try {
         // 请求级 model 优先(req.model ?? 工厂默认)
         const useModel = req.model ?? model
-        const response = await fetch(`${baseUrl}/api/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: useModel,
-            prompt: `${req.context}\n\n${req.prompt}`,
-            stream: true
-          })
-        })
+       const response = await fetch(`${baseUrl}/api/generate`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           model: useModel,
+           prompt: `${req.context}\n\n${req.prompt}`,
+           stream: true
+         }),
+         ...(req.signal ? { signal: req.signal } : {})
+       })
         if (!response.ok) {
           onChunk({
             type: 'error',

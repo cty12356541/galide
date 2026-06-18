@@ -29,14 +29,15 @@ export const createOpenAIProvider = (model = 'gpt-4o-mini') => {
       const client = new OpenAI({ apiKey, baseURL })
       onChunk({ type: 'start' })
       try {
-        const stream = await client.chat.completions.create({
-          model: useModel,
-          messages: [
-            { role: 'system', content: req.context },
-            { role: 'user', content: req.prompt }
-          ],
-          stream: true
-        })
+       const stream = await client.chat.completions.create({
+         model: useModel,
+         messages: [
+           { role: 'system', content: req.context },
+           { role: 'user', content: req.prompt }
+         ],
+          stream: true,
+          ...(req.signal ? { signal: req.signal } : {})
+       })
         for await (const chunk of stream) {
           const text = chunk.choices[0]?.delta?.content ?? ''
           if (text) onChunk({ type: 'delta', text })

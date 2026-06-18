@@ -20,12 +20,13 @@ export const createClaudeProvider = (model = 'claude-3-5-sonnet-20241022') => {
       try {
         // 请求级 model 优先(req.model ?? 工厂默认)
         const useModel = req.model ?? model
-        const stream = await client.messages.stream({
-          model: useModel,
-          max_tokens: 2048,
-          system: req.context,
-          messages: [{ role: 'user', content: req.prompt }]
-        })
+       const stream = await client.messages.stream({
+         model: useModel,
+         max_tokens: 2048,
+         system: req.context,
+         messages: [{ role: 'user', content: req.prompt }],
+         ...(req.signal ? { signal: req.signal } : {})
+       })
         for await (const event of stream) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             onChunk({ type: 'delta', text: event.delta.text })

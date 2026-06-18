@@ -19,6 +19,11 @@ import { aiProxy } from './ai-proxy.js'
  *   status: done      → 推送给 sender
  *   status: error     → 推送给 sender(带 error message)
  *
+ * 取消 / 超时:
+ *   cancel() 触发 AbortController.abort() → provider 底层请求真正中断
+ *     (旧版只置标志位,流不停、token 照算)
+ *   running 任务带 120s 超时兜底,防挂死连接永久阻塞并发=1 的队列
+ *
  * 设计依据:`core/conventions.yaml:22` AI 任务入队,UI 显示排队状态,
  * 不阻塞编辑器操作。
  */
@@ -147,13 +152,15 @@ export const aiTaskQueue = {
    */
   enqueue: (request: AiRequest, sender: WebContents): string => {
     const taskId = randomUUID()
+    const controller = new AbortController()
     const record: TaskRecord = {
       taskId,
-      request,
+      request: { ...request, signal: controller.signal },
       sender,
       status: 'pending',
       createdAt: Date.now()
     }
+    activeControllers.set(taskId, controller)
     queue.push(record)
     sendStatus(sender, taskId, 'pending')
     void drain()
@@ -161,15 +168,19 @@ export const aiTaskQueue = {
   },
 
   /**
-   * 取消任务。如果任务还在 pending,直接标记为 error 跳过;
-   * 如果正在 running,标记 cancel 请求,provider 在下一个 chunk 边界终止。
-   * 已 done/error 的任务 noop。
+   * 取消任务。
+   *  - pending: 直接从队列移除,标记 error
+   *  - running: 触发 AbortController.abort() — provider 底层请求真正中断
+   *    (旧版只置 cancelRequested 标志,流不停、token 照算)
+   *  - done/error: noop
    */
   cancel: (taskId: string): { ok: boolean; cancelled: boolean } => {
     const active = activeTasks.get(taskId)
     if (active) {
       if (active.status === 'running') {
         cancelRequested.add(taskId)
+        const controller = activeControllers.get(taskId)
+        controller?.abort()
         return { ok: true, cancelled: false }
       }
       return { ok: true, cancelled: false }
@@ -177,9 +188,10 @@ export const aiTaskQueue = {
     const idx = queue.findIndex((t) => t.taskId === taskId)
     if (idx >= 0) {
       const [removed] = queue.splice(idx, 1)
+      activeControllers.delete(taskId)
       sendStatus(removed.sender, taskId, 'error', 'cancelled')
       recentTasks = [
-        { ...removed, status: 'error' as const, error: 'cancelled' },
+        stripSender({ ...removed, status: 'error' as const, error: 'cancelled' }),
         ...recentTasks
       ].slice(0, MAX_RECENT)
       return { ok: true, cancelled: true }
@@ -194,8 +206,26 @@ const cancelRequested: Set<string> = new Set()
 const MAX_RECENT = 50
 let recentTasks: TaskRecord[] = []
 
+/** running 任务的 AbortController(取消 / 超时触发 abort,真正中断 provider 流) */
+const activeControllers: Map<string, AbortController> = new Map()
+
+/** running 任务超时阈值(ms) — 防挂死连接永久阻塞并发=1 的队列 */
+const TASK_TIMEOUT_MS = 120_000
+
+
 const archive = (record: TaskRecord): void => {
-  recentTasks = [record, ...recentTasks].slice(0, MAX_RECENT)
+  recentTasks = [stripSender(record), ...recentTasks].slice(0, MAX_RECENT)
+}
+
+/**
+ * 归档前剥离 sender:TaskRecord 持有的 WebContents 在浮出窗口关闭后是 dead 引用,
+ * recentTasks 最多留 50 条,长期持有 dead WebContents 是泄漏。list() 只读标量字段,
+ * 不需要 sender。
+ */
+const stripSender = (record: TaskRecord): TaskRecord => {
+  const { sender: _sender, ...rest } = record
+  void _sender
+  return rest as TaskRecord
 }
 
 const drain = async (): Promise<void> => {
@@ -216,6 +246,14 @@ const drain = async (): Promise<void> => {
       record.status = 'running'
       activeTasks.set(record.taskId, record)
       sendStatus(record.sender, record.taskId, 'running')
+
+      // 超时兜底:120s 无结束则 abort,防挂死连接永久阻塞并发=1 的队列
+      const timeoutTimer = setTimeout(() => {
+        if (activeTasks.has(record.taskId)) {
+          cancelRequested.add(record.taskId)
+          activeControllers.get(record.taskId)?.abort()
+        }
+      }, TASK_TIMEOUT_MS)
 
       try {
         await aiProxy.generate(record.request, (chunk) => {
@@ -252,11 +290,20 @@ const drain = async (): Promise<void> => {
           sendStatus(record.sender, record.taskId, 'done')
         }
       } catch (err) {
+        // AbortError(取消 / 超时触发)归为 cancelled 语义
+        const isAbort = err instanceof Error && err.name === 'AbortError'
         record.status = 'error'
-        record.error = err instanceof Error ? err.message : String(err)
+        record.error = isAbort
+          ? cancelRequested.has(record.taskId)
+            ? 'cancelled'
+            : 'timeout'
+          : err instanceof Error
+            ? err.message
+            : String(err)
         flushStreamImmediate(record.sender, record.taskId)
         sendStatus(record.sender, record.taskId, 'error', record.error)
       } finally {
+        clearTimeout(timeoutTimer)
         // 清理 stream 缓冲器
         const entry = streamBuffers.get(record.taskId)
         if (entry?.timer !== null && entry?.timer !== undefined) {
@@ -264,6 +311,7 @@ const drain = async (): Promise<void> => {
         }
         streamBuffers.delete(record.taskId)
         activeTasks.delete(record.taskId)
+        activeControllers.delete(record.taskId)
         archive(record)
       }
     }

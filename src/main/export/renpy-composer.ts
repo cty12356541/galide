@@ -28,7 +28,7 @@ export class RenpyComposer implements Composer<null, string> {
   }
 
   emit(_target: null, _ctx: ExportContext): string {
-    // TODO: 输出 .rpy 源码
-    return ''
+    // 拒绝式语义:stub 不静默写空文件,抛错让 runComposer 调用方报 NOT_IMPLEMENTED
+    throw new Error(`[${this.name}] export target "${this.name}" 尚未实现(NOT_IMPLEMENTED)`)
   }
 }

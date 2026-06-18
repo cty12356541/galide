@@ -19,6 +19,8 @@ export type AiRequest = {
   model?: string
   /** 覆盖 provider 默认 baseUrl(用于 OpenAI 兼容服务,如 MiniMax) */
   baseUrl?: string
+  /** 可选 abort signal — 任务取消 / 超时时由调用方触发,provider 据此中断底层请求 */
+  signal?: AbortSignal
 }
 
 export type AiChunk = {
