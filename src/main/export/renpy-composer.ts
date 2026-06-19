@@ -12,11 +12,13 @@
  *
  * 参考: https://www.renpy.org/doc/html/
  *
- * 当前实现返回空字符串占位,不抛异常
+ * 拒绝式语义:未实装,emit 抛 ExportError('NOT_IMPLEMENTED'),
+ * 不静默写空文件。前端据 code 显示「该导出目标尚未实现」。
  * (core/conventions.yaml:35 所有 export 目标都通过 Composer 暴露)
  */
 
 import type { Composer, ExportContext } from './composer.js'
+import { ExportError } from './composer.js'
 
 export class RenpyComposer implements Composer<null, string> {
   readonly name = 'renpy' as const
@@ -28,7 +30,6 @@ export class RenpyComposer implements Composer<null, string> {
   }
 
   emit(_target: null, _ctx: ExportContext): string {
-    // 拒绝式语义:stub 不静默写空文件,抛错让 runComposer 调用方报 NOT_IMPLEMENTED
-    throw new Error(`[${this.name}] export target "${this.name}" 尚未实现(NOT_IMPLEMENTED)`)
+    throw new ExportError('NOT_IMPLEMENTED', `[${this.name}] export target "${this.name}" 尚未实现`)
   }
 }

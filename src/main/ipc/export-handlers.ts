@@ -85,11 +85,13 @@ export const registerExportHandlers = (): void => {
         })
         activeJobs.delete(jobId)
         return { ok: true, jobId, paths }
-      } catch (err) {
-        activeJobs.delete(jobId)
-        const message = err instanceof Error ? err.message : String(err)
-        return { ok: false, error: message }
-      }
+     } catch (err) {
+       activeJobs.delete(jobId)
+       const message = err instanceof Error ? err.message : String(err)
+        // 透传结构化 code(如 NOT_IMPLEMENTED),让前端区分「未实现」vs「真实失败」
+        const code = (err as { code?: string }).code
+        return { ok: false, error: message, ...(code ? { code } : {}) }
+     }
     }
   )
 

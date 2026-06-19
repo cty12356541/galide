@@ -133,9 +133,11 @@ export const ExportDialog = (): JSX.Element => {
     }
     if (!result.ok) {
       setStage('error')
-      setMessage(result.error ?? '导出失败')
+      // NOT_IMPLEMENTED:stub composer 拒绝,显示针对性提示而非泛化失败
+      const notImplemented = result.code === 'NOT_IMPLEMENTED'
+      setMessage(notImplemented ? '该导出目标尚未实现' : (result.error ?? '导出失败'))
       pushError({
-        code: 'EXPORT_FAILED',
+        code: notImplemented ? 'EXPORT_NOT_IMPLEMENTED' : 'EXPORT_FAILED',
         message: result.error ?? 'unknown',
         source: 'export:start'
       })

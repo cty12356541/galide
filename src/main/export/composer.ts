@@ -98,7 +98,7 @@ export const createComposerRegistry = (): ExportComposerRegistry => {
   return {
     register<C extends Composer<unknown, unknown>>(composer: C): void {
       if (composers.has(composer.name)) {
-        throw new Error(`Composer "${composer.name}" already registered`)
+       throw new Error(`Composer "${composer.name}" already registered`)
       }
       composers.set(composer.name, composer as Composer<unknown, unknown>)
     },
@@ -108,6 +108,20 @@ export const createComposerRegistry = (): ExportComposerRegistry => {
     list(): readonly ExportTarget[] {
       return Array.from(composers.keys())
     }
+  }
+}
+
+/**
+ * 结构化导出错误 — 带稳定 code,供 export-handlers 透传给前端做针对性提示。
+ * 用法:stub composer 拒绝时 `throw new ExportError('NOT_IMPLEMENTED', msg)`。
+ * Error 实例的 `code` 属性在主进程 catch 处提取,IPC 返回 { ok:false, error, code }。
+ */
+export class ExportError extends Error {
+  readonly code: string
+  constructor(code: string, message: string) {
+    super(message)
+    this.name = 'ExportError'
+    this.code = code
   }
 }
 

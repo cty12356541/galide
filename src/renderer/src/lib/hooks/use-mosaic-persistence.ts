@@ -10,6 +10,7 @@
  *   - 不在 useEffect 内部读 store(避免 zustand 订阅死循环),用 useUiStore.getState() 拿最新值
  *   - 写盘失败仅记录 error,不动 store(用户可继续编辑)
  *   - 不监听 aiPanelDocked / leftPanelOpen — 这些是 UI 状态,不入盘(由 zustand persist 后续接)
+ *   - 只持久化 mosaic 树;dock 侧/可见主岛/子岛 tab 等工具窗 UI 状态不入盘
  */
 import { useEffect, useRef } from 'react'
 import { useUiStore } from '../store'
