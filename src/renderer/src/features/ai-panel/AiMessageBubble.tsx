@@ -23,7 +23,8 @@ type Message = {
  * 3. <think> 段:流式时折叠 chip 内逐字;结束时 Markdown 渲染,仍折叠
  *    — think 与正文各自独立 reveal/渲染,互不抢占
  */
-const CHAR_DELAY_MS = 45
+// 18ms/字符 — 贴近 main 端 12字/25ms 流速度,避免大幅积压;略慢于流保留逐字淡入感
+const CHAR_DELAY_MS = 18
 
 type Segment = { kind: 'text' | 'think'; content: string }
 

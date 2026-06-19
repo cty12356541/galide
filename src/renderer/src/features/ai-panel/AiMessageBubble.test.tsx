@@ -153,4 +153,3 @@ describe('AiMessageBubble — 长行 key 唯一', () => {
     }
   })
 })
-import { describe, it, expect, vi } from 'vitest'
