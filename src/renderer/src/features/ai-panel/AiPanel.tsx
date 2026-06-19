@@ -28,6 +28,7 @@ export const AiPanel = (): JSX.Element => {
   const [input, setInput] = useState('')
   const [provider, setProvider] = useState<Provider>('openai')
   const [busy, setBusy] = useState(false)
+  const [activeShortcut, setActiveShortcut] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const config = useAiConfig()
   const providers = useAiProviders()
@@ -89,6 +90,7 @@ export const AiPanel = (): JSX.Element => {
     const userId = crypto.randomUUID()
     setMessages((m) => [...m, { id: userId, role: 'user', text, streaming: false, taskId: null, status: null }])
     setInput('')
+    setActiveShortcut(null)
     const assistantId = crypto.randomUUID()
     setBusy(true)
 
@@ -145,7 +147,8 @@ export const AiPanel = (): JSX.Element => {
     }
   }
 
-  const handleShortcut = (prompt: string): void => {
+  const handleShortcut = (prompt: string, id: string): void => {
+    setActiveShortcut(id)
     void send(prompt)
   }
 
@@ -156,6 +159,7 @@ export const AiPanel = (): JSX.Element => {
         provider={provider}
         onProviderChange={setProvider}
         providers={providers.data ?? []}
+        activeShortcut={activeShortcut}
       />
       <ScrollArea className="flex-1">
         <div ref={scrollRef} className="p-3 space-y-2">
@@ -165,7 +169,7 @@ export const AiPanel = (): JSX.Element => {
               开始对话,或选一个快捷动作
             </div>
           ) : (
-            messages.map((m) => <AiMessageBubbleWithStatus key={m.id} message={m} />)
+            messages.map((m) => <AiMessageBubbleWithStatus key={m.id} message={m} provider={provider} />)
           )}
         </div>
       </ScrollArea>
@@ -193,9 +197,9 @@ export const AiPanel = (): JSX.Element => {
   )
 }
 
-const AiMessageBubbleWithStatus = ({ message }: { message: Message }): JSX.Element => {
+const AiMessageBubbleWithStatus = ({ message, provider }: { message: Message; provider: Provider }): JSX.Element => {
   if (message.role === 'user') {
-    return <AiMessageBubble message={message} />
+    return <AiMessageBubble message={message} provider={provider} />
   }
   // 状态文案:
   //  - pending:任务入队,等 provider 握手 → "连接中..."
@@ -212,7 +216,7 @@ const AiMessageBubbleWithStatus = ({ message }: { message: Message }): JSX.Eleme
   })()
   return (
     <div className="space-y-1">
-      <AiMessageBubble message={message} />
+      <AiMessageBubble message={message} provider={provider} />
       {statusHint && (
         <div className="flex items-center gap-1 pl-8 text-[10px] text-text-muted">
           {statusHint.icon}

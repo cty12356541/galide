@@ -17,6 +17,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { Image as ImageIcon, Music, FolderOpen, Loader2 } from 'lucide-react'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { Button } from '../../components/ui/button'
+import { PanelHeader } from '../../components/ui/panel-header'
+import { EmptyState } from '../../components/ui/empty-state'
 import { useUiStore } from '../../lib/store'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { cn } from '../../lib/utils'
@@ -79,33 +81,41 @@ export const AssetListPanel = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-surface border-r border-border">
-      <div className="h-10 px-3 flex items-center gap-1 border-b border-border">
-        <FolderOpen className="w-4 h-4 text-text-muted" />
-        <span className="text-xs font-medium text-text-muted uppercase tracking-wider mr-2">资产</span>
-        {KIND_TABS.map((t) => (
-          <Button
-            key={t.id}
-            variant={activeKind === t.id ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveKind(t.id)}
-            className={cn('h-7 px-2 text-[11px]', activeKind === t.id && 'bg-bg-elevated')}
-          >
-            {t.label}
-          </Button>
-        ))}
-      </div>
+      <PanelHeader
+        title="资产"
+        icon={FolderOpen}
+        size="md"
+        actions={
+          <>
+            {KIND_TABS.map((t) => (
+              <Button
+                key={t.id}
+                variant={activeKind === t.id ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveKind(t.id)}
+                className={cn('h-7 px-2 text-[11px]', activeKind === t.id && 'bg-bg-elevated')}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </>
+        }
+      />
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-0.5">
           {!projectPath ? (
-            <div className="text-[11px] text-text-muted px-2 py-1.5">请先打开项目</div>
+            <EmptyState icon={ImageIcon} title="请先打开项目" className="py-6 px-3" />
           ) : loading ? (
             <div className="flex items-center gap-2 text-[11px] text-text-muted px-2 py-1.5">
               <Loader2 className="w-3 h-3 animate-spin" /> 加载中…
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-[11px] text-text-muted px-2 py-1.5">
-              尚未导入 {activeKind}。把素材放到 <code className="font-mono">assets/{activeKind}/</code>。
-            </div>
+            <EmptyState
+              icon={ImageIcon}
+              title={`尚未导入 ${activeKind}`}
+              description={`把素材放到 assets/${activeKind}/`}
+              className="py-6 px-3"
+            />
           ) : (
             entries.map((e) => (
               <div

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Loader2, ChevronRight, Brain } from 'lucide-react'
+import { Loader2, ChevronRight, Brain } from 'lucide-react'
 
 type Message = {
   id: string
@@ -263,7 +263,13 @@ export const TypewriterText = ({
   )
 }
 
-export const AiMessageBubble = ({ message }: { message: Message }): JSX.Element => {
+export const AiMessageBubble = ({
+  message,
+  provider
+}: {
+  message: Message
+  provider?: string
+}): JSX.Element => {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -273,12 +279,14 @@ export const AiMessageBubble = ({ message }: { message: Message }): JSX.Element 
       </div>
     )
   }
+  // 从 message 拿 provider(没存就 fallback accent)
+  const initial = (provider ?? 'AI').charAt(0).toUpperCase()
   return (
     <div className="flex gap-2">
-      <div className="w-6 h-6 rounded-full bg-accent-soft flex items-center justify-center shrink-0">
-        <Sparkles className="w-3 h-3 text-accent" />
+      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent-soft to-accent/20 border border-accent/30 flex items-center justify-center shrink-0 shadow-sm">
+        <span className="text-[10px] font-semibold text-accent">{initial}</span>
       </div>
-      <div className="max-w-[85%] bg-bg-elevated px-3 py-2 rounded-2xl rounded-tl-md text-sm text-text">
+      <div className="max-w-[85%] bg-bg-elevated border border-border/60 px-3.5 py-2.5 rounded-2xl rounded-tl-md text-sm text-text shadow-sm">
         {message.streaming && !message.text ? (
           <Loader2 className="w-3 h-3 animate-spin text-text-muted" />
         ) : (

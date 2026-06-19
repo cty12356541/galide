@@ -8,6 +8,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { GitBranch } from 'lucide-react'
+import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
 import { useScript } from '../../lib/ipc/use-script'
 import { parse } from '../../../../shared/dsl/parser'
@@ -21,6 +22,13 @@ import type {
   ScriptNode
 } from '../../../../shared/dsl/types'
 import { FlowNode, type SceneFlowNode } from './FlowNode'
+
+// 读 CSS 变量(避免内联 style 写死颜色 token,light/dark 自动切换)
+const cssVar = (name: string): string => {
+  if (typeof document === 'undefined') return ''
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
 
 const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } => {
   const scenes = collectNodes(ast, (n): n is SceneNode => n.type === 'scene')
@@ -64,9 +72,9 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
           source: sourceScene.id,
           target: opt.target,
           label: opt.text,
-          style: { stroke: '#7c3aed', strokeWidth: 1.5 },
-          labelStyle: { fill: '#78716c', fontSize: 11 },
-          labelBgStyle: { fill: '#fafaf9' }
+          style: { stroke: cssVar('--flow-edge'), strokeWidth: 1.5 },
+          labelStyle: { fill: cssVar('--text-muted'), fontSize: 11 },
+          labelBgStyle: { fill: cssVar('--surface') }
         })
       }
     }
@@ -80,7 +88,7 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
       id: `${sourceScene.id}-${goto.target}-goto`,
       source: sourceScene.id,
       target: goto.target,
-      style: { stroke: '#a8a29e', strokeWidth: 1, strokeDasharray: '4 4' }
+      style: { stroke: cssVar('--flow-edge-dashed'), strokeWidth: 1, strokeDasharray: '4 4' }
     })
   }
   return { nodes, edges }
@@ -109,12 +117,13 @@ export const FlowView = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-bg">
-      <div className="h-10 bg-surface border-b border-border flex items-center px-3">
-        <GitBranch className="w-4 h-4 mr-2 text-text-muted" />
-        <span className="text-xs font-medium text-text-muted uppercase tracking-wider">分支预览</span>
-        <span className="ml-auto text-[11px] text-text-muted">{nodes.length} 节点 · {edges.length} 边</span>
-      </div>
-      <div className="flex-1">
+      <PanelHeader
+        title="分支预览"
+        icon={GitBranch}
+        size="lg"
+        actions={<span className="text-[11px] text-text-muted">{nodes.length} 节点 · {edges.length} 边</span>}
+      />
+    <div className="flex-1">
         {nodes.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
@@ -139,12 +148,12 @@ export const FlowView = (): JSX.Element => {
             }}
             proOptions={{ hideAttribution: true }}
           >
-            <Background color="#e7e5e4" gap={16} />
+            <Background color={cssVar('--flow-bg-dot')} gap={16} />
             <Controls className="!bg-surface !border-border !shadow-sm" />
             <MiniMap
-              maskColor="rgba(250, 250, 249, 0.7)"
-              style={{ background: '#ffffff', border: '1px solid #e7e5e4', borderRadius: 12 }}
-              nodeColor="#a78bfa"
+              maskColor={cssVar('--flow-minimap-mask')}
+              style={{ background: cssVar('--flow-minimap-bg'), border: `1px solid ${cssVar('--border')}`, borderRadius: 12 }}
+              nodeColor={cssVar('--accent')}
             />
           </ReactFlow>
         )}

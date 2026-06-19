@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Square, Box } from 'lucide-react'
+import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
 import { useScript } from '../../lib/ipc/use-script'
 import { parse } from '../../../../shared/dsl/parser'
@@ -135,14 +136,13 @@ export const PreviewCanvas = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-bg">
-      <div className="h-10 bg-bg-elevated border-b border-border flex items-center px-3 gap-2">
-        <Play className="w-4 h-4 text-text-muted" />
-        <span className="text-[13px] font-medium text-text-muted uppercase tracking-wider">预览</span>
-        {sceneId && (
-          <span className="ml-auto text-[12px] font-mono text-text-muted">{sceneId}</span>
-        )}
-      </div>
-      {sceneEmpty ? (
+      <PanelHeader
+        title="预览"
+        icon={Play}
+        size="lg"
+        actions={sceneId ? <span className="text-[12px] font-mono text-text-muted">{sceneId}</span> : null}
+      />
+    {sceneEmpty ? (
         <div
           className="flex-1 flex flex-col items-center justify-center bg-canvas gap-3 text-text-muted"
           data-testid="preview-empty"
@@ -198,10 +198,10 @@ export const PreviewCanvas = (): JSX.Element => {
                 {current.options.map((opt, i) => (
                   <button
                     key={`${opt.target}-${i}`}
-                    onClick={() => opt.target && jump(opt.target)}
-                    disabled={!opt.target}
-                    className="px-4 py-2 bg-white/90 hover:bg-white text-text text-sm rounded-xl shadow-sm disabled:opacity-40 transition-colors"
-                  >
+                     onClick={() => opt.target && jump(opt.target)}
+                     disabled={!opt.target}
+                      className="px-4 py-2 bg-surface/90 hover:bg-surface text-text text-sm rounded-xl shadow-sm disabled:opacity-40 transition-colors"
+                   >
                     {opt.text}
                   </button>
                 ))}

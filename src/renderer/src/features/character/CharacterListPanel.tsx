@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, User, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
+import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
 import { useCharacter } from '../../lib/ipc/use-character'
 import { useErrorStore } from '../../lib/store'
@@ -65,17 +66,18 @@ export const CharacterListPanel = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-surface border-r border-border">
-      <div className="h-10 px-3 flex items-center justify-between border-b border-border">
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-text-muted" />
-          <span className="text-xs font-medium text-text-muted uppercase tracking-wider">角色</span>
-          <span className="text-[10px] text-text-muted">({characters.length})</span>
-        </div>
-        <Button variant="ghost" size="icon" onClick={() => setCreating(true)} title="新建角色">
-          <Plus className="w-3.5 h-3.5" />
-        </Button>
-      </div>
-      <ScrollArea className="flex-1">
+      <PanelHeader
+        title="角色"
+        icon={User}
+        subtitle={characters.length}
+        size="lg"
+        actions={
+          <Button variant="ghost" size="icon" onClick={() => setCreating(true)} title="新建角色">
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        }
+      />
+    <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
           {characters.length === 0 ? (
             <div className="text-center py-8">
@@ -109,7 +111,7 @@ export const CharacterListPanel = (): JSX.Element => {
                   size="icon"
                   onClick={(e) => void handleDelete(c, e)}
                   title="删除角色"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 text-text-muted hover:text-red-500"
+                  className="h-7 w-7 opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>

@@ -458,9 +458,9 @@ export const AiPreferencesPanel = (): JSX.Element => {
             transition={{ duration: 0.15 }}
             className={`rounded-2xl border p-4 ${
               testState.phase === 'error'
-                ? 'border-red-200 bg-red-50'
+                ? 'border-danger bg-danger-soft'
                 : testState.phase === 'done'
-                  ? 'border-green-200 bg-green-50'
+                  ? 'border-success bg-success-soft'
                   : 'border-border bg-bg-elevated'
             }`}
           >
@@ -481,14 +481,14 @@ export const AiPreferencesPanel = (): JSX.Element => {
               )}
               {testState.phase === 'done' && (
                 <>
-                  <Check className="w-3.5 h-3.5 text-green-600" />
-                  <span className="text-green-700 font-medium">连接成功</span>
+                  <Check className="w-3.5 h-3.5 text-success" />
+                  <span className="text-success-strong font-medium">连接成功</span>
                 </>
               )}
               {testState.phase === 'error' && (
                 <>
-                  <XIcon className="w-3.5 h-3.5 text-red-600" />
-                  <span className="text-red-700 font-medium">连接失败</span>
+                  <XIcon className="w-3.5 h-3.5 text-danger" />
+                  <span className="text-danger-strong font-medium">连接失败</span>
                 </>
               )}
             </div>
@@ -497,7 +497,7 @@ export const AiPreferencesPanel = (): JSX.Element => {
               <TestStreamText text={testState.text} streaming={testState.phase === 'streaming'} />
             )}
             {testState.phase === 'error' && (
-              <div className="text-sm leading-relaxed text-red-700 font-mono">
+              <div className="text-sm leading-relaxed text-danger-strong font-mono">
                 {testState.error ?? '未知错误'}
               </div>
             )}

@@ -219,11 +219,11 @@ export const ExportDialog = (): JSX.Element => {
                 <div
                   className={`h-full transition-all ${
                     isError
-                      ? 'bg-red-500'
+                      ? 'bg-danger'
                       : isDone
-                        ? 'bg-green-500'
+                        ? 'bg-success'
                         : stage === 'cancelled'
-                          ? 'bg-amber-500'
+                          ? 'bg-warning'
                           : 'bg-accent'
                   }`}
                   style={{ width: `${Math.round(progress * 100)}%` }}
@@ -231,9 +231,9 @@ export const ExportDialog = (): JSX.Element => {
               </div>
               <div className="flex items-center gap-2 text-xs text-text-muted">
                 {isRunning && <Loader2 className="w-3 h-3 animate-spin" />}
-                {isDone && <CheckCircle2 className="w-3 h-3 text-green-500" />}
-                {isError && <AlertCircle className="w-3 h-3 text-red-500" />}
-                {stage === 'cancelled' && <X className="w-3 h-3 text-amber-500" />}
+                {isDone && <CheckCircle2 className="w-3 h-3 text-success" />}
+                {isError && <AlertCircle className="w-3 h-3 text-danger" />}
+                {stage === 'cancelled' && <X className="w-3 h-3 text-warning" />}
                 <span className="truncate">{message || (isRunning ? '导出中…' : '')}</span>
               </div>
               {isDone && writtenFiles.length > 0 && (

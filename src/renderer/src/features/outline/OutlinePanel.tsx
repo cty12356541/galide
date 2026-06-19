@@ -19,6 +19,8 @@
 
 import { useUiStore } from '../../lib/store'
 import { ListTree, User, MapPin } from 'lucide-react'
+import { PanelHeader } from '../../components/ui/panel-header'
+import { EmptyState } from '../../components/ui/empty-state'
 
 /**
  * Note on the props signature: this component is rendered by both:
@@ -34,11 +36,13 @@ export const OutlinePanel = (): JSX.Element => {
 
   if (!manifest) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-text-muted bg-bg p-8" data-testid="outline-panel">
-        <ListTree className="w-8 h-8 mb-2 opacity-40" />
-        <div className="text-xs">打开项目以查看大纲</div>
-        {projectName && <div className="text-[10px] mt-1 opacity-60">{projectName}</div>}
-      </div>
+      <EmptyState
+        icon={ListTree}
+        title="打开项目以查看大纲"
+        description={projectName ?? undefined}
+        className="h-full bg-bg p-8"
+        data-testid="outline-panel"
+      />
     )
   }
 
@@ -56,24 +60,14 @@ export const OutlinePanel = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-bg" data-testid="outline-panel">
-      <div className="h-10 px-3 flex items-center gap-2 border-b border-border bg-surface">
-        <ListTree className="w-4 h-4 text-text-muted" />
-        <span className="text-xs font-medium uppercase tracking-wider text-text-muted">大纲</span>
-        <span className="text-[10px] text-text-muted">{projectName ?? ''}</span>
-      </div>
+      <PanelHeader title="大纲" icon={ListTree} subtitle={projectName ?? ''} size="md" />
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden">
         <section className="flex flex-col overflow-hidden border-r border-border">
-          <header className="h-9 px-3 flex items-center gap-1.5 bg-surface border-b border-border">
-            <MapPin className="w-3.5 h-3.5 text-text-muted" />
-            <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
-              场景
-            </span>
-            <span className="text-[10px] text-text-muted">({placeholderScenes.length})</span>
-          </header>
+          <PanelHeader title="场景" icon={MapPin} subtitle={placeholderScenes.length} size="sm" />
           <div className="flex-1 overflow-auto p-2 space-y-0.5">
             {placeholderScenes.length === 0 ? (
-              <div className="text-[11px] text-text-muted px-2 py-1.5">尚未打开剧本</div>
+              <EmptyState icon={MapPin} title="尚未打开剧本" className="py-6 px-3" />
             ) : (
               placeholderScenes.map((s) => (
                 <button
@@ -92,16 +86,10 @@ export const OutlinePanel = (): JSX.Element => {
         </section>
 
         <section className="flex flex-col overflow-hidden">
-          <header className="h-9 px-3 flex items-center gap-1.5 bg-surface border-b border-border">
-            <User className="w-3.5 h-3.5 text-text-muted" />
-            <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
-              角色
-            </span>
-            <span className="text-[10px] text-text-muted">({characters.length})</span>
-          </header>
+          <PanelHeader title="角色" icon={User} subtitle={characters.length} size="sm" />
           <div className="flex-1 overflow-auto p-2 space-y-0.5">
             {characters.length === 0 ? (
-              <div className="text-[11px] text-text-muted px-2 py-1.5">尚未创建角色</div>
+              <EmptyState icon={User} title="尚未创建角色" className="py-6 px-3" />
             ) : (
               characters.map((c) => (
                 <div

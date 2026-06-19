@@ -12,15 +12,13 @@
 
 import { FileText } from 'lucide-react'
 import { ScrollArea } from '../../components/ui/scroll-area'
+import { PanelHeader } from '../../components/ui/panel-header'
 import { ScriptFileTree } from './ScriptFileTree'
 
 export const ScriptListPanel = (): JSX.Element => {
   return (
     <div className="h-full flex flex-col bg-surface border-r border-border">
-      <div className="h-10 px-3 flex items-center gap-2 border-b border-border">
-        <FileText className="w-4 h-4 text-text-muted" />
-        <span className="text-xs font-medium text-text-muted uppercase tracking-wider">剧本</span>
-      </div>
+      <PanelHeader title="剧本" icon={FileText} size="md" />
       <ScrollArea className="flex-1">
         <ScriptFileTree />
       </ScrollArea>

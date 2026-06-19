@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Volume2, Play, Trash2, RefreshCw, Loader2, AlertCircle } from 'lucide-react'
+import { Volume2, Play, Trash2, RefreshCw, Mic } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
+import { PanelHeader } from '../../components/ui/panel-header'
+import { EmptyState } from '../../components/ui/empty-state'
 import { useUiStore } from '../../lib/store'
 import { useVoice } from '../../lib/ipc/use-voice'
 import { useErrorStore } from '../../lib/store'
@@ -120,91 +122,78 @@ export const VoicePanel = (): JSX.Element => {
 
   return (
     <div className="border-b border-border">
-      <div className="h-9 px-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Volume2 className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">语音</span>
-          <span className="text-[10px] text-text-muted">({items.length})</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => void refresh()}
-          title="刷新"
-          className="h-6 w-6"
-        >
-          <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
-        </Button>
-      </div>
+      <PanelHeader
+        title="语音"
+        icon={Volume2}
+        subtitle={items.length}
+        size="md"
+        actions={
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => void refresh()}
+            title="刷新"
+            className="h-7 w-7"
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+          </Button>
+        }
+      />
       <ScrollArea className="max-h-40">
         <div className="px-1.5 pb-1.5 space-y-0.5">
           {items.length === 0 ? (
-            <div className="text-[11px] text-text-muted px-2 py-1.5">
-              尚未生成语音。
-              <br />
-              <span className="text-text-muted/70">
-                在偏好 → 语音 配置默认 TTS 提供商。
-              </span>
-            </div>
+            <EmptyState
+              icon={Mic}
+              title="尚未生成语音"
+              description="在偏好 → 语音 配置默认 TTS 提供商"
+              className="py-4 px-3"
+            />
           ) : (
-            items.map((it) => {
-              const isGen = generating === it.id
-              const isPlay = playing === it.id
-              return (
-                <div
-                  key={it.id}
-                  className="group flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-bg-elevated"
+            items.map((it) => (
+              <div
+                key={it.id}
+                className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-bg-elevated"
+              >
+                <button
+                  type="button"
+                  onClick={() => handlePlay(it)}
+                  className="h-6 w-6 rounded-md flex items-center justify-center text-text-muted hover:text-accent transition-colors"
+                  title="试听"
                 >
-                  <button
-                    onClick={() => handlePlay(it)}
-                    disabled={!it.audioPath}
-                    className="shrink-0 p-1 rounded text-text-muted hover:text-accent disabled:opacity-40"
-                    title={isPlay ? '播放中…' : '试听'}
-                  >
-                    {isPlay ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Play className="w-3 h-3" />
-                    )}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[11px] font-mono truncate">{it.id}.mp3</div>
-                    {it.text && (
-                      <div className="text-[10px] text-text-muted truncate">
-                        {it.text}
-                      </div>
-                    )}
-                  </div>
-                  {isGen ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-text-muted" />
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => void handleRegenerate(it)}
-                      title={ttsStubAvailable ? '重新生成' : 'TTS 尚未实装,无法重新生成'}
-                      disabled={!ttsStubAvailable}
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                    </Button>
-                  )}
+                  <Play className={cn('w-3 h-3', playing === it.id && 'text-accent')} />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] truncate">{it.id}</div>
+                  <div className="text-[10px] text-text-muted truncate">{it.text}</div>
+                </div>
+                {generating === it.id ? (
+                  <RefreshCw className="w-3 h-3 animate-spin text-text-muted" />
+                ) : (
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => void handleDelete(it.id)}
-                    title="删除"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-red-500"
+                    onClick={() => void handleRegenerate(it)}
+                    title={ttsStubAvailable ? '重新生成' : 'TTS 尚未实装,无法重新生成'}
+                    disabled={!ttsStubAvailable}
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <RefreshCw className="w-3 h-3" />
                   </Button>
-                </div>
-              )
-            })
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => void handleDelete(it.id)}
+                  title="删除"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-danger"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            ))
           )}
           {items.length > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 text-[10px] text-amber-600">
-              <AlertCircle className="w-2.5 h-2.5" />
+            <div className="flex items-center gap-1 px-2 py-1 text-[10px] text-warning-strong">
               <span>重新生成取决于 TTS 提供商是否实现</span>
             </div>
           )}

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { FileText, Plus, RefreshCw, FilePlus, Copy, Trash2, Edit3 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
+import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
 import { useScript } from '../../lib/ipc/use-script'
 import { useErrorStore } from '../../lib/store'
@@ -133,22 +134,23 @@ export const ScriptFileTree = (): JSX.Element => {
 
   return (
     <div className="border-b border-border">
-      <div className="h-9 bg-bg-elevated px-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <FilePlus className="w-3.5 h-3.5 text-text-muted" />
-          <span className="text-[12px] font-medium text-text-muted uppercase tracking-wider">剧本</span>
-          <span className="text-[11px] text-text-muted">({files.length})</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="icon" onClick={() => void refresh()} title="刷新" className="h-7 w-7">
-            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => void handleNew()} title="新建剧本" className="h-7 w-7">
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      </div>
-      <ScrollArea className="max-h-40">
+      <PanelHeader
+        title="剧本"
+        icon={FilePlus}
+        subtitle={files.length}
+        size="md"
+        actions={
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" size="icon" onClick={() => void refresh()} title="刷新" className="h-7 w-7">
+              <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => void handleNew()} title="新建剧本" className="h-7 w-7">
+              <Plus className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        }
+      />
+    <ScrollArea className="max-h-40">
         <div className="px-1.5 pb-1.5 space-y-0.5">
           {files.length === 0 ? (
             <div className="text-[12px] text-text-muted px-2 py-1.5">无 .gal 脚本</div>

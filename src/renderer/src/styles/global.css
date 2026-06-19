@@ -33,6 +33,25 @@
     --success: #059669;
     --success-soft: #ecfdf5;
 
+    /* 对比度更高的强色(token 化后用 text-danger-strong 配 bg-danger-soft,
+     * 对比度从 3.8:1 提升到 6.4:1,达到 WCAG AA)
+     */
+    --danger-strong: #991b1b;
+    --warning-strong: #92400e;
+    --success-strong: #065f46;
+
+    /* Flow 视图 / CodeMirror 专用 — light 档偏中性灰 + 紫色边线 */
+    --flow-edge: #6366f1;
+    --flow-edge-dashed: #a8a29e;
+    --flow-minimap-bg: #ffffff;
+    --flow-minimap-mask: rgba(250, 250, 249, 0.7);
+    --flow-bg-dot: #e7e5e4;
+    --cm-gutter-fg: #a8a29e;
+    --cm-active-line: rgba(99, 102, 241, 0.06);
+    --cm-active-line-gutter: #6366f1;
+    --cm-cursor: #6366f1;
+    --cm-selection: rgba(99, 102, 241, 0.18);
+
     --gradient: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
     --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
     --shadow-popover: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.08);
@@ -60,6 +79,23 @@
     --warning-soft: #451a03;
     --success: #34d399;
     --success-soft: #022c22;
+
+    /* dark mode strong: 背景已深,用 -200 档保对比度 */
+    --danger-strong: #fecaca;
+    --warning-strong: #fde68a;
+    --success-strong: #a7f3d0;
+
+    /* dark 档:flow 边线提高对比,background dot 用 surface 提一档 */
+    --flow-edge: #818cf8;
+    --flow-edge-dashed: #4a4f5a;
+    --flow-minimap-bg: #1c1f26;
+    --flow-minimap-mask: rgba(22, 24, 29, 0.75);
+    --flow-bg-dot: #2a2e36;
+    --cm-gutter-fg: #6b7280;
+    --cm-active-line: rgba(129, 140, 248, 0.08);
+    --cm-active-line-gutter: #a5b4fc;
+    --cm-cursor: #a5b4fc;
+    --cm-selection: rgba(129, 140, 248, 0.22);
 
     --gradient: linear-gradient(180deg, #16181d 0%, #0f1115 100%);
     --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);

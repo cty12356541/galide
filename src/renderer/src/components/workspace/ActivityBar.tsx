@@ -14,6 +14,7 @@ import {
   type ToolWindowId,
   type PlaceholderId
 } from './mosaic/panel-registry'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 
 type ActivityItem =
   | { kind: 'tw'; id: ToolWindowId; icon: LucideIcon; label: string }
@@ -46,55 +47,62 @@ export const ActivityBar = (): JSX.Element => {
   }
 
   return (
-    <nav
-      aria-label="Activity Bar"
-      className="w-12 h-full bg-bg-elevated border-r border-border flex flex-col items-center py-2 gap-1 flex-shrink-0"
-      data-testid="activity-bar"
-    >
+    <TooltipProvider delayDuration={300}>
+      <nav
+        aria-label="Activity Bar"
+        className="w-12 h-full bg-bg-elevated border-r border-border flex flex-col items-center py-2 gap-1 flex-shrink-0"
+        data-testid="activity-bar"
+      >
       {ITEMS.map((item) => {
         const isActive = isItemActive(item)
         const Icon = item.icon
         const side = item.kind === 'tw' ? dockSide[item.id] : 'left'
         return (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              if (!isActive && item.kind === 'tw') {
-                showToolWindow(item.id)
-              } else if (!isActive && item.kind === 'placeholder') {
-                showPlaceholder(item.id)
-              } else {
-                // 已激活 → 收起左槽(PyCharm 行为)
-                toggleLeftPanel()
-              }
-            }}
-            title={item.label}
-            aria-label={item.label}
-            aria-pressed={isActive}
-            data-testid={`activity-${item.id}`}
-            className={cn(
-              'relative w-9 h-9 rounded-md flex items-center justify-center transition-colors',
-              isActive
-                ? 'bg-accent-soft text-accent'
-                : 'text-text-muted hover:text-text hover:bg-surface',
-              isActive &&
-                'after:absolute after:left-[-1px] after:top-2 after:bottom-2 after:w-0.5 after:bg-accent after:rounded-full'
-            )}
-          >
-            <Icon className="w-[18px] h-[18px]" />
-            {item.kind === 'tw' && side !== 'left' ? (
-              <span
+          <Tooltip key={item.id}>
+          <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isActive && item.kind === 'tw') {
+                    showToolWindow(item.id)
+                  } else if (!isActive && item.kind === 'placeholder') {
+                    showPlaceholder(item.id)
+                  } else {
+                    // 已激活 → 收起左槽(PyCharm 行为)
+                    toggleLeftPanel()
+                  }
+                }}
+                aria-label={item.label}
+                aria-pressed={isActive}
+                data-testid={`activity-${item.id}`}
                 className={cn(
-                  'absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full',
-                  side === 'right' ? 'bg-accent' : 'bg-warning'
+                  'relative w-9 h-9 rounded-md flex items-center justify-center transition-colors',
+                  isActive
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-text-muted hover:text-text hover:bg-surface',
+                  isActive &&
+                    'after:absolute after:left-[-1px] after:top-2 after:bottom-2 after:w-0.5 after:bg-accent after:rounded-full'
                 )}
-                title={`已停靠 ${side === 'right' ? '右侧' : '底部'}`}
-              />
-            ) : null}
-          </button>
+              >
+                <Icon className="w-[18px] h-[18px]" />
+                {item.kind === 'tw' && side !== 'left' ? (
+                  <span
+                    className={cn(
+                      'absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full',
+                      side === 'right' ? 'bg-accent' : 'bg-warning'
+                    )}
+                    title={`已停靠 ${side === 'right' ? '右侧' : '底部'}`}
+                  />
+                ) : null}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>
+              {item.label}
+            </TooltipContent>
+          </Tooltip>
         )
       })}
-    </nav>
+      </nav>
+    </TooltipProvider>
   )
 }

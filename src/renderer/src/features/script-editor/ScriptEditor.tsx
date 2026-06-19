@@ -94,11 +94,13 @@ export const ScriptEditor = (): JSX.Element => {
       EditorView.lineWrapping,
       EditorView.theme(
         {
-          '&': { height: '100%', fontSize: '14px' },
+          '&': { height: '100%', fontSize: '14px', backgroundColor: 'transparent' },
           '.cm-content': { fontFamily: 'JetBrains Mono, monospace', padding: '12px 0' },
-          '.cm-gutters': { backgroundColor: 'transparent', border: 'none', color: '#a8a29e' },
-          '.cm-activeLineGutter': { backgroundColor: 'transparent', color: '#7c3aed' },
-          '.cm-activeLine': { backgroundColor: 'rgba(124, 58, 237, 0.04)' }
+          '.cm-gutters': { backgroundColor: 'transparent', border: 'none', color: 'var(--cm-gutter-fg)' },
+          '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--cm-active-line-gutter)' },
+          '.cm-activeLine': { backgroundColor: 'var(--cm-active-line)' },
+          '.cm-cursor': { borderLeftColor: 'var(--cm-cursor)' },
+          '.cm-selectionBackground, ::selection': { backgroundColor: 'var(--cm-selection)' }
         },
         { dark: false }
       ),
@@ -167,7 +169,7 @@ export const ScriptEditor = (): JSX.Element => {
       <div className="h-10 bg-surface border-b border-border flex items-center justify-between px-3">
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-muted font-mono">{activeScript}</span>
-          {dirty && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="未保存" />}
+          {dirty && <span className="w-1.5 h-1.5 rounded-full bg-warning" title="未保存" />}
         </div>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={() => setShowAi(true)}>

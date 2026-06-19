@@ -47,7 +47,7 @@ export const FloatingPanelHost = (): JSX.Element | null => {
   // 主岛:渲染主岛壳(floating 模式自带 header + tab + 关闭)
   if (content.kind === 'toolwindow') {
     return (
-      <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden" data-testid="floating-host">
+      <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden p-2" data-testid="floating-host">
         <SideToolWindow toolWindowId={content.id} floating />
       </div>
     )
@@ -56,9 +56,9 @@ export const FloatingPanelHost = (): JSX.Element | null => {
   // 编辑器大陆 doc / 子岛:简化 header + 内容组件
   const Comp = content.component
   return (
-    <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden" data-testid="floating-host">
+    <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden p-2" data-testid="floating-host">
       <header
-        className="h-9 flex items-center border-b border-border px-3 gap-2 flex-shrink-0 bg-surface"
+        className="h-9 flex items-center border border-border rounded-t-xl px-3 gap-2 flex-shrink-0 bg-surface shadow-sm"
         data-testid="floating-header"
       >
         <span className="text-xs font-medium">{content.title}</span>
@@ -74,7 +74,7 @@ export const FloatingPanelHost = (): JSX.Element | null => {
           title="返回主窗口(聚焦主窗口)"
           aria-label="返回主窗口"
           data-testid="floating-back"
-          className="h-7 px-2 rounded flex items-center gap-1 text-text-muted hover:text-text hover:bg-bg-elevated transition-colors text-xs"
+          className="h-7 px-2.5 rounded-md flex items-center gap-1.5 text-accent hover:bg-accent-soft transition-colors text-xs font-medium border border-accent/30"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>主窗口</span>
@@ -90,7 +90,7 @@ export const FloatingPanelHost = (): JSX.Element | null => {
           <X className="w-3.5 h-3.5" />
         </button>
       </header>
-      <main className="flex-1 min-h-0 overflow-hidden" data-testid="floating-content">
+      <main className="flex-1 min-h-0 overflow-hidden bg-surface border border-t-0 border-border rounded-b-xl shadow-md" data-testid="floating-content">
         <Comp />
       </main>
     </div>
