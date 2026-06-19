@@ -310,3 +310,95 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
     border: 1px solid CanvasText !important;
   }
 }
+
+/* AI 对话气泡 Markdown 渲染(react-markdown 输出) — 用 v0.5 token,禁止裸调色板 */
+.prose-ai {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text);
+  word-break: break-word;
+}
+.prose-ai > :first-child {
+  margin-top: 0;
+}
+.prose-ai > :last-child {
+  margin-bottom: 0;
+}
+.prose-ai p {
+  margin: 0.5em 0;
+}
+.prose-ai h1,
+.prose-ai h2,
+.prose-ai h3 {
+  font-weight: 600;
+  margin: 0.8em 0 0.4em;
+  color: var(--text);
+}
+.prose-ai h1 { font-size: 1.05rem; }
+.prose-ai h2 { font-size: 1rem; }
+.prose-ai h3 { font-size: 0.95rem; }
+.prose-ai ul,
+.prose-ai ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+}
+.prose-ai ul { list-style: disc; }
+.prose-ai ol { list-style: decimal; }
+.prose-ai li {
+  margin: 0.2em 0;
+}
+.prose-ai a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prose-ai strong {
+  font-weight: 600;
+  color: var(--text);
+}
+.prose-ai blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 0.8em;
+  margin: 0.6em 0;
+  color: var(--text-muted);
+}
+.prose-ai code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.prose-ai pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75em;
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.prose-ai pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.prose-ai hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.8em 0;
+}
+.prose-ai table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  width: 100%;
+}
+.prose-ai th,
+.prose-ai td {
+  border: 1px solid var(--border);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+.prose-ai th {
+  background: var(--bg-elevated);
+  font-weight: 600;
+}

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, ChevronRight, Brain } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type Message = {
   id: string
@@ -10,19 +12,17 @@ type Message = {
 }
 
 /**
- * 字符级别淡入渐出 + 平稳控速显示 + <think> 折叠思考块
+ * AI 对话气泡 — 流式逐字 + 结束后 Markdown 渲染
  *
- * v0.5 重做(think/正文 显示顺序):
- * 1. `text` 是 provider 已到达的字符
- * 2. think 段与 text 段各自独立 reveal 预算(独立 TypewriterSegment),
- *    — 原版共享一个 shown,think(即使折叠)也消耗预算,导致正文延迟/顺序错乱
- * 3. 正文为主位(逐字符淡入,45ms/字符);think 收为正文上方的折叠 chip,不挤压正文
- * 4. 流式且未闭合的 <think> → chip 自动展开(感知"AI 在想");闭合/流结束 → 自动折回
- * 5. 流结束(不再 streaming)一次性 reveal 剩余字符
+ * 设计:
+ * 1. 流式(streaming=true):逐字符淡入(45ms/字符),渲染原始文本
+ *    — 流由 main 端 12字/25ms 缓冲推进,逐字展开给"AI 在写"的渐进感
+ * 2. 结束(streaming=false):react-markdown 渲染完整 Markdown
+ *    — **加粗** / 列表 / 代码块 / 段落结构得以正确呈现
+ *    — 修复原"逐字打字机跟不上流,done 时一次性蹦出积压字符"
+ * 3. <think> 段:流式时折叠 chip 内逐字;结束时 Markdown 渲染,仍折叠
+ *    — think 与正文各自独立 reveal/渲染,互不抢占
  */
-// 字符淡出节奏:45ms/字符 — 比 provider 5-15ms 慢,让人眼有"从容展开"的视觉
-// 太快(原 28ms)会感觉"闪一坨";太慢(>80ms)会感觉卡
-// 配合 220ms 单字符淡入,整体节奏"自然聊天"感
 const CHAR_DELAY_MS = 45
 
 type Segment = { kind: 'text' | 'think'; content: string }
@@ -75,16 +75,14 @@ const estimateTokens = (s: string): number => {
 }
 
 /**
- * 把一段文本切成 typewriter 字符 span,保留 LLM 输出的分段结构
- * - `\n`(行内换行)→ 渲染为 <br>;空行 → 段间距(block h-3)
+ * 把一段文本切成 typewriter 字符 span(仅流式期使用)
+ * - `\n` → <br>;空行 → 段间距(block h-3)
  * - 每个字符走字符级 typewriter(保留淡入)
  *
- * startIndex 是该段在整个消息中的字符偏移,跨段唯一 → 避免 React key 碰撞
- * (原版用 lineIdx*50 近似,长行 >50 字会与下行 key 撞)。
- *
+ * startIndex 跨段唯一 → 避免 React key 碰撞(原版 lineIdx*50 近似,长行撞)。
  * 不用 dangerouslySetInnerHTML:自己 split + JSX 渲染,安全
  */
-const renderChars = (s: string, startIndex: number, withFade: boolean): JSX.Element => {
+const renderChars = (s: string, startIndex: number): JSX.Element => {
   const lines = s.split('\n')
   let running = 0 // 跨行累计字符偏移(含被 split 掉的 \n),保证 globalIdx 跨行唯一
   return (
@@ -95,7 +93,6 @@ const renderChars = (s: string, startIndex: number, withFade: boolean): JSX.Elem
         return (
           <span key={`l-${startIndex}-${lineIdx}`}>
             {line.length === 0 ? (
-              // 空行 → 段间距
               <span className="block h-3" aria-hidden="true" />
             ) : (
               <>
@@ -104,7 +101,7 @@ const renderChars = (s: string, startIndex: number, withFade: boolean): JSX.Elem
                   return (
                     <span
                       key={`c-${globalIdx}-${ch}`}
-                      className={withFade ? 'inline-block animate-char-fade-in' : 'inline-block'}
+                      className="inline-block animate-char-fade-in"
                       style={{ animationDelay: `${Math.min(chIdx * 8, 200)}ms` }}
                     >
                       {ch === ' ' ? '\u00A0' : ch}
@@ -122,22 +119,15 @@ const renderChars = (s: string, startIndex: number, withFade: boolean): JSX.Elem
 }
 
 /**
- * 单段打字机 — 一段 content 独立 shown/RAF/逐字符淡入。
- *
- * v0.5 重做:原 TypewriterText 把 think 段 + text 段共享一个 shown 预算,
- * think 段(即使折叠)也消耗字符预算,导致其后正文延迟出现 / 顺序错乱。
- * 现在每段一个独立实例,预算彻底隔离 → 正文不被 think 拖累。
- *
- * - streaming=true:45ms/字符逐字 reveal
- * - streaming=false:一次性 reveal 全部(非流式 / 已闭合段)
+ * 流式逐字打字机 — 仅 streaming=true 时工作。
+ * streaming=false 时不再一次性蹦出全部(结束交给 Markdown 渲染),
+ * 返回当前已 shown 的原始文本片段。
  */
-const TypewriterSegment = ({
+const StreamingTypewriter = ({
   content,
-  streaming,
   startIndex = 0
 }: {
   content: string
-  streaming: boolean
   startIndex?: number
 }): JSX.Element => {
   const totalLen = content.length
@@ -158,11 +148,6 @@ const TypewriterSegment = ({
       cancelAnimationFrame(rafRef.current)
       rafRef.current = null
     }
-    if (!streaming && shown < totalLenRef.current) {
-      // 流结束:一次性 reveal 剩余
-      setShown(totalLenRef.current)
-      return
-    }
     if (shown >= totalLenRef.current) return
     lastTickRef.current = performance.now()
     const tick = (): void => {
@@ -182,22 +167,31 @@ const TypewriterSegment = ({
         rafRef.current = null
       }
     }
-  // 只依赖 [streaming, shown] — 不依赖 totalLen,
-  // 避免 content 增长触发 cleanup 重置 lastTickRef 导致字符永远不推进
-  }, [streaming, shown])
+  // 只依赖 [shown] — content 增长不重置 lastTickRef(否则字符永远不推进)
+  }, [shown])
 
   const visible = content.slice(0, shown)
   if (!visible) return <></>
-  return <>{renderChars(visible, startIndex, true)}</>
+  return <>{renderChars(visible, startIndex)}</>
 }
 
 /**
+ * Markdown 渲染 — 流式结束后用。
+ * 套用 token 化的 prose 样式,继承气泡文字色(text-text)。
+ */
+const MarkdownBody = ({ content }: { content: string }): JSX.Element => (
+  <div className="prose-ai">
+    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+  </div>
+)
+
+/**
  * think 折叠 chip — 正文主位,think 收成一行 pill,不挤压正文纵向空间。
- * - 折叠态:仅 pill(Brain + 标签),零内容 DOM(不渲染 TypewriterSegment)
- * - 流式且未闭合 → 自动展开,有界容器(max-h-40 + 滚动)内逐字符淡入
- * - 闭合 / 流结束 → 自动折回;用户点击 pill 可手动 toggle
+ * - 折叠态:仅 pill(Brain + 标签),零内容 DOM
+ * - 流式且未闭合 → 自动展开,逐字淡入;闭合/流结束 → 自动折回
+ * - 结束后展开 → Markdown 渲染思考内容
+ * - 用户点击 pill 可手动 toggle
  *
- * 已闭合的 think 段视为"内容已定",展开时一次性 reveal(streaming=false)。
  * 标签:`思考中…`(未闭合)/ `已思考 (N token)`(已结束)
  */
 const ThinkChip = ({
@@ -219,8 +213,9 @@ const ThinkChip = ({
   }, [autoOpen])
 
   const label = isLastUnclosed ? '思考中…' : `已思考 (${fullTokens} token)`
-  // 已闭合段内容已定 → 展开时一次性 reveal;未闭合段随流逐字
-  const segStreaming = isLastUnclosed ? messageStreaming : false
+  // 流式期:未闭合段随流逐字;已闭合段随整条消息的 streaming 走
+  // 结束后:整段 Markdown 渲染
+  const segStreaming = messageStreaming && isLastUnclosed
 
   return (
     <div className="my-1.5">
@@ -237,7 +232,11 @@ const ThinkChip = ({
       </button>
       {open ? (
         <div className="mt-1.5 ml-1 pl-3 border-l border-border max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed font-mono text-[11px] text-text-muted">
-          <TypewriterSegment content={content} streaming={segStreaming} startIndex={startIndex} />
+          {segStreaming ? (
+            <StreamingTypewriter content={content} startIndex={startIndex} />
+          ) : (
+            <MarkdownBody content={content} />
+          )}
         </div>
       ) : null}
     </div>
@@ -245,11 +244,29 @@ const ThinkChip = ({
 }
 
 /**
+ * 正文段 — 流式逐字淡入,结束后 Markdown 渲染。
+ */
+const TextSegment = ({
+  content,
+  streaming,
+  startIndex
+}: {
+  content: string
+  streaming: boolean
+  startIndex: number
+}): JSX.Element => {
+  if (streaming) {
+    return <StreamingTypewriter content={content} startIndex={startIndex} />
+  }
+  return <MarkdownBody content={content} />
+}
+
+/**
  * TypewriterText — assistant 气泡正文区。
  *
- * v0.5 重做:把 think 段与 text 段拆成独立 TypewriterSegment / ThinkChip,
- * 各自独立 reveal 预算,根治"think 占用预算导致正文延迟/顺序错乱"。
- * think 收为正文上方的折叠 chip;正文为主位,逐字符淡入(45ms/字符)。
+ * think 段与 text 段各自独立渲染,互不抢占。
+ * - think:折叠 chip(流式逐字 / 结束 Markdown)
+ * - text:流式逐字淡入 / 结束 Markdown
  */
 export const TypewriterText = ({
   text,
@@ -280,11 +297,7 @@ export const TypewriterText = ({
             />
           )
         }
-        return (
-          <div key={`text-${segIdx}`} className="whitespace-pre-wrap">
-            <TypewriterSegment content={seg.content} streaming={streaming} startIndex={segStart} />
-          </div>
-        )
+        return <div key={`text-${segIdx}`}><TextSegment content={seg.content} streaming={streaming} startIndex={segStart} /></div>
       })}
     </div>
   )
