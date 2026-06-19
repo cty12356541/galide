@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Send, Sparkles, Clock } from 'lucide-react'
+import { Send, Sparkles, Clock, AlertCircle } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { ScrollArea } from '../../components/ui/scroll-area'
@@ -21,6 +21,7 @@ type Message = {
   streaming: boolean
   taskId: string | null
   status: TaskStatus | null
+  errorText?: string
 }
 
 export const AiPanel = (): JSX.Element => {
@@ -34,12 +35,23 @@ export const AiPanel = (): JSX.Element => {
   const providers = useAiProviders()
   const ai = useAi()
 
+  /**
+   * 早到事件缓存 — 修复竞态:
+   * main 端 enqueue 后 void drain() 立即开始,可能在 ai.generate 的 taskId
+   * 经 IPC 往返回到 renderer 之前就发出 running 状态 / 早期 delta。
+   * 此时 assistant 消息(带 taskId)尚未加入 messages,listener 的
+   * m.taskId===evt.taskId 匹配不到 → 静默丢弃开头内容。
+   * 缓存这些早到事件,assistant 消息注册后(setMessages 回填 taskId)回放。
+   */
+  const pendingDeltas = useRef<Map<string, string[]>>(new Map())
+  const pendingStatus = useRef<Map<string, TaskStatus>>(new Map())
+
   useEffect(() => {
     if (config.data?.provider) setProvider(config.data.provider)
   }, [config.data?.provider])
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 999999, behavior: 'smooth' })
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
   // Subscribe to status events for any active assistant message
@@ -47,21 +59,27 @@ export const AiPanel = (): JSX.Element => {
     const g = getGalide()
     if (!g?.ai?.onStatus) return
     const off = g.ai.onStatus((evt) => {
+      const nextStatus = evt.status as TaskStatus
+      // 若消息尚未注册(竞态)→ 缓存,等回填 taskId 后回放
+      let registered = false
       setMessages((prev) =>
         prev.map((m) => {
           if (m.taskId !== evt.taskId) return m
-          const nextStatus = evt.status as TaskStatus
+          registered = true
           const streaming = nextStatus === 'pending' || nextStatus === 'running'
-          let text = m.text
+          const patch: Partial<Message> = { status: nextStatus, streaming }
+          // 错误单独存 errorText,不拼进 text(否则结束时被 Markdown 当链接渲染)
           if (nextStatus === 'error') {
-            text = m.text ? `${m.text}\n[error: ${evt.error ?? 'unknown'}]` : `[error: ${evt.error ?? 'unknown'}]`
+            patch.errorText = evt.error ?? 'unknown'
+            patch.streaming = false
           }
-          return { ...m, status: nextStatus, streaming, text }
+          return { ...m, ...patch }
         })
       )
-      if (evt.status === 'done' || evt.status === 'error') {
-        // P1-7 修复: 原版 `setBusy((b) => (b ? false : b))` 永远写 false 但绕了一下,
-        // 改为显式。listener 在 AiPanel 卸载时由 useEffect cleanup 移除(无累积)。
+      if (!registered) {
+        pendingStatus.current.set(evt.taskId, nextStatus)
+      }
+      if (nextStatus === 'done' || nextStatus === 'error') {
         setBusy(false)
       }
     })
@@ -74,9 +92,20 @@ export const AiPanel = (): JSX.Element => {
     if (!g?.ai?.stream) return
     const off = g.ai.stream((chunk) => {
       if (!chunk.delta) return
+      // 若消息尚未注册(竞态)→ 缓存 delta,等回填 taskId 后回放
+      let registered = false
       setMessages((prev) =>
-        prev.map((m) => (m.taskId === chunk.taskId ? { ...m, text: m.text + chunk.delta } : m))
+        prev.map((m) => {
+          if (m.taskId !== chunk.taskId) return m
+          registered = true
+          return { ...m, text: m.text + chunk.delta }
+        })
       )
+      if (!registered) {
+        const arr = pendingDeltas.current.get(chunk.taskId) ?? []
+        arr.push(chunk.delta)
+        pendingDeltas.current.set(chunk.taskId, arr)
+      }
     })
     return off
   }, [])
@@ -115,6 +144,7 @@ export const AiPanel = (): JSX.Element => {
         return
       }
       const taskId = result.taskId
+      // 注册 assistant 消息并回放竞态期缓存的早到事件
       setMessages((m) => [
         ...m,
         {
@@ -126,6 +156,25 @@ export const AiPanel = (): JSX.Element => {
           status: 'pending'
         }
       ])
+      // 回放缓存的 delta / status(main 端 drain 可能在 taskId 回到 renderer 前已发)
+      const cachedDeltas = pendingDeltas.current.get(taskId)
+      if (cachedDeltas && cachedDeltas.length > 0) {
+        const joined = cachedDeltas.join('')
+        setMessages((m) =>
+          m.map((mm) => (mm.taskId === taskId ? { ...mm, text: mm.text + joined } : mm))
+        )
+        pendingDeltas.current.delete(taskId)
+      }
+      const cachedStatus = pendingStatus.current.get(taskId)
+      if (cachedStatus) {
+        pendingStatus.current.delete(taskId)
+        const streaming = cachedStatus === 'pending' || cachedStatus === 'running'
+        const patch: Partial<Message> = { status: cachedStatus, streaming }
+        if (cachedStatus === 'error') {
+          patch.streaming = false
+        }
+        setMessages((m) => m.map((mm) => (mm.taskId === taskId ? { ...mm, ...patch } : mm)))
+      }
     } catch (err) {
       useErrorStore.getState().push({
         code: 'IPC_ERROR',
@@ -137,10 +186,11 @@ export const AiPanel = (): JSX.Element => {
         {
           id: assistantId,
           role: 'assistant',
-          text: `[error: ${err instanceof Error ? err.message : String(err)}]`,
+          text: '',
           streaming: false,
           taskId: null,
-          status: 'error'
+          status: 'error',
+          errorText: err instanceof Error ? err.message : String(err)
         }
       ])
       setBusy(false)
@@ -223,6 +273,12 @@ const AiMessageBubbleWithStatus = ({ message, provider }: { message: Message; pr
           <span>{statusHint.text}</span>
         </div>
       )}
+      {message.errorText ? (
+        <div className="flex items-start gap-1.5 pl-8 text-[11px] text-danger-strong bg-danger-soft border border-danger/30 rounded-md px-2 py-1.5">
+          <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+          <span className="break-all">{message.errorText}</span>
+        </div>
+      ) : null}
     </div>
   )
 }
