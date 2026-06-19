@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, ChevronRight, Brain } from 'lucide-react'
+import { cn } from '../../lib/utils'
 
 type Message = {
   id: string
@@ -11,17 +12,13 @@ type Message = {
 /**
  * 字符级别淡入渐出 + 平稳控速显示 + <think> 折叠思考块
  *
- * 关键设计:
+ * v0.5 重做(think/正文 显示顺序):
  * 1. `text` 是 provider 已到达的字符
- * 2. 渲染只显示前 N 个字符(N 随时间增长,28ms/字符,略慢于 provider)
- * 3. 每个字符(text 段 + think 段)都用 CSS @keyframes 淡入(opacity 0→1, 220ms ease-out)
- *    — 展开折叠区时,已 show 字符保留字符淡入动画
- * 4. 流结束(不再 streaming)一次性 reveal 剩余字符
- * 5. <think>...</think> 块:
- *    - 默认折叠(用户主动展开看)
- *    - 流式阶段未闭合的 <think> 自动展开,让用户感知"AI 在想"
- *    - 字符级 typewriter 同样作用于 think 段(展开后看到字符渐进出现)
- *    - 标题:`<Brain/> 思考中…`(流式+未闭合) / `<Brain/> 已思考 (N 字)`(其余)
+ * 2. think 段与 text 段各自独立 reveal 预算(独立 TypewriterSegment),
+ *    — 原版共享一个 shown,think(即使折叠)也消耗预算,导致正文延迟/顺序错乱
+ * 3. 正文为主位(逐字符淡入,45ms/字符);think 收为正文上方的折叠 chip,不挤压正文
+ * 4. 流式且未闭合的 <think> → chip 自动展开(感知"AI 在想");闭合/流结束 → 自动折回
+ * 5. 流结束(不再 streaming)一次性 reveal 剩余字符
  */
 // 字符淡出节奏:45ms/字符 — 比 provider 5-15ms 慢,让人眼有"从容展开"的视觉
 // 太快(原 28ms)会感觉"闪一坨";太慢(>80ms)会感觉卡
@@ -79,61 +76,71 @@ const estimateTokens = (s: string): number => {
 
 /**
  * 把一段文本切成 typewriter 字符 span,保留 LLM 输出的分段结构
- * - `\n\n`(段落分隔)→ 渲染为段间距(段间留空)
- * - `\n`(行内换行)→ 渲染为 <br>(行内换行)
- * - 每个字符仍走字符级 typewriter(保留淡入)
+ * - `\n`(行内换行)→ 渲染为 <br>;空行 → 段间距(block h-3)
+ * - 每个字符走字符级 typewriter(保留淡入)
  *
- * 不用 dangerouslySetInnerHTML:我们自己 split + JSX 渲染,安全
+ * startIndex 是该段在整个消息中的字符偏移,跨段唯一 → 避免 React key 碰撞
+ * (原版用 lineIdx*50 近似,长行 >50 字会与下行 key 撞)。
+ *
+ * 不用 dangerouslySetInnerHTML:自己 split + JSX 渲染,安全
  */
 const renderChars = (s: string, startIndex: number, withFade: boolean): JSX.Element => {
-  // 把 \n\n 规整为 \n,再 split \n;空行(splits 后空串)被识别为段间距
   const lines = s.split('\n')
+  let running = 0 // 跨行累计字符偏移(含被 split 掉的 \n),保证 globalIdx 跨行唯一
   return (
     <>
-      {lines.map((line, lineIdx) => (
-        <span key={`l-${startIndex}-${lineIdx}`}>
-          {line.length === 0 ? (
-            // 空行 → 段间距(<div height=1em>)
-            <span className="block h-3" aria-hidden="true" />
-          ) : (
-            <>
-              {Array.from(line).map((ch, chIdx) => {
-                const globalIdx = startIndex + lineIdx * 50 + chIdx // 近似 index,够 animationDelay 错开
-                return (
-                  <span
-                    key={`c-${globalIdx}-${ch}`}
-                    className={withFade ? 'inline-block animate-char-fade-in' : 'inline-block'}
-                    style={{ animationDelay: `${Math.min(chIdx * 8, 200)}ms` }}
-                  >
-                    {ch === ' ' ? '\u00A0' : ch}
-                  </span>
-                )
-              })}
-              {/* 行末:如果原文本下一行存在 + 非最后一行 → 换行(<br>);空行则由下一 line 提供间距 */}
-              {lineIdx < lines.length - 1 && <br />}
-            </>
-          )}
-        </span>
-      ))}
+      {lines.map((line, lineIdx) => {
+        const lineStart = running
+        running += line.length + 1
+        return (
+          <span key={`l-${startIndex}-${lineIdx}`}>
+            {line.length === 0 ? (
+              // 空行 → 段间距
+              <span className="block h-3" aria-hidden="true" />
+            ) : (
+              <>
+                {Array.from(line).map((ch, chIdx) => {
+                  const globalIdx = startIndex + lineStart + chIdx
+                  return (
+                    <span
+                      key={`c-${globalIdx}-${ch}`}
+                      className={withFade ? 'inline-block animate-char-fade-in' : 'inline-block'}
+                      style={{ animationDelay: `${Math.min(chIdx * 8, 200)}ms` }}
+                    >
+                      {ch === ' ' ? '\u00A0' : ch}
+                    </span>
+                  )
+                })}
+                {lineIdx < lines.length - 1 && <br />}
+              </>
+            )}
+          </span>
+        )
+      })}
     </>
   )
 }
 
-export const TypewriterText = ({
-  text,
-  streaming
+/**
+ * 单段打字机 — 一段 content 独立 shown/RAF/逐字符淡入。
+ *
+ * v0.5 重做:原 TypewriterText 把 think 段 + text 段共享一个 shown 预算,
+ * think 段(即使折叠)也消耗字符预算,导致其后正文延迟出现 / 顺序错乱。
+ * 现在每段一个独立实例,预算彻底隔离 → 正文不被 think 拖累。
+ *
+ * - streaming=true:45ms/字符逐字 reveal
+ * - streaming=false:一次性 reveal 全部(非流式 / 已闭合段)
+ */
+const TypewriterSegment = ({
+  content,
+  streaming,
+  startIndex = 0
 }: {
-  text: string
+  content: string
   streaming: boolean
+  startIndex?: number
 }): JSX.Element => {
-  const segments = useMemo(() => splitThinkSegments(text), [text])
-  // 总字符数 = text 段 + think 段(typewriter 累计两者)
-  // P0 修复: 用 ref 跟踪 totalLen,RAF effect 不依赖 totalLen
-  // 避免 text 持续增长触发 effect 反复 cleanup 重置 lastTickRef(导致字符永远不推进)
-  const totalLen = useMemo(
-    () => segments.reduce((acc, s) => acc + s.content.length, 0),
-    [segments]
-  )
+  const totalLen = content.length
   const totalLenRef = useRef(totalLen)
   useEffect(() => {
     totalLenRef.current = totalLen
@@ -152,7 +159,7 @@ export const TypewriterText = ({
       rafRef.current = null
     }
     if (!streaming && shown < totalLenRef.current) {
-      // 流结束:一次性 reveal 剩余(可能是展开后看到 think 段刚到)
+      // 流结束:一次性 reveal 剩余
       setShown(totalLenRef.current)
       return
     }
@@ -176,86 +183,106 @@ export const TypewriterText = ({
       }
     }
   // 只依赖 [streaming, shown] — 不依赖 totalLen,
-  // 避免 text 增长触发 cleanup 重置 lastTickRef 导致字符永远不推进
+  // 避免 content 增长触发 cleanup 重置 lastTickRef 导致字符永远不推进
   }, [streaming, shown])
 
-  // 切片:把 shown 字符按段切,保留 typewriter 推进
-  let remaining = shown
-  let charOffset = 0 // 跨段连续字符 index,用于 animationDelay 不重叠
-  const lastSeg = segments[segments.length - 1]
-  const lastIsOpenThink =
-    streaming && lastSeg?.kind === 'think' && !text.endsWith('</think>>')
+  const visible = content.slice(0, shown)
+  if (!visible) return <></>
+  return <>{renderChars(visible, startIndex, true)}</>
+}
 
+/**
+ * think 折叠 chip — 正文主位,think 收成一行 pill,不挤压正文纵向空间。
+ * - 折叠态:仅 pill(Brain + 标签),零内容 DOM(不渲染 TypewriterSegment)
+ * - 流式且未闭合 → 自动展开,有界容器(max-h-40 + 滚动)内逐字符淡入
+ * - 闭合 / 流结束 → 自动折回;用户点击 pill 可手动 toggle
+ *
+ * 已闭合的 think 段视为"内容已定",展开时一次性 reveal(streaming=false)。
+ * 标签:`思考中…`(未闭合)/ `已思考 (N token)`(已结束)
+ */
+const ThinkChip = ({
+  content,
+  messageStreaming,
+  isLastUnclosed,
+  startIndex
+}: {
+  content: string
+  messageStreaming: boolean
+  isLastUnclosed: boolean
+  startIndex: number
+}): JSX.Element => {
+  const fullTokens = estimateTokens(content)
+  const autoOpen = isLastUnclosed
+  const [open, setOpen] = useState(autoOpen)
+  useEffect(() => {
+    setOpen(autoOpen)
+  }, [autoOpen])
+
+  const label = isLastUnclosed ? '思考中…' : `已思考 (${fullTokens} token)`
+  // 已闭合段内容已定 → 展开时一次性 reveal;未闭合段随流逐字
+  const segStreaming = isLastUnclosed ? messageStreaming : false
+
+  return (
+    <div className="my-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-bg border border-border text-[11px] text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
+        aria-expanded={open}
+        data-testid={`think-chip-${startIndex}`}
+      >
+        <ChevronRight className={cn('w-3 h-3 transition-transform', open && 'rotate-90')} />
+        <Brain className="w-3 h-3" />
+        <span>{label}</span>
+      </button>
+      {open ? (
+        <div className="mt-1.5 ml-1 pl-3 border-l border-border max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed font-mono text-[11px] text-text-muted">
+          <TypewriterSegment content={content} streaming={segStreaming} startIndex={startIndex} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * TypewriterText — assistant 气泡正文区。
+ *
+ * v0.5 重做:把 think 段与 text 段拆成独立 TypewriterSegment / ThinkChip,
+ * 各自独立 reveal 预算,根治"think 占用预算导致正文延迟/顺序错乱"。
+ * think 收为正文上方的折叠 chip;正文为主位,逐字符淡入(45ms/字符)。
+ */
+export const TypewriterText = ({
+  text,
+  streaming
+}: {
+  text: string
+  streaming: boolean
+}): JSX.Element => {
+  const segments = useMemo(() => splitThinkSegments(text), [text])
+  const lastSeg = segments[segments.length - 1]
+  const lastIsOpenThink = streaming && lastSeg?.kind === 'think' && !text.endsWith('</think>')
+
+  let offset = 0 // 跨段累计字符偏移,给每段唯一 startIndex(避免 key 碰撞)
   return (
     <div className="leading-relaxed">
       {segments.map((seg, segIdx) => {
+        const segStart = offset
+        offset += seg.content.length
         if (seg.kind === 'think') {
-          const take = Math.min(seg.content.length, remaining)
-          remaining -= take
-          const isLastUnclosed =
-            segIdx === segments.length - 1 && lastIsOpenThink
-          const visibleContent = take > 0 ? seg.content.slice(0, take) : ''
-          // 标题状态机(关键修复 — 不再猜上限):
-          //  - 思考进行中(lastSeg 是 think 且未闭合):"思考中…",不显示数字
-          //  - 思考已结束(整流结束 OR lastSeg 是 text / text 在 think 之后):
-          //    "已思考 (N token)",此时 N 已知
-          //  - 部分 show 但已闭合(网络慢 / 中止):"思考中… (X / N)"
-          //    这种情况罕见,但用户能看到进度
-          const fullTokens = estimateTokens(seg.content)
-          const visibleTokens = estimateTokens(visibleContent)
           const isLastSeg = segIdx === segments.length - 1
-          const lastSegIsText = lastSeg?.kind === 'text'
-          // 思考"已结束"条件:
-          //  - lastSeg 是 text(已有正文在流,思考已经闭合了)
-          //  - 或者 lastSeg 是 think 但已闭合(`text.endsWith('</think>>')`)且不再 streaming
-          //  - 或者 show 完 + 整流结束
-          const isThinkCompleted =
-            lastSegIsText ||
-            (isLastSeg && !lastIsOpenThink) ||
-            (!streaming && take >= seg.content.length)
-          const label = ((): string => {
-            if (isLastUnclosed) {
-              // 思考进行中 — 不知道上限,不显示数字
-              return '思考中…'
-            }
-            if (!isThinkCompleted) {
-              // 闭合了但还没轮完(网络慢)
-              return `思考中… (${visibleTokens} / ${fullTokens} token)`
-            }
-            // 思考结束 — 此时 N 已知
-            return `已思考 (${fullTokens} token)`
-          })()
-          const block = (
-            <div className="mt-1.5 ml-4 pl-3 border-l border-border whitespace-pre-wrap leading-relaxed font-mono text-[11px]">
-              {take > 0 ? renderChars(visibleContent, charOffset, true) : null}
-            </div>
-          )
-          charOffset += take
           return (
-            <details
+            <ThinkChip
               key={`think-${segIdx}`}
-              className="my-2 text-xs text-text-muted"
-              open={isLastUnclosed}
-            >
-              <summary className="flex items-center gap-1.5 cursor-pointer select-none hover:text-text transition-colors list-none">
-                <ChevronRight className="w-3 h-3 transition-transform [[details[open]_&]_&]:rotate-90" />
-                <Brain className="w-3 h-3" />
-                <span>{label}</span>
-              </summary>
-              {block}
-            </details>
+              content={seg.content}
+              messageStreaming={streaming}
+              isLastUnclosed={isLastSeg && lastIsOpenThink}
+              startIndex={segStart}
+            />
           )
         }
-        // text 段
-        const take = Math.min(seg.content.length, remaining)
-        remaining -= take
-        if (take <= 0) return null
-        const visible = seg.content.slice(0, take)
-        const rendered = renderChars(visible, charOffset, true)
-        charOffset += take
         return (
           <div key={`text-${segIdx}`} className="whitespace-pre-wrap">
-            {rendered}
+            <TypewriterSegment content={seg.content} streaming={streaming} startIndex={segStart} />
           </div>
         )
       })}
