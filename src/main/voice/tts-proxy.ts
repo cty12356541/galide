@@ -5,6 +5,8 @@
  * 可测性:synthesize / fetchFn / writeFile 经 deps 注入,测试不触网。
  */
 import { promises as fs } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { apiKeyStore } from '../ai/key-store.js'
 
 export type TtsProvider = 'edge' | 'elevenlabs' | 'local'
@@ -195,7 +197,7 @@ export const createTtsProxy = (deps: TtsProxyDeps = {}) => {
 }
 
 let previewCounter = 0
-const outputPreviewPath = (): string => `/tmp/galide-tts-preview-${++previewCounter}`
+const outputPreviewPath = (): string => join(tmpdir(), `galide-tts-preview-${++previewCounter}`)
 
 /** 默认单例(生产路径) */
 export const ttsProxy = createTtsProxy()

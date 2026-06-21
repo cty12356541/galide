@@ -66,6 +66,24 @@ describe('tts-proxy — mock 合成', () => {
     expect(r.ok).toBe(false)
     if (r.ok === false) expect(r.code).toBe('GENERATION_FAILED')
   })
+
+  it('preview 写入 os.tmpdir() 而非硬编码 /tmp', async () => {
+    const fakeAudio = Buffer.from('preview-mp3')
+    const written: string[] = []
+    const proxy = createTtsProxy({
+      synthesize: async () => fakeAudio,
+      writeFile: async (p, _d) => {
+        written.push(p)
+      }
+    })
+    const r = await proxy.preview('试听', 'edge', 'zh-CN-XiaoxiaoNeural', voicePrefs)
+    expect(r.ok).toBe(true)
+    if (r.ok === true) {
+      expect(r.path.startsWith(tmpdir())).toBe(true)
+      expect(r.path).not.toMatch(/^\/tmp\//)
+    }
+    expect(written[0]?.startsWith(tmpdir())).toBe(true)
+  })
 })
 
 describe('tts-proxy — ElevenLabs', () => {
