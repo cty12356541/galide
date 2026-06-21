@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import { Save, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { Separator } from '../../components/ui/separator'
@@ -73,10 +74,13 @@ export const ScriptEditor = (): JSX.Element => {
       history(),
       keymap.of([
         { key: 'Mod-s', preventDefault: true, run: () => { void saveRef.current(); return true } },
-        ...defaultKeymap,
-        ...historyKeymap
-      ]),
-      galLanguage(),
+       ...defaultKeymap,
+       ...historyKeymap,
+       ...searchKeymap
+     ]),
+     search({ top: true }),
+     highlightSelectionMatches(),
+     galLanguage(),
       EditorView.lineWrapping,
       EditorView.theme(
         {

@@ -49,6 +49,17 @@ export const MenuBar = (): JSX.Element => {
   const undo = useUiStore((s) => s.undo)
   const redo = useUiStore((s) => s.redo)
 
+  /** 聚焦编辑器并触发 CodeMirror 内置查找(⌘F 由 searchKeymap 处理) */
+  const focusEditorAndSearch = (): void => {
+    const cm = document.querySelector<HTMLElement>('.cm-editor')
+    if (!cm) return
+    cm.focus()
+    const target = cm.querySelector<HTMLElement>('.cm-content') ?? cm
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true })
+    )
+  }
+
   const groups: MenuGroup[] = [
     {
       label: 'File',
@@ -67,10 +78,11 @@ export const MenuBar = (): JSX.Element => {
       label: 'Edit',
       icon: Edit3,
       items: [
-        { label: '撤销', shortcut: '⌘Z', onClick: undo },
-        { label: '重做', shortcut: '⌘⇧Z', onClick: redo },
-        { label: '命令面板', shortcut: '⌘K', icon: Sparkles, onClick: () => toggleCommandPalette(true) }
-      ]
+       { label: '撤销', shortcut: '⌘Z', onClick: undo },
+       { label: '重做', shortcut: '⌘⇧Z', onClick: redo },
+       { label: '查找', shortcut: '⌘F', onClick: () => focusEditorAndSearch() },
+       { label: '命令面板', shortcut: '⌘K', icon: Sparkles, onClick: () => toggleCommandPalette(true) }
+     ]
     },
     {
       label: 'View',
