@@ -7,6 +7,7 @@ import { useErrorStore } from '../../lib/store'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { AiShortcutToolbar } from './AiShortcutToolbar'
 import { AiMessageBubble } from './AiMessageBubble'
+import { AgentModePanel } from './AgentModePanel'
 import { useAiConfig, useAiProviders } from '../../lib/ipc/use-ai-task'
 import { useAi } from '../../lib/ipc/use-ai'
 import { toChatMessages } from './chat-history'
@@ -26,6 +27,7 @@ type Message = {
 }
 
 export const AiPanel = (): JSX.Element => {
+  const [mode, setMode] = useState<'chat' | 'agent'>('chat')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [provider, setProvider] = useState<Provider>('openai')
@@ -255,6 +257,26 @@ export const AiPanel = (): JSX.Element => {
 
   return (
     <div className="h-full bg-surface flex flex-col">
+      <div className="flex border-b border-border text-[11px]">
+        <button
+          type="button"
+          className={`flex-1 py-1.5 ${mode === 'chat' ? 'text-accent border-b-2 border-accent' : 'text-text-muted'}`}
+          onClick={() => setMode('chat')}
+        >
+          对话
+        </button>
+        <button
+          type="button"
+          className={`flex-1 py-1.5 ${mode === 'agent' ? 'text-accent border-b-2 border-accent' : 'text-text-muted'}`}
+          onClick={() => setMode('agent')}
+        >
+          Agent
+        </button>
+      </div>
+      {mode === 'agent' ? (
+        <AgentModePanel />
+      ) : (
+        <>
       <AiShortcutToolbar
         onShortcut={handleShortcut}
         provider={provider}
@@ -342,6 +364,8 @@ export const AiPanel = (): JSX.Element => {
           </div>
         </form>
       </div>
+        </>
+      )}
     </div>
   )
 }

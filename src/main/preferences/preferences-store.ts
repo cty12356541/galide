@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import type {
   AdvancedPreferences,
+  AgentPreferences,
   AppearancePreferences,
   EditorPreferences,
   ExportPreferences,
@@ -20,6 +21,7 @@ import type {
 
 type PreferencesShape = {
   voice: VoicePreferences
+  agent: AgentPreferences
   editor: EditorPreferences
   appearance: AppearancePreferences
   export: ExportPreferences
@@ -33,6 +35,11 @@ const DEFAULTS: PreferencesShape = {
     defaultProvider: 'edge',
     defaultVoiceId: 'zh-CN-XiaoxiaoNeural',
     batchConcurrency: 4
+  },
+  agent: {
+    autonomy: 'hybrid',
+    topology: 'litePlanExecute',
+    maxSteps: 12
   },
   editor: {
     fontSize: 14,

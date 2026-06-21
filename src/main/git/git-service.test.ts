@@ -21,6 +21,8 @@ type SimpleGitMock = {
   log: ReturnType<typeof vi.fn>
   diff: ReturnType<typeof vi.fn>
   raw: ReturnType<typeof vi.fn>
+  revparse: ReturnType<typeof vi.fn>
+  reset: ReturnType<typeof vi.fn>
 }
 
 const makeGit = (): SimpleGitMock => ({
@@ -30,7 +32,9 @@ const makeGit = (): SimpleGitMock => ({
   commit: vi.fn(),
   log: vi.fn(),
   diff: vi.fn(),
-  raw: vi.fn()
+  raw: vi.fn(),
+  revparse: vi.fn(),
+  reset: vi.fn()
 })
 
 // vi.mock 必须在 import service 之前
@@ -144,6 +148,46 @@ describe('git-service', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.value).toEqual([])
     rmSync(emptyDir, { recursive: true, force: true })
+  })
+
+  it('gitService.snapshot() add 全部 + commit(allow-empty) 并返回 HEAD 哈希', async () => {
+    const m = makeGit()
+    m.add.mockResolvedValue(undefined)
+    m.commit.mockResolvedValue({ commit: 'snap' })
+    m.revparse.mockResolvedValue('deadbeef\n')
+    setMock(m)
+    const r = await gitService.snapshot(tmpDir, 'agent: 任务')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value).toBe('deadbeef')
+    expect(m.add).toHaveBeenCalledWith('.')
+    expect(m.commit).toHaveBeenCalledWith('agent: 任务', undefined, { '--allow-empty': null })
+  })
+
+  it('gitService.snapshot() 非仓库 → NOT_INITIALIZED', async () => {
+    const emptyDir = mkdtempSync(join(tmpdir(), 'galide-norepo-snap-'))
+    setMock(makeGit())
+    const r = await gitService.snapshot(emptyDir, 'm')
+    expect(r.ok).toBe(false)
+    if (r.ok === false) expect(r.error.code).toBe('NOT_INITIALIZED')
+    rmSync(emptyDir, { recursive: true, force: true })
+  })
+
+  it('gitService.resetHard() reset --hard 到 ref', async () => {
+    const m = makeGit()
+    m.reset.mockResolvedValue(undefined)
+    setMock(m)
+    const r = await gitService.resetHard(tmpDir, 'deadbeef')
+    expect(r.ok).toBe(true)
+    expect(m.reset).toHaveBeenCalledWith(['--hard', 'deadbeef'])
+  })
+
+  it('gitService.resetHard() 抛错 → RESET_FAILED(不 throw)', async () => {
+    const m = makeGit()
+    m.reset.mockRejectedValue(new Error('bad ref'))
+    setMock(m)
+    const r = await gitService.resetHard(tmpDir, 'nope')
+    expect(r.ok).toBe(false)
+    if (r.ok === false) expect(r.error.code).toBe('RESET_FAILED')
   })
 
   it('gitService.log() maps simple-git entries to GitCommit', async () => {

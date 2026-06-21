@@ -9,6 +9,16 @@ export type VoicePreferences = {
   batchConcurrency: number
 }
 
+/** AI agent 自主平台偏好(autonomy 模式 + 循环拓扑) */
+export type AgentPreferences = {
+  /** 自主模式:copilot(逐步确认)/ hybrid(安全写自动)/ autonomous(全自动) */
+  autonomy: 'copilot' | 'hybrid' | 'autonomous'
+  /** 循环拓扑 */
+  topology: 'singleReact' | 'litePlanExecute' | 'planExecuteCritic'
+  /** 单次任务的最大步数 */
+  maxSteps: number
+}
+
 export type EditorPreferences = {
   fontSize: number
   tabSize: number
@@ -60,6 +70,7 @@ export type AdvancedPreferences = {
 
 export type PreferencesSection =
   | 'ai'
+  | 'agent'
   | 'voice'
   | 'editor'
   | 'export'

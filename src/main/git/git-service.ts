@@ -19,6 +19,7 @@ export type GitError = {
     | 'STATUS_FAILED'
     | 'LOG_FAILED'
     | 'DIFF_FAILED'
+    | 'RESET_FAILED'
     | 'NOT_FOUND'
   message: string
 }
@@ -174,11 +175,54 @@ export const diff = async (
   }
 }
 
+/**
+ * 任务前快照:add 全部 + commit(允许空提交),返回 HEAD 哈希。
+ * 供 agent 安全闸在任务开始前打快照,失败时可 resetHard 回滚。
+ */
+export const snapshot = async (
+  projectPath: string,
+  message: string
+): Promise<Result<string, GitError>> => {
+  try {
+    if (!(await isRepo(projectPath))) {
+      return errOf('NOT_INITIALIZED', '项目尚未 git init')
+    }
+    const git = getGit(projectPath)
+    await git.add('.')
+    await git.commit(message, undefined, { '--allow-empty': null })
+    const hash = (await git.revparse(['HEAD'])).trim()
+    return okOf(hash)
+  } catch (e) {
+    return errOf('COMMIT_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
+/**
+ * 硬回滚到指定 ref(丢弃工作区改动),供 agent 任务失败 / 取消时回滚。
+ */
+export const resetHard = async (
+  projectPath: string,
+  ref: string
+): Promise<Result<true, GitError>> => {
+  try {
+    if (!(await isRepo(projectPath))) {
+      return errOf('NOT_INITIALIZED', '项目尚未 git init')
+    }
+    const git = getGit(projectPath)
+    await git.reset(['--hard', ref])
+    return okOf(true)
+  } catch (e) {
+    return errOf('RESET_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
 export const gitService = {
   init,
   createInitialCommit,
   addAndCommit,
   status,
   log,
-  diff
+  diff,
+  snapshot,
+  resetHard
 }

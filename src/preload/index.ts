@@ -166,7 +166,75 @@ const api = {
         callback(status)
       ipcRenderer.on(IPC.ai.connTest.status, listener)
       return () => ipcRenderer.removeListener(IPC.ai.connTest.status, listener)
+    },
+    agent: {
+      start: (req: {
+        goal: string
+        projectPath: string
+        selectedSceneId?: string | null
+        provider?: string
+        model?: string
+        baseUrl?: string
+      }): Promise<{ ok: true; taskId: string; status: 'pending' } | { ok: false; error: string }> =>
+        ipcRenderer.invoke(IPC.ai.agent.start, req),
+      cancel: (taskId: string): Promise<{ ok: boolean; cancelled: boolean }> =>
+        ipcRenderer.invoke(IPC.ai.agent.cancel, taskId),
+      confirm: (payload: { confirmId: string; approved: boolean }): Promise<{ ok: boolean }> =>
+        ipcRenderer.invoke(IPC.ai.agent.confirm, payload),
+      onStep: (
+        callback: (evt: { taskId: string; step: Record<string, unknown> }) => void
+      ): (() => void) => {
+        const listener = (_e: unknown, evt: { taskId: string; step: Record<string, unknown> }): void =>
+          callback(evt)
+        ipcRenderer.on(IPC.ai.agent.step, listener)
+        return () => ipcRenderer.removeListener(IPC.ai.agent.step, listener)
+      },
+      onStatus: (
+        callback: (evt: { taskId: string; status: string; error?: string }) => void
+      ): (() => void) => {
+        const listener = (_e: unknown, evt: { taskId: string; status: string; error?: string }): void =>
+          callback(evt)
+        ipcRenderer.on(IPC.ai.agent.status, listener)
+        return () => ipcRenderer.removeListener(IPC.ai.agent.status, listener)
+      },
+      onConfirmRequest: (
+        callback: (evt: {
+          taskId: string
+          confirmId: string
+          call: { id: string; name: string; args: unknown }
+          risk: string
+          diff?: { before: string; after: string }
+        }) => void
+      ): (() => void) => {
+        const listener = (
+          _e: unknown,
+          evt: {
+            taskId: string
+            confirmId: string
+            call: { id: string; name: string; args: unknown }
+            risk: string
+            diff?: { before: string; after: string }
+          }
+        ): void => callback(evt)
+        ipcRenderer.on(IPC.ai.agent.confirmRequest, listener)
+        return () => ipcRenderer.removeListener(IPC.ai.agent.confirmRequest, listener)
+      }
     }
+  },
+  agent: {
+    onDispatchCommand: (
+      callback: (evt: { requestId: string; commandId: string }) => void
+    ): (() => void) => {
+      const listener = (_e: unknown, evt: { requestId: string; commandId: string }): void =>
+        callback(evt)
+      ipcRenderer.on(IPC.agent.dispatchCommand, listener)
+      return () => ipcRenderer.removeListener(IPC.agent.dispatchCommand, listener)
+    },
+    dispatchResult: (payload: {
+      requestId: string
+      ok: boolean
+      error?: string
+    }): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.agent.dispatchResult, payload)
   },
   preferences: {
     get: <K extends string>(key: K): Promise<unknown> => ipcRenderer.invoke(IPC.preferences.get, key),

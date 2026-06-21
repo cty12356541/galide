@@ -8,6 +8,7 @@ import { registerScriptHandlers } from './ipc/script-handlers.js'
 import { registerGitHandlers } from './ipc/git-handlers.js'
 import { registerExportHandlers } from './ipc/export-handlers.js'
 import { registerAiHandlers } from './ipc/ai-handlers.js'
+import { registerAgentHandlers } from './ipc/agent-handlers.js'
 import { registerCharacterHandlers } from './ipc/character-handlers.js'
 import { registerVoiceHandlers } from './ipc/voice-handlers.js'
 import { registerAssetHandlers } from './ipc/asset-handlers.js'
@@ -88,6 +89,7 @@ app.whenReady().then(async () => {
   tryRegister('git', registerGitHandlers)
   tryRegister('export', registerExportHandlers)
   tryRegister('ai', registerAiHandlers)
+  tryRegister('agent', registerAgentHandlers)
   tryRegister('character', registerCharacterHandlers)
   tryRegister('voice', registerVoiceHandlers)
   tryRegister('asset', registerAssetHandlers)

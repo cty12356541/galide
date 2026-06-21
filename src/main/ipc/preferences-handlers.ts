@@ -13,10 +13,11 @@ import {
 } from '../preferences/preferences-store.js'
 import type { PreferencesSection, Shortcuts } from '../../shared/preferences.js'
 
-type PrefKey = 'voice' | 'editor' | 'appearance' | 'export' | 'git' | 'project' | 'advanced'
+type PrefKey = 'voice' | 'agent' | 'editor' | 'appearance' | 'export' | 'git' | 'project' | 'advanced'
 
 const VALID_KEYS: readonly PrefKey[] = [
   'voice',
+  'agent',
   'editor',
   'appearance',
   'export',

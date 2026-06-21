@@ -68,6 +68,12 @@ export const VoicePreferencesSchema = z.object({
   batchConcurrency: z.number().int().min(1).max(32)
 })
 
+export const AgentPreferencesSchema = z.object({
+  autonomy: z.enum(['copilot', 'hybrid', 'autonomous']),
+  topology: z.enum(['singleReact', 'litePlanExecute', 'planExecuteCritic']),
+  maxSteps: z.number().int().min(1).max(64)
+})
+
 export const ExportPreferencesSchema = z.object({
   defaultTarget: z.enum(['web', 'renpy', 'ink', 'json', 'electron-desktop']),
   defaultOutputDir: z.string(),
@@ -96,6 +102,7 @@ export const AdvancedPreferencesSchema = z.object({
 /** preferences.set 入口:key → schema */
 export const PreferencesKeySchema = z.enum([
   'voice',
+  'agent',
   'editor',
   'appearance',
   'export',
@@ -199,6 +206,7 @@ export const CharacterCardSchema = z.object({
   name: z.string(),
   description: z.string(),
   personality: z.string(),
+  sdPrompt: z.string().optional(),
   spriteSet: z.array(CharacterSpriteSchema),
   voiceConfig: CharacterVoiceConfigSchema.optional()
 })
@@ -348,4 +356,15 @@ export const WorkspaceOpenPanelSchema = z.object({
 /** 收回浮出窗口 — 同一 panelId 全集 */
 export const WorkspaceClosePanelSchema = z.object({
   panelId: OpenPanelIdSchema
+})
+
+// =================== Agent ===================
+
+export const AgentStartSchema = z.object({
+  goal: z.string().min(1),
+  projectPath: z.string().min(1),
+  selectedSceneId: z.string().nullable().optional(),
+  provider: z.enum(['openai', 'claude', 'ollama']).optional(),
+  model: z.string().optional(),
+  baseUrl: z.string().optional()
 })

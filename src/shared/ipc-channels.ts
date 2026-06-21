@@ -49,7 +49,19 @@ export const IPC = {
     connTest: {
       stream: 'ai:connTest:stream',
       status: 'ai:connTest:status'
+    },
+    agent: {
+      start: 'ai:agent:start',
+      cancel: 'ai:agent:cancel',
+      step: 'ai:agent:step',
+      status: 'ai:agent:status',
+      confirmRequest: 'ai:agent:confirmRequest',
+      confirm: 'ai:agent:confirm'
     }
+  },
+  agent: {
+    dispatchCommand: 'agent:dispatchCommand',
+    dispatchResult: 'agent:dispatchResult'
   },
   preferences: {
     get: 'preferences:get',
@@ -107,6 +119,8 @@ export type IpcChannel =
   | (typeof IPC)['git'][keyof (typeof IPC)['git']]
   | (typeof IPC)['export'][keyof (typeof IPC)['export']]
   | (typeof IPC)['ai'][keyof (typeof IPC)['ai']]
+  | (typeof IPC)['ai']['agent'][keyof (typeof IPC)['ai']['agent']]
+  | (typeof IPC)['agent'][keyof (typeof IPC)['agent']]
   | (typeof IPC)['preferences'][keyof (typeof IPC)['preferences']]
   | (typeof IPC)['shortcuts'][keyof (typeof IPC)['shortcuts']]
   | (typeof IPC)['character'][keyof (typeof IPC)['character']]
