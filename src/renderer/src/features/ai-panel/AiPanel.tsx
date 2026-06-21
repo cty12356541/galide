@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { Send, Sparkles, Clock, AlertCircle, Square, ArrowDown } from 'lucide-react'
+import { Send, Sparkles, Clock, Square, ArrowDown } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { EmptyState } from '../../components/ui/empty-state'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { useErrorStore } from '../../lib/store'
+import { AiErrorBanner } from '../../lib/ai-error-banner'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { AiShortcutToolbar } from './AiShortcutToolbar'
 import { AiMessageBubble } from './AiMessageBubble'
@@ -192,6 +193,19 @@ export const AiPanel = (): JSX.Element => {
         baseUrl: storedBaseUrl
       })
       if (!result) {
+        const latest = useErrorStore.getState().entries.at(-1)
+        setMessages((m) => [
+          ...m,
+          {
+            id: assistantId,
+            role: 'assistant',
+            text: '',
+            streaming: false,
+            taskId: null,
+            status: 'error',
+            errorText: latest?.message ?? 'AI 请求失败'
+          }
+        ])
         setBusy(false)
         return
       }
@@ -397,9 +411,8 @@ const AiMessageBubbleWithStatus = ({ message, provider }: { message: Message; pr
         </div>
       )}
       {message.errorText ? (
-        <div className="flex items-start gap-1.5 pl-8 text-[11px] text-danger-strong bg-danger-soft border border-danger/30 rounded-md px-2 py-1.5">
-          <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-          <span className="break-all">{message.errorText}</span>
+        <div className="pl-8">
+          <AiErrorBanner message={message.errorText} preferencesSection="ai" />
         </div>
       ) : null}
     </div>
