@@ -1,5 +1,4 @@
 import { ipcMain } from 'electron'
-import { BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import { IPC } from '../../shared/ipc-channels.js'
@@ -14,6 +13,7 @@ import {
   type ScriptFs,
   type ScriptGit
 } from './script-service.js'
+import { broadcastScriptChanged } from './script-broadcast.js'
 
 /**
  * P1 修复:
@@ -54,13 +54,10 @@ export const registerScriptHandlers = (): void => {
         gitPrefs: getPreference('git')
       })
       if (r.ok !== true) return { ok: false, error: r.error.message, code: r.error.code }
-      // P0b: 写盘成功 → 广播 script:changed 给除发送者外的所有窗口(跨窗口真相源同步)
-      const senderId = e.sender.id
-      for (const win of BrowserWindow.getAllWindows()) {
-        if (win.isDestroyed()) continue
-        if (win.webContents.id === senderId) continue
-        win.webContents.send(IPC.script.changed, { projectPath, fileName, source: content })
-      }
+      broadcastScriptChanged(
+        { projectPath, fileName, source: content },
+        { excludeSenderId: e.sender.id }
+      )
       return { ok: true }
     }
   )
