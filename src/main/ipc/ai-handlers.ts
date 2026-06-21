@@ -4,6 +4,7 @@ import { aiProxy } from '../ai/ai-proxy.js'
 import { aiTaskQueue } from '../ai/task-queue.js'
 import { keyManager } from '../preferences/key-manager.js'
 import { startConnectionTest, type ConnectionTestRequest } from '../ai/connection-test.js'
+import { isApiKeyProvider } from '../../shared/api-key-provider.js'
 import type { AiProvider, AiProviderInfo, ChatMessage } from '../ai/types.js'
 
 const isAiProvider = (s: string): s is AiProvider => s === 'openai' || s === 'claude' || s === 'ollama'
@@ -89,7 +90,7 @@ export const registerAiHandlers = (): void => {
   ipcMain.handle(
     IPC.ai.keySet,
     async (_e: IpcMainInvokeEvent, provider: string, key: string): Promise<{ ok: boolean; error?: string }> => {
-      if (!isAiProvider(provider)) {
+      if (!isApiKeyProvider(provider)) {
         return { ok: false, error: `unknown provider: ${provider}` }
       }
       if (!key || key.trim().length === 0) {
@@ -107,7 +108,7 @@ export const registerAiHandlers = (): void => {
   ipcMain.handle(
     IPC.ai.keyDelete,
     async (_e: IpcMainInvokeEvent, provider: string): Promise<{ ok: boolean; error?: string }> => {
-      if (!isAiProvider(provider)) {
+      if (!isApiKeyProvider(provider)) {
         return { ok: false, error: `unknown provider: ${provider}` }
       }
       try {
@@ -120,7 +121,7 @@ export const registerAiHandlers = (): void => {
   )
 
   ipcMain.handle(IPC.ai.keyHas, async (_e: IpcMainInvokeEvent, provider: string): Promise<boolean> => {
-    if (!isAiProvider(provider)) return false
+    if (!isApiKeyProvider(provider)) return false
     return keyManager.has(provider)
   })
 

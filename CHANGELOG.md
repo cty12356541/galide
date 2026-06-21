@@ -14,6 +14,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 新增 — AI Agent 自动化平台
 
+- **ElevenLabs API Key 录入** — 偏好设置「语音 / TTS」面板支持 ElevenLabs Key 的保存/删除/状态查询,经现有 `ai:keySet/keyDelete/keyHas` IPC 加密落盘,供 `tts-proxy` 读取
 - **Agent 循环(main 中心)** — `agent-loop` 显式状态机 + 依赖注入(FakeLlm/FakeTool 可测);挂在独立 agent 队列,经 `ai:agent:*` IPC 驱动
 - **可切换自主模式** — `agentAutonomy`: copilot / hybrid / autonomous;`autonomy-gate` risk×mode 真值表,循环主体不随模式分支
 - **可切换拓扑** — `agentTopology`: singleReact / litePlanExecute(默认) / planExecuteCritic;Planner 结构化计划 + 确定性可达性 Critic

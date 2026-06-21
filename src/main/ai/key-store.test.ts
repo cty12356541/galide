@@ -72,6 +72,14 @@ describe('apiKeyStore round-trip', () => {
     expect(apiKeyStore.get('openai')).toBe('sk-secret-123')
   })
 
+  it('set then get round-trips elevenlabs TTS key', async () => {
+    freshStore()
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    initKeyStore()
+    apiKeyStore.set('elevenlabs', 'xi-secret-456')
+    expect(apiKeyStore.get('elevenlabs')).toBe('xi-secret-456')
+  })
+
   it('get returns undefined for unknown provider', async () => {
     freshStore()
     const { initKeyStore, apiKeyStore } = await import('./key-store.js')

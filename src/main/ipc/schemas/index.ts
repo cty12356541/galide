@@ -148,8 +148,10 @@ export const AiConnectionTestSchema = z.object({
   baseUrl: z.string().optional()
 })
 
+export const ApiKeyProviderSchema = z.enum(['openai', 'claude', 'ollama', 'elevenlabs'])
+
 export const AiKeyProviderSchema = z.object({
-  provider: AiProviderSchema
+  provider: ApiKeyProviderSchema
 })
 
 // =================== Script ===================

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useErrorStore } from '../store'
+import type { ApiKeyProvider } from '@shared/api-key-provider'
 
-type Provider = 'openai' | 'claude' | 'ollama'
+type AiProvider = 'openai' | 'claude' | 'ollama'
 
 export type TestPhase = 'idle' | 'pending' | 'streaming' | 'done' | 'error'
 
@@ -45,7 +46,7 @@ export const useAiConfigForm = () => {
   return {
     testState,
     setKey: useCallback(
-      async (provider: Provider, key: string): Promise<boolean> => {
+      async (provider: ApiKeyProvider, key: string): Promise<boolean> => {
         if (!key.trim()) {
           pushError({ code: 'AI_KEY_EMPTY', message: 'API Key 不能为空', source: 'ai:keySet' })
           return false
@@ -71,7 +72,7 @@ export const useAiConfigForm = () => {
       [pushError]
     ),
     deleteKey: useCallback(
-      async (provider: Provider): Promise<boolean> => {
+      async (provider: ApiKeyProvider): Promise<boolean> => {
         try {
           const r = await window.galide.ai.keyDelete(provider)
           setKeyMap((prev) => ({ ...prev, [provider]: false }))
@@ -88,7 +89,7 @@ export const useAiConfigForm = () => {
       [pushError]
     ),
     hasKey: useCallback(
-      async (provider: Provider): Promise<boolean> => {
+      async (provider: ApiKeyProvider): Promise<boolean> => {
         // 本地 keyMap 优先(避免 IPC 往返;keySet/Delete 后立即反映)
         if (provider in keyMap) return keyMap[provider] ?? false
         try {
@@ -104,7 +105,7 @@ export const useAiConfigForm = () => {
      * 等 providersQuery 拿回 hasKey 后由组件自行 fallback)。
      * UI 应优先用此避免 IPC 异步带来的"刚保存还在 false"竞态。
      */
-    hasKeySync: (provider: Provider): boolean => keyMap[provider] ?? false,
+    hasKeySync: (provider: ApiKeyProvider): boolean => keyMap[provider] ?? false,
     /**
      * 测试连接 — 流式版本
      * 立刻 reset state → 发起 IPC → 订阅 ai:stream/ai:status 事件
@@ -116,7 +117,7 @@ export const useAiConfigForm = () => {
      */
     testConnection: useCallback(
       async (req: {
-        provider: Provider
+        provider: AiProvider
         model?: string
         baseUrl?: string
         prompt: string

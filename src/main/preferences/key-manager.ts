@@ -4,16 +4,16 @@
  */
 
 import { apiKeyStore } from '../ai/key-store.js'
-import type { AiProvider } from '../ai/types.js'
+import type { ApiKeyProvider } from '../../shared/api-key-provider.js'
 
 export const keyManager = {
-  set: (provider: AiProvider, key: string): void => {
+  set: (provider: ApiKeyProvider, key: string): void => {
     apiKeyStore.set(provider, key)
   },
-  delete: (provider: AiProvider): void => {
+  delete: (provider: ApiKeyProvider): void => {
     apiKeyStore.delete(provider)
   },
-  has: (provider: AiProvider): boolean => {
+  has: (provider: ApiKeyProvider): boolean => {
     return apiKeyStore.get(provider) !== undefined
   }
 }

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../shared/types'
+import type { ApiKeyProvider } from '../shared/api-key-provider.js'
 import type { Result, ScriptNode, ParseError } from '../shared/dsl/types'
 
 type GitStatus = {
@@ -138,11 +139,11 @@ const api = {
     getConfig: (): Promise<AiConfig> => ipcRenderer.invoke(IPC.ai.getConfig),
     setConfig: (config: AiConfig): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.ai.setConfig, config),
-    keySet: (provider: 'openai' | 'claude' | 'ollama', key: string): Promise<{ ok: boolean }> =>
+    keySet: (provider: ApiKeyProvider, key: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.ai.keySet, provider, key),
-    keyDelete: (provider: 'openai' | 'claude' | 'ollama'): Promise<{ ok: boolean }> =>
+    keyDelete: (provider: ApiKeyProvider): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.ai.keyDelete, provider),
-    keyHas: (provider: 'openai' | 'claude' | 'ollama'): Promise<boolean> =>
+    keyHas: (provider: ApiKeyProvider): Promise<boolean> =>
       ipcRenderer.invoke(IPC.ai.keyHas, provider),
     connectionTest: (req: {
       prompt: string
