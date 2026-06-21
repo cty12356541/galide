@@ -108,6 +108,8 @@ type UiState = {
   commitDialogOpen: boolean
   newProjectDialogOpen: boolean
   shortcutRecording: boolean
+  /** P0:已解析的命令→accelerator 映射(用户覆盖优先,否则默认);键盘 hook 读此 */
+  resolvedShortcuts: Partial<Record<string, string>>
 
   // recent
   recentProjects: RecentProject[]
@@ -163,7 +165,9 @@ type UiState = {
   closeProject: () => void
   /** P5a:ESC 单源关闭 — 按优先级关最上层已开 modal */
   dismissTopModal: () => void
-  setShortcutRecording: (recording: boolean) => void
+ setShortcutRecording: (recording: boolean) => void
+  /** P0:设置已解析快捷键(由 use-keyboard-shortcuts 订阅偏好后灌入) */
+  setResolvedShortcuts: (shortcuts: Partial<Record<string, string>>) => void
 }
 
 // 默认值硬编码(不从 registry 运行时导入,避免 store ↔ panel-registry ↔ feature 循环依赖
@@ -230,10 +234,11 @@ export const useUiStore = create<UiState>((set, get) => ({
   preferencesSection: 'ai',
   exportDialogOpen: false,
   commitDialogOpen: false,
-  newProjectDialogOpen: false,
-  shortcutRecording: false,
+ newProjectDialogOpen: false,
+ shortcutRecording: false,
+ resolvedShortcuts: {},
 
- setProject: (projectPath, manifest) =>
+setProject: (projectPath, manifest) =>
     // 切项目时清空旧项目的打开文件缓存(文件名可能跨项目撞名,避免脏恢复)
     set({
       projectPath,
@@ -540,7 +545,8 @@ export const useUiStore = create<UiState>((set, get) => ({
      scriptFuture: [],
      selectedSceneId: null
   }),
-  setShortcutRecording: (recording) => set({ shortcutRecording: recording })
+  setShortcutRecording: (recording) => set({ shortcutRecording: recording }),
+  setResolvedShortcuts: (shortcuts) => set({ resolvedShortcuts: shortcuts })
 }))
 
 type ErrorPushInput = Omit<ErrorEntry, 'id' | 'timestamp'> & {

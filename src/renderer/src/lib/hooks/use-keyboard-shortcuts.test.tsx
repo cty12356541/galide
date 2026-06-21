@@ -10,6 +10,16 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useKeyboardShortcuts } from './use-keyboard-shortcuts.js'
 import { useUiStore } from '../store.js'
+import { DEFAULT_SHORTCUTS } from '../command-registry.js'
+
+/** 预置已解析快捷键(模拟 App 的 useResolvedShortcutsSync 灌入默认值) */
+const presetShortcuts = (): void => {
+  const resolved: Record<string, string> = {}
+  for (const [id, acc] of Object.entries(DEFAULT_SHORTCUTS)) {
+    if (acc) resolved[id] = acc
+  }
+  useUiStore.setState({ resolvedShortcuts: resolved })
+}
 
 const resetStore = (): void => {
   useUiStore.setState({
@@ -22,6 +32,7 @@ const resetStore = (): void => {
     newProjectDialogOpen: false,
     shortcutRecording: false
   })
+  presetShortcuts()
 }
 
 const press = (key: string, opts: KeyboardEventInit = {}): void => {

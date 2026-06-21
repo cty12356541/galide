@@ -26,6 +26,7 @@ import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
 import { NewProjectDialog } from '../features/project/NewProjectDialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
+import { useResolvedShortcutsSync } from '../lib/hooks/use-keyboard-shortcuts'
 import { useScriptSync } from '../lib/hooks/use-script-sync'
 import { useWorkspacePersistence } from '../lib/hooks/use-workspace-persistence'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
@@ -45,6 +46,7 @@ export const App = (): JSX.Element => {
 
   useAppearanceEffect()
   useKeyboardShortcuts()
+  useResolvedShortcutsSync()
   useScriptSync()
   useWorkspacePersistence()
 

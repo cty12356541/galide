@@ -1,15 +1,9 @@
 import { useState } from 'react'
 import { useShortcuts, useSaveShortcuts, useResetShortcuts } from '../../../lib/ipc/use-preferences'
 import { useShortcutRecorder } from '../../../lib/ipc/use-shortcut-recorder'
+import { COMMANDS, effectiveShortcut, type CommandId } from '../../../lib/command-registry'
 import { Button } from '../../../components/ui/button'
 import { Pencil, RotateCcw } from 'lucide-react'
-
-const SHORTCUT_LIST: { id: string; label: string; default: string }[] = [
-  { id: 'commandPalette', label: '命令面板', default: 'Meta+K' },
-  { id: 'saveScript', label: '保存剧本', default: 'Meta+S' },
-  { id: 'aiInline', label: 'AI 行内编辑', default: 'Meta+K' },
-  { id: 'openPreferences', label: '打开偏好', default: 'Meta+,' }
-]
 
 export const ShortcutsPreferencesPanel = (): JSX.Element => {
   const query = useShortcuts()
@@ -18,7 +12,7 @@ export const ShortcutsPreferencesPanel = (): JSX.Element => {
   const [recordingId, setRecordingId] = useState<string | null>(null)
   const recorder = useShortcutRecorder((acc) => {
     if (!recordingId || !query.data) return
-    const next = { ...query.data, [recordingId]: acc }
+    const next = { ...query.data, [recordingId as CommandId]: acc }
     void save.mutateAsync(next)
     setRecordingId(null)
   })
@@ -46,13 +40,13 @@ export const ShortcutsPreferencesPanel = (): JSX.Element => {
           全部重置
         </Button>
       </div>
-      <div className="border border-border rounded-2xl bg-surface divide-y divide-border">
-        {SHORTCUT_LIST.map((s) => {
-          const current = query.data[s.id] ?? s.default
-          const isRecording = recordingId === s.id
+     <div className="border border-border rounded-2xl bg-surface divide-y divide-border">
+        {COMMANDS.map((cmd) => {
+          const current = effectiveShortcut(cmd.id, query.data) ?? '未绑定'
+          const isRecording = recordingId === cmd.id
           return (
-            <div key={s.id} className="flex items-center justify-between px-4 py-3">
-              <span className="text-sm">{s.label}</span>
+            <div key={cmd.id} className="flex items-center justify-between px-4 py-3">
+              <span className="text-sm">{cmd.label}</span>
               <div className="flex items-center gap-2">
                 <div
                   className={`px-3 py-1.5 text-xs font-mono rounded-md border ${
@@ -63,7 +57,7 @@ export const ShortcutsPreferencesPanel = (): JSX.Element => {
                 >
                   {isRecording ? '按下组合键…' : current}
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => start(s.id)}>
+                <Button variant="ghost" size="icon" onClick={() => start(cmd.id)}>
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
               </div>
