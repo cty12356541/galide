@@ -38,6 +38,9 @@ export type ImageGenResponse = ImageGenResult | ImageGenError
 export interface ImageProxyDeps {
   fetchFn?: typeof fetch
   getApiKey?: () => string | undefined
+  sleep?: (ms: number) => Promise<void>
+  maxPollAttempts?: number
+  pollIntervalMs?: number
 }
 
 const DEFAULT_SD_BASE = 'http://127.0.0.1:7860'
@@ -67,12 +70,137 @@ export const buildDallePayload = (req: ImageGenRequest): Record<string, unknown>
   response_format: 'b64_json'
 })
 
+/** 最小 txt2img workflow(Checkpoint → KSampler → VAEDecode → SaveImage) */
+export const buildComfyWorkflow = (req: ImageGenRequest, seed: number): Record<string, unknown> => ({
+  '3': {
+    class_type: 'KSampler',
+    inputs: {
+      seed,
+      steps: 20,
+      cfg: 8,
+      sampler_name: 'euler',
+      scheduler: 'normal',
+      denoise: 1,
+      model: ['4', 0],
+      positive: ['6', 0],
+      negative: ['7', 0],
+      latent_image: ['5', 0]
+    }
+  },
+  '4': {
+    class_type: 'CheckpointLoaderSimple',
+    inputs: { ckpt_name: 'model.safetensors' }
+  },
+  '5': {
+    class_type: 'EmptyLatentImage',
+    inputs: {
+      width: req.width ?? 512,
+      height: req.height ?? 768,
+      batch_size: 1
+    }
+  },
+  '6': {
+    class_type: 'CLIPTextEncode',
+    inputs: { text: req.prompt, clip: ['4', 1] }
+  },
+  '7': {
+    class_type: 'CLIPTextEncode',
+    inputs: { text: req.negativePrompt ?? '', clip: ['4', 1] }
+  },
+  '8': {
+    class_type: 'VAEDecode',
+    inputs: { samples: ['3', 0], vae: ['4', 2] }
+  },
+  '9': {
+    class_type: 'SaveImage',
+    inputs: { filename_prefix: 'galide', images: ['8', 0] }
+  }
+})
+
+interface ComfyHistoryImage {
+  filename: string
+  subfolder?: string
+  type?: string
+}
+
+interface ComfyHistoryEntry {
+  outputs?: Record<string, { images?: ComfyHistoryImage[] }>
+}
+
+const extractComfyImages = (entry: ComfyHistoryEntry | undefined): ComfyHistoryImage[] => {
+  if (!entry?.outputs) return []
+  const images: ComfyHistoryImage[] = []
+  for (const output of Object.values(entry.outputs)) {
+    if (output.images?.length) images.push(...output.images)
+  }
+  return images
+}
+
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+
+const generateComfyUI = async (
+  req: ImageGenRequest,
+  seed: number,
+  fetchFn: typeof fetch,
+  sleep: (ms: number) => Promise<void>,
+  maxPollAttempts: number,
+  pollIntervalMs: number
+): Promise<ImageGenResponse> => {
+  const base = req.baseUrl ?? DEFAULT_COMFY_BASE
+  const workflow = buildComfyWorkflow(req, seed)
+  const submitResp = await fetchFn(`${base}/prompt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: workflow })
+  })
+  if (!submitResp.ok) {
+    return { ok: false, code: 'HTTP_ERROR', message: `ComfyUI HTTP ${submitResp.status}` }
+  }
+  const submitJson = (await submitResp.json()) as { prompt_id?: string }
+  const promptId = submitJson.prompt_id
+  if (!promptId) {
+    return { ok: false, code: 'INVALID_RESPONSE', message: 'ComfyUI 未返回 prompt_id' }
+  }
+
+  for (let attempt = 0; attempt < maxPollAttempts; attempt += 1) {
+    const histResp = await fetchFn(`${base}/history/${promptId}`)
+    if (!histResp.ok) {
+      return { ok: false, code: 'HTTP_ERROR', message: `ComfyUI history HTTP ${histResp.status}` }
+    }
+    const hist = (await histResp.json()) as Record<string, ComfyHistoryEntry>
+    const images = extractComfyImages(hist[promptId])
+    if (images.length > 0) {
+      const img = images[0]
+      const viewUrl =
+        `${base}/view?filename=${encodeURIComponent(img.filename)}` +
+        `&subfolder=${encodeURIComponent(img.subfolder ?? '')}` +
+        `&type=${encodeURIComponent(img.type ?? 'output')}`
+      const viewResp = await fetchFn(viewUrl)
+      if (!viewResp.ok) {
+        return { ok: false, code: 'HTTP_ERROR', message: `ComfyUI view HTTP ${viewResp.status}` }
+      }
+      const buf = await viewResp.arrayBuffer()
+      return { ok: true, imageBase64: arrayBufferToBase64(buf), seed }
+    }
+    if (attempt < maxPollAttempts - 1) {
+      await sleep(pollIntervalMs)
+    }
+  }
+  return { ok: false, code: 'GENERATION_FAILED', message: 'ComfyUI 生成超时' }
+}
+
 export const generateImage = async (
   req: ImageGenRequest,
   deps: ImageProxyDeps = {}
 ): Promise<ImageGenResponse> => {
   const fetchFn = deps.fetchFn ?? fetch
   const getApiKey = deps.getApiKey ?? (() => apiKeyStore.get('openai'))
+  const sleep = deps.sleep ?? defaultSleep
+  const maxPollAttempts = deps.maxPollAttempts ?? 60
+  const pollIntervalMs = deps.pollIntervalMs ?? 1000
   const seed = pickSeed(req.seed)
 
   try {
@@ -109,25 +237,8 @@ export const generateImage = async (
       return { ok: true, imageBase64: img, seed }
     }
 
-    // comfyui — 最简 workflow 占位(POST prompt,轮询 history)
-    const base = req.baseUrl ?? DEFAULT_COMFY_BASE
-    const workflow = {
-      prompt: req.prompt,
-      seed,
-      width: req.width ?? 512,
-      height: req.height ?? 768
-    }
-    const resp = await fetchFn(`${base}/prompt`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: workflow })
-    })
-    if (!resp.ok) {
-      return { ok: false, code: 'HTTP_ERROR', message: `ComfyUI HTTP ${resp.status}` }
-    }
-    const json = (await resp.json()) as { image?: string }
-    if (json.image) return { ok: true, imageBase64: json.image, seed }
-    return { ok: false, code: 'INVALID_RESPONSE', message: 'ComfyUI 响应无图像' }
+    // comfyui — 提交 workflow,轮询 history,经 /view 取图
+    return generateComfyUI(req, seed, fetchFn, sleep, maxPollAttempts, pollIntervalMs)
   } catch (e) {
     return {
       ok: false,
@@ -150,5 +261,6 @@ export const imageProxy = {
   generate: generateImage,
   buildSdPayload,
   buildDallePayload,
+  buildComfyWorkflow,
   arrayBufferToBase64
 }
