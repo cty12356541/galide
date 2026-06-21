@@ -1,13 +1,12 @@
 /**
  * Stub Composer 拒绝语义测试(功能即岛后续批次)
  *
- * 验证:ink / renpy / electron-desktop 三个 stub composer 的 emit
+ * 验证:ink / electron-desktop 两个 stub composer 的 emit
  * 抛 ExportError('NOT_IMPLEMENTED'),且 code 端到端可提取
  * (export-handlers catch 据此透传给前端)。
  */
 import { describe, it, expect } from 'vitest'
 import { InkComposer } from './ink-composer.js'
-import { RenpyComposer } from './renpy-composer.js'
 import { ElectronDesktopComposer } from './electron-desktop-composer.js'
 import { ExportError, runComposer } from './composer.js'
 import type { ExportContext, AstEntry } from './composer.js'
@@ -32,7 +31,6 @@ const stubScript: ScriptNode = {
 describe('stub composer 拒绝语义', () => {
   it.each([
     ['ink', new InkComposer()],
-    ['renpy', new RenpyComposer()],
     ['electron-desktop', new ElectronDesktopComposer()]
   ])('%s 的 emit 抛 ExportError(NOT_IMPLEMENTED)', (_name, composer) => {
     expect(() => composer.emit(null, emptyCtx)).toThrow(ExportError)

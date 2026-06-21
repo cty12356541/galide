@@ -18,7 +18,7 @@ import { Input } from '../../components/ui/input'
  * 假实现 → 0 字节输出,UI 需明确提示用户。
  */
 const STUB_TARGETS: ReadonlySet<ExportPreferences['defaultTarget']> = new Set([
-  'renpy', 'ink', 'electron-desktop'
+  'ink', 'electron-desktop'
 ])
 
 /** 当前选中的 target 是否是 stub(给按钮 title 用) */

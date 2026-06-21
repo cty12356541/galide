@@ -16,6 +16,12 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 - **预览 VM** — `runtime-vm.ts` 运行时求值条件、应用 set 步骤、过滤门控选项、解析 if 分支; Web 导出内联同一求值/VM 函数( parity 测试)
 - **编辑器** — BeatCardEditor 设变量卡 / 条件块卡 / 选项条件字段; FlowView 条件边虚线 + 条件标签
 
+### 新增 — Ren'Py 导出
+
+- **RenPyComposer** — gal AST → `game/script.rpy` + `game/characters.rpy`; 语义映射 scene/dialogue/set/if/menu/goto/marker; 复制 `assets/` 至 `game/assets/`
+- **表达式发射** — `expression-to-renpy.ts` 将 gal Expression 转为 Ren'Py Python 子集(True/False、and/or/not、比较)
+- **ExportDialog** — Ren'Py 目标已启用(移出 stub 列表)
+
 ## [0.5.0] - 2026-06-21
 
 ### 新增 — 预览保真度 Preview Fidelity (Phases 1–3)
@@ -125,7 +131,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 已知限制
 
-- 导出目标:Web ✅ / JSON ✅ / Ren'Py / Ink / Electron-desktop ⏳(stub)
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink / Electron-desktop ⏳(stub)
 - 多窗口 IPC sync 仅 export progress 按发送者路由
 - e2e 测试需本地 GUI 环境跑
 

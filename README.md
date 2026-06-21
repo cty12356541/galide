@@ -111,6 +111,7 @@ pnpm build:linux  # Linux
 - **BGM** — 场景 BGM 播放 + crossfade;预览 chrome 音量/静音(不含语音/TTS)
 - **共享 VM** — `runtime-vm` 驱动编辑器预览与 Web 导出播放器;choice/goto 目标解析为场景或 marker
 - **变量/条件** — `设: affinity = 10`、`[若: affinity >= 10]` 条件块、选项 `[当: expr]` 门控; 预览 VM + Web 导出共享求值
+- **Ren'Py 导出** — `RenPyComposer` 生成 `game/script.rpy` + `game/characters.rpy`; 表达式/条件/菜单门控映射为 Ren'Py Python 子集
 
 ### 多模态
 
@@ -145,7 +146,7 @@ pnpm build:linux  # Linux
 
 ### 已知限制
 
-- 导出目标:Web ✅ / JSON ✅ / Ren'Py / Ink / Electron-desktop ⏳(stub,UI 标注"即将支持")
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink / Electron-desktop ⏳(stub,UI 标注"即将支持")
 - 多窗口 IPC sync:export progress 按发送者路由,其他 IPC 暂用 default focused window
 - e2e 测试需本地有 GUI 环境跑
 
