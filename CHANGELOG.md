@@ -4,6 +4,14 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [0.5.0] - 2026-06-21
 
+### 修复 — AI Agent / TTS Bugbot 审查
+
+- **agent 写 .gal 后广播 script:changed** — `createBroadcastingWriteFile` 复用 IPC 层广播机制,全部窗口(含发起 agent 的窗口)收到最新剧本,避免 stale 内存覆盖 agent 修改
+- **git snapshot 失败时中止 agent** — 无有效回滚点时不再继续执行,避免 rollback 误 `resetHard` 到 HEAD 抹掉用户未提交编辑
+- **agent LLM 使用配置的 baseUrl** — `AgentStartRequest.baseUrl` / `aiConfig.baseUrl` 经 `createLlmAdapter` 注入 chat 请求(兼容 MiniMax 等 OpenAI 代理)
+- **取消信号传入 llm.chat** — `runAgent` 的 `AbortSignal` 转发至 planner / executor / critic 各阶段
+- **TTS preview 使用 os.tmpdir()** — 替换硬编码 `/tmp`,Windows 可用
+
 ### 新增 — AI Agent 自动化平台
 
 - **Agent 循环(main 中心)** — `agent-loop` 显式状态机 + 依赖注入(FakeLlm/FakeTool 可测);挂在独立 agent 队列,经 `ai:agent:*` IPC 驱动
@@ -23,7 +31,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 测试
 
-- 45 个测试文件 / 368 个测试全过(agent-loop / gate / topology / image-proxy / tts-proxy / command-dispatcher 等)
+- 47 个测试文件 / 380 个测试全过(agent-loop / gate / topology / image-proxy / tts-proxy / script-broadcast / agent-git 等)
 
 ## [0.4.0] - 2026-06-17
 
