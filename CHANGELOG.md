@@ -4,6 +4,19 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [0.5.0] - 2026-06-21
 
+### 修复 — UX 审计「控件说真话」(10 项 quick wins)
+
+- **预览开关与 store 同步** — `EditorCore` 读写 `useUiStore.previewOpen`,F5 / 菜单 / `togglePreview` 命令真正展开底栏预览
+- **预览 beat 文档序** — `buildPreviewItems` 按 `scene.children` 顺序交错对白/选项(对齐 `BeatCardEditor.groupBeats`)
+- **Agent 确认 diff** — 面板内展示 `pendingConfirm.diff` 变更前后预览(非编辑器 inline)
+- **Agent 读当前剧本** — `activeScriptFile` 经 IPC 传入 main,工具与 critic 读用户正在编辑的 `.gal`
+- **AI 内联错误 + Key CTA** — Agent / 对话失败时在面板内显示横幅,一键 `openPreferences('ai')`
+- **状态栏错误 Popover** — 错误计数可点击,列出 `useErrorStore` 条目并支持 dismiss
+- **Activity Bar 去占位** — 隐藏 search/debug 死胡同;设置按钮直接打开偏好
+- **状态栏真实 Git 分支** — 经 `useGitStatus` 显示当前分支名
+- **大纲来自 AST** — `OutlinePanel` 从 `scriptAst` 派生场景列表,点击选中场景
+- **诊断点击跳转** — `DiagnosticsPanel` 点击条目浮出原始编辑器并滚动到行/列
+
 ### 修复 — AI Agent / TTS Bugbot 审查
 
 - **agent 写 .gal 后广播 script:changed** — `createBroadcastingWriteFile` 复用 IPC 层广播机制,全部窗口(含发起 agent 的窗口)收到最新剧本,避免 stale 内存覆盖 agent 修改
@@ -32,7 +45,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 测试
 
-- 47 个测试文件 / 380 个测试全过(agent-loop / gate / topology / image-proxy / tts-proxy / script-broadcast / agent-git 等)
+- 54 个测试文件 / 397 个测试全过(preview-items / resolve-active-gal / outline-scenes / script-editor-jump / StatusBar / DiagnosticsPanel 等)
 
 ## [0.4.0] - 2026-06-17
 
