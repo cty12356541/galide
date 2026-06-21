@@ -3,6 +3,7 @@
  */
 import { describe, expect, it, beforeEach } from 'vitest'
 import { useUiStore, useErrorStore } from './store'
+import type { ScriptNode } from '../../../shared/dsl/types'
 
 describe('useUiStore — v2 dock 模型', () => {
   beforeEach(() => {
@@ -92,6 +93,153 @@ describe('useUiStore — v2 dock 模型', () => {
     expect(useUiStore.getState().projectPath).toBeNull()
     expect(useUiStore.getState().projectName).toBeNull()
     expect(useUiStore.getState().manifest).toBeNull()
+  })
+})
+
+const P4_SAMPLE = `# 第一章
+
+## 教室·午后
+背景: assets/backgrounds/classroom.png
+BGM: assets/bgm/gentle_piano.mp3
+
+[角色:小雪 | 立绘:小雪_校服_微笑.png | 位置:left]
+小雪: "今天的樱花,真漂亮呢。"
+
+[角色:主角 | 立绘:主角_默认.png | 位置:right]
+主角: "……是啊。"
+
+* "邀请她一起看樱花" -> 樱花树下
+
+## 樱花树下
+小雪: "诶?!一起吗?"
+`
+
+describe('useUiStore — P4 卡片撤销 + 多 tab', () => {
+  beforeEach(() => {
+    useUiStore.setState({
+      projectPath: '/tmp/demo',
+      activeScriptFile: null,
+      openFiles: [],
+      fileCache: {},
+      scriptSource: '',
+      scriptAst: null,
+      scriptDiagnostics: [],
+      scriptDirty: false,
+      scriptPast: [],
+      scriptFuture: [],
+      selectedSceneId: null
+    })
+  })
+
+  const mutateFirstLine = (ast: ScriptNode): void => {
+    const scene = ast.children.find((n) => n.type === 'scene')
+    if (scene && scene.type === 'scene') {
+      const dlg = scene.children.find((n) => n.type === 'dialogue')
+      if (dlg && dlg.type === 'dialogue') dlg.lines[0] = '改后的台词'
+    }
+  }
+
+  it('editScriptAst 入 past;undo 还原源串', () => {
+    const st = useUiStore.getState()
+    st.loadScriptText(P4_SAMPLE)
+    const before = useUiStore.getState().scriptSource
+    st.editScriptAst(mutateFirstLine)
+    expect(useUiStore.getState().scriptSource).not.toBe(before)
+    expect(useUiStore.getState().scriptPast).toHaveLength(1)
+    st.undo()
+    expect(useUiStore.getState().scriptSource).toBe(before)
+    expect(useUiStore.getState().scriptAst).not.toBeNull()
+  })
+
+  it('redo 重做', () => {
+    const st = useUiStore.getState()
+    st.loadScriptText(P4_SAMPLE)
+    st.editScriptAst(mutateFirstLine)
+    const edited = useUiStore.getState().scriptSource
+    st.undo()
+    st.redo()
+    expect(useUiStore.getState().scriptSource).toBe(edited)
+    expect(useUiStore.getState().scriptFuture).toHaveLength(0)
+  })
+
+  it('undo 在 past 空时 no-op', () => {
+    const st = useUiStore.getState()
+    st.loadScriptText(P4_SAMPLE)
+    const before = useUiStore.getState().scriptSource
+    st.undo()
+    expect(useUiStore.getState().scriptSource).toBe(before)
+  })
+
+  it('editScriptSource 清 future(原始编辑使重做失效)', () => {
+    const st = useUiStore.getState()
+    st.loadScriptText(P4_SAMPLE)
+    st.editScriptAst(mutateFirstLine)
+    st.undo()
+    expect(useUiStore.getState().scriptFuture).toHaveLength(1)
+    st.editScriptSource(P4_SAMPLE)
+    expect(useUiStore.getState().scriptFuture).toHaveLength(0)
+  })
+
+  it('loadScriptText 重置 history', () => {
+    const st = useUiStore.getState()
+    st.loadScriptText(P4_SAMPLE)
+    st.editScriptAst(mutateFirstLine)
+    expect(useUiStore.getState().scriptPast).toHaveLength(1)
+    st.loadScriptText(P4_SAMPLE)
+    expect(useUiStore.getState().scriptPast).toHaveLength(0)
+    expect(useUiStore.getState().scriptFuture).toHaveLength(0)
+  })
+
+  it('多 tab:切换缓存脏态,切回复原 + 保留撤销栈', () => {
+    const st = useUiStore.getState()
+    st.setActiveScript('a.gal')
+    st.loadScriptText(P4_SAMPLE)
+    const aClean = useUiStore.getState().scriptSource
+    st.editScriptAst(mutateFirstLine)
+    const aEdited = useUiStore.getState().scriptSource
+    expect(useUiStore.getState().scriptDirty).toBe(true)
+    // 切到 b.gal(未缓存 → 模拟 useScriptSync 读盘)
+    st.setActiveScript('b.gal')
+    st.loadScriptText(P4_SAMPLE)
+    expect(useUiStore.getState().activeScriptFile).toBe('b.gal')
+    expect(useUiStore.getState().scriptSource).toBe(aClean)
+    expect(useUiStore.getState().scriptDirty).toBe(false)
+    // 切回 a.gal → 恢复脏态 + 撤销栈
+    st.setActiveScript('a.gal')
+    expect(useUiStore.getState().scriptSource).toBe(aEdited)
+    expect(useUiStore.getState().scriptDirty).toBe(true)
+    expect(useUiStore.getState().scriptPast).toHaveLength(1)
+    st.undo()
+    expect(useUiStore.getState().scriptSource).toBe(aClean)
+  })
+
+  it('closeScriptFile 关活跃文件切到邻居', () => {
+    const st = useUiStore.getState()
+    st.setActiveScript('a.gal')
+    st.loadScriptText(P4_SAMPLE)
+    st.editScriptAst(mutateFirstLine)
+    st.setActiveScript('b.gal')
+    st.loadScriptText(P4_SAMPLE)
+    expect(useUiStore.getState().activeScriptFile).toBe('b.gal')
+    // 关闭当前活跃 b.gal → 切回 a.gal(邻居,从缓存恢复脏态)
+    st.closeScriptFile('b.gal')
+    expect(useUiStore.getState().activeScriptFile).toBe('a.gal')
+    expect(useUiStore.getState().openFiles).toEqual(['a.gal'])
+    expect(useUiStore.getState().scriptDirty).toBe(true)
+  })
+
+  it('closeProject 清空 openFiles/fileCache/history', () => {
+    const st = useUiStore.getState()
+    st.setActiveScript('a.gal')
+    st.loadScriptText(P4_SAMPLE)
+    st.editScriptAst(mutateFirstLine)
+    st.closeProject()
+    const s = useUiStore.getState()
+    expect(s.openFiles).toEqual([])
+    expect(s.fileCache).toEqual({})
+    expect(s.scriptPast).toEqual([])
+    expect(s.scriptFuture).toEqual([])
+    expect(s.activeScriptFile).toBeNull()
   })
 })
 

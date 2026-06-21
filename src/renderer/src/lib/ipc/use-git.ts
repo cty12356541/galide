@@ -12,8 +12,8 @@ export const useGit = () => {
       []
     ),
     commit: useCallback(
-      (projectPath: string, message: string) =>
-        wrap('git:commit', () => window.galide.git.commit(projectPath, message)),
+      (projectPath: string, message: string, files?: string[]) =>
+        wrap('git:commit', () => window.galide.git.commit(projectPath, message, files)),
       []
     ),
     log: useCallback(

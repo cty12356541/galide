@@ -12,6 +12,8 @@ import { FileText, Edit3, Eye, Wrench, HelpCircle, Plus, Folder, Settings, Downl
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
 import { useUiStore, type WorkspacePresetId } from '../lib/store'
 import { usePanelFloat } from '../lib/hooks/use-panel-float'
+import { useNewScriptFile } from '../lib/hooks/use-new-script-file'
+import { useProject } from '../lib/ipc/use-project'
 import { cn } from '../lib/utils'
 
 type MenuItemSpec = {
@@ -42,14 +44,19 @@ export const MenuBar = (): JSX.Element => {
   const setAiDockedLocation = useUiStore((s) => s.setAiDockedLocation)
   const float = usePanelFloat()
   const closeProject = useUiStore((s) => s.closeProject)
+  const openProject = useProject().open
+  const newScriptFile = useNewScriptFile()
+  const undo = useUiStore((s) => s.undo)
+  const redo = useUiStore((s) => s.redo)
 
   const groups: MenuGroup[] = [
     {
       label: 'File',
       icon: FileText,
       items: [
-        { label: '新建项目', shortcut: '⌘N', icon: Plus, onClick: openNewProjectDialog },
-        { label: '打开项目', shortcut: '⌘O', icon: Folder, onClick: () => window.dispatchEvent(new CustomEvent('galide:open-project')) },
+        { label: '新建脚本', shortcut: '⌘N', icon: FileText, onClick: () => void newScriptFile() },
+        { label: '新建项目', shortcut: '⌘⇧N', icon: Plus, onClick: openNewProjectDialog },
+        { label: '打开项目', shortcut: '⌘O', icon: Folder, onClick: () => void openProject() },
         { label: '关闭项目', icon: Folder, onClick: closeProject, separatorAfter: true },
         { label: '导出', shortcut: '⌘E', icon: Download, onClick: openExportDialog },
         { label: 'Git 提交', shortcut: '⌘⇧C', icon: GitCommit, onClick: openCommitDialog, separatorAfter: true },
@@ -60,9 +67,8 @@ export const MenuBar = (): JSX.Element => {
       label: 'Edit',
       icon: Edit3,
       items: [
-        { label: '撤销', shortcut: '⌘Z', onClick: () => document.execCommand('undo') },
-        { label: '重做', shortcut: '⌘⇧Z', onClick: () => document.execCommand('redo') },
-        { label: '查找', shortcut: '⌘F', onClick: () => window.dispatchEvent(new CustomEvent('galide:find')) },
+        { label: '撤销', shortcut: '⌘Z', onClick: undo },
+        { label: '重做', shortcut: '⌘⇧Z', onClick: redo },
         { label: '命令面板', shortcut: '⌘K', icon: Sparkles, onClick: () => toggleCommandPalette(true) }
       ]
     },
@@ -74,7 +80,7 @@ export const MenuBar = (): JSX.Element => {
         { label: '工作区: 流程', onClick: () => setWorkspacePreset('flow' as WorkspacePresetId), active: workspacePreset === 'flow' },
         { label: '工作区: 评审', onClick: () => setWorkspacePreset('review' as WorkspacePresetId), active: workspacePreset === 'review', separatorAfter: true },
         { label: '项目 Tool Window', shortcut: '⌘1', onClick: toggleLeftPanel },
-        { label: 'AI Tool Window', shortcut: '⌘L', onClick: toggleAiPanel, separatorAfter: true },
+        { label: 'AI Tool Window', onClick: toggleAiPanel, separatorAfter: true },
         { label: 'AI 移到右侧', onClick: () => setAiDockedLocation('right') },
         { label: 'AI 移到底部', onClick: () => setAiDockedLocation('bottom') },
         { label: 'AI 移到左侧', onClick: () => setAiDockedLocation('left') },

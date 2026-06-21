@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus,
@@ -8,7 +9,9 @@ import {
   Settings as SettingsIcon,
   Download,
   GitCommit,
-  XCircle
+  XCircle,
+  FileText,
+  Map
 } from 'lucide-react'
 import {
   Command,
@@ -20,9 +23,14 @@ import {
 } from '../../components/ui/command'
 import { useUiStore } from '../../lib/store'
 import { useProject } from '../../lib/ipc/use-project'
+import { useScript } from '../../lib/ipc/use-script'
+import { collectNodes } from '../../../../shared/dsl/visitor'
+import type { SceneNode } from '../../../../shared/dsl/types'
 
 export const CommandPalette = (): JSX.Element => {
   const toggleCommandPalette = useUiStore((s) => s.toggleCommandPalette)
+  const commandPaletteMode = useUiStore((s) => s.commandPaletteMode)
+  const openNewProjectDialog = useUiStore((s) => s.openNewProjectDialog)
   const theme = useUiStore((s) => s.theme)
   const setTheme = useUiStore((s) => s.setTheme)
   const toggleAi = useUiStore((s) => s.toggleAiPanel)
@@ -30,9 +38,27 @@ export const CommandPalette = (): JSX.Element => {
   const openCommit = useUiStore((s) => s.openCommitDialog)
   const closeProject = useUiStore((s) => s.closeProject)
   const projectPath = useUiStore((s) => s.projectPath)
+  const scriptAst = useUiStore((s) => s.scriptAst)
+  const setActiveScript = useUiStore((s) => s.setActiveScript)
+  const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const project = useProject()
+  const script = useScript()
 
+  const [files, setFiles] = useState<string[]>([])
   const close = (): void => toggleCommandPalette(false)
+
+  // Go to File:载入项目剧本文件列表(打开面板时刷新)
+  useEffect(() => {
+    if (!projectPath) {
+      setFiles([])
+      return
+    }
+    void script.list(projectPath).then((list) => setFiles(list ?? []))
+  }, [projectPath, script])
+
+  const scenes =
+    scriptAst != null ? collectNodes(scriptAst, (n): n is SceneNode => n.type === 'scene') : []
+  const fileMode = commandPaletteMode === 'file'
 
   return (
     <AnimatePresence>
@@ -50,60 +76,106 @@ export const CommandPalette = (): JSX.Element => {
           className="w-[560px] max-w-[90vw] shadow-2xl rounded-2xl overflow-hidden"
         >
           <Command className="border border-border">
-            <CommandInput placeholder="输入命令或搜索..." autoFocus />
+            <CommandInput
+              placeholder={fileMode ? '跳转到文件...' : '输入命令或搜索...'}
+              autoFocus
+            />
             <CommandList>
               <CommandEmpty>没有匹配的命令</CommandEmpty>
-              <CommandGroup heading="项目">
-                <CommandItem
-                  onSelect={() => {
-                    void project.create('新项目')
-                    close()
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>新建项目</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    void project.open()
-                    close()
-                  }}
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  <span>打开项目</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandGroup heading="视图">
-                <CommandItem
-                  onSelect={() => {
-                    toggleAi()
-                    close()
-                  }}
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span>切换 AI 助手</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    setTheme(theme === 'light' ? 'dark' : 'light')
-                    close()
-                  }}
-                >
-                  {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                  <span>{theme === 'light' ? '切换到深色主题' : '切换到浅色主题'}</span>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => {
-                    useUiStore.getState().openPreferences()
-                    close()
-                  }}
-                >
-                  <SettingsIcon className="w-4 h-4" />
-                  <span>偏好设置</span>
-                </CommandItem>
-              </CommandGroup>
-              {projectPath && (
+
+              {!fileMode && (
                 <CommandGroup heading="项目">
+                  <CommandItem
+                    onSelect={() => {
+                      openNewProjectDialog()
+                      close()
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>新建项目</span>
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      void project.open()
+                      close()
+                    }}
+                  >
+                    <FolderOpen className="w-4 h-4" />
+                    <span>打开项目</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+
+              {projectPath && files.length > 0 && (
+                <CommandGroup heading="跳转到文件">
+                  {files.map((file) => (
+                    <CommandItem
+                      key={file}
+                      value={`file ${file}`}
+                      onSelect={() => {
+                        setActiveScript(file)
+                        close()
+                      }}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>{file}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {!fileMode && scenes.length > 0 && (
+                <CommandGroup heading="跳转到场景">
+                  {scenes.map((scene) => (
+                    <CommandItem
+                      key={scene.id}
+                      value={`scene ${scene.id}`}
+                      onSelect={() => {
+                        setSelectedSceneId(scene.id)
+                        close()
+                      }}
+                    >
+                      <Map className="w-4 h-4" />
+                      <span>{scene.id}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {!fileMode && (
+                <CommandGroup heading="视图">
+                  <CommandItem
+                    onSelect={() => {
+                      toggleAi()
+                      close()
+                    }}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>切换 AI 助手</span>
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      setTheme(theme === 'light' ? 'dark' : 'light')
+                      close()
+                    }}
+                  >
+                    {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                    <span>{theme === 'light' ? '切换到深色主题' : '切换到浅色主题'}</span>
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => {
+                      useUiStore.getState().openPreferences()
+                      close()
+                    }}
+                  >
+                    <SettingsIcon className="w-4 h-4" />
+                    <span>偏好设置</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+
+              {!fileMode && projectPath && (
+                <CommandGroup heading="项目操作">
                   <CommandItem
                     onSelect={() => {
                       openExport()

@@ -1,16 +1,13 @@
 /**
- * Workspace IPC handler — mosaic 持久化 + 浮出 panel
+ * Workspace IPC handler — 浮出 panel
  *
  * 保留的 IPC:
  *  - workspace:openPanel     → 浮出 panel 到独立 BrowserWindow
  *  - workspace:focusMain     → 浮出窗口请求聚焦主窗口
  *  - workspace:panelClosed   → 浮出关闭通知(主→渲染)
- *  - workspace:mosaic:read   → 读 mosaic 树(独立 electron-store namespace)
- *  - workspace:mosaic:write  → 写 mosaic 树
  *
- * 历史:readProject/writeProject/readGlobal/writeGlobal 4 个 IPC 及
- * WorkspaceLayout 模型已移除(运行时零调用,布局改由 useUiStore 标量 +
- * mosaic 树在 renderer 端自管,不入盘)。
+ * 历史:mosaic 树持久化(read/write)及 WorkspaceLayout 模型已移除
+ * (mosaic 引擎不再渲染,布局由 useUiStore 标量 + EditorCore 自管)。
  */
 
 import { ipcMain } from 'electron'
@@ -82,39 +79,8 @@ export const registerWorkspaceHandlers = (): void => {
       }
     }
   )
-
- // PR2: 持久化 mosaic 树(读)
-  ipcMain.handle(
-    IPC.workspace.mosaic.read,
-    async (): Promise<{ ok: true; tree: unknown } | { ok: false; error: string }> => {
-      try {
-        // 入口 schema 校验(此处 args=undefined,仅作契约演示,真实校验在 write 端)
-        parseIpcArgs('workspace.mosaic.read', MosaicReadSchema, {})
-        return readMosaicTree()
-      } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
-      }
-    }
-  )
-
-  // PR2: 持久化 mosaic 树(写)
-  ipcMain.handle(
-    IPC.workspace.mosaic.write,
-    async (
-      _e,
-      args: unknown
-    ): Promise<{ ok: true } | { ok: false; error: string; code?: string }> => {
-      try {
-        const { tree } = parseIpcArgs('workspace.mosaic.write', MosaicWriteSchema, args)
-        return writeMosaicTree(tree)
-      } catch (err) {
-        // IpcSchemaError 透传 code 让 renderer 区分 schema 失败 vs 写盘失败
-        const code = (err as { name?: string }).name === 'IpcSchemaError' ? 'SCHEMA_FAILED' : undefined
-        return { ok: false, error: err instanceof Error ? err.message : String(err), ...(code ? { code } : {}) }
-      }
-    }
-  )
 }
+
 /**
  * PR2: 浮出 panel — 独立 BrowserWindow
  *
@@ -129,8 +95,7 @@ export const registerWorkspaceHandlers = (): void => {
  *   - 复用 main 端 preload 桥(单点维护)
  */
 import { BrowserWindow, type WebContents } from 'electron'
-import { readMosaicTree, writeMosaicTree } from '../workspace/mosaic-store.js'
-import { MosaicReadSchema, MosaicWriteSchema, WorkspaceOpenPanelSchema, WorkspaceClosePanelSchema, parseIpcArgs } from './schemas/index.js'
+import { WorkspaceOpenPanelSchema, WorkspaceClosePanelSchema, parseIpcArgs } from './schemas/index.js'
 import { is } from '@electron-toolkit/utils'
 
 const MAX_FLOATING = 5

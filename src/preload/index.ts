@@ -65,15 +65,25 @@ const api = {
     parse: (source: string): Promise<Result<ScriptNode, ParseError[]>> =>
       ipcRenderer.invoke(IPC.script.parse, source),
     list: (projectPath: string): Promise<string[]> =>
-      ipcRenderer.invoke(IPC.script.list, projectPath)
+      ipcRenderer.invoke(IPC.script.list, projectPath),
+    onChanged: (
+      callback: (e: { projectPath: string; fileName: string; source: string }) => void
+    ): (() => void) => {
+      const listener = (
+        _e: unknown,
+        payload: { projectPath: string; fileName: string; source: string }
+      ): void => callback(payload)
+      ipcRenderer.on(IPC.script.changed, listener)
+      return () => ipcRenderer.removeListener(IPC.script.changed, listener)
+    }
   },
   git: {
     init: (projectPath: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.git.init, projectPath),
     status: (projectPath: string): Promise<GitStatus> =>
       ipcRenderer.invoke(IPC.git.status, projectPath),
-    commit: (projectPath: string, message: string): Promise<{ ok: boolean }> =>
-      ipcRenderer.invoke(IPC.git.commit, projectPath, message),
+    commit: (projectPath: string, message: string, files?: string[]): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke(IPC.git.commit, projectPath, message, files),
     log: (projectPath: string): Promise<GitCommit[]> =>
       ipcRenderer.invoke(IPC.git.log, projectPath),
     diff: (projectPath: string, filePath: string): Promise<string> =>
@@ -305,11 +315,6 @@ workspace: {
       }
     ): Promise<{ ok: true } | { ok: false; error: string; code?: string }> =>
       ipcRenderer.invoke(IPC.workspace.closePanel, args),
-    /** PR2: mosaic 树持久化 */
-    readMosaic: (): Promise<{ ok: boolean; tree: unknown; error?: string }> =>
-      ipcRenderer.invoke(IPC.workspace.mosaic.read),
-    writeMosaic: (args: { tree: unknown }): Promise<{ ok: boolean; error?: string; code?: string }> =>
-      ipcRenderer.invoke(IPC.workspace.mosaic.write, args),
     /** PR3-B: 浮出窗口请求聚焦主窗口 */
     focusMain: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.workspace.focusMain)
   }

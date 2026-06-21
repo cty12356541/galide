@@ -152,6 +152,9 @@
     opacity: 1;
     transform: none;
   }
+  .prose-ai.prose-ai-streaming > :last-child::after {
+    animation: none;
+  }
 }
 
 /* ============================================
@@ -318,6 +321,18 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
   color: var(--text);
   word-break: break-word;
 }
+/* think 段(thinking/reasoning)— 弱化为副文字,与正文答案区分(对齐 Claude 思考区) */
+.prose-ai.prose-ai-think {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.prose-ai.prose-ai-think strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.prose-ai.prose-ai-think a {
+  color: var(--accent);
+}
 .prose-ai > :first-child {
   margin-top: 0;
 }
@@ -325,13 +340,14 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
   margin-bottom: 0;
 }
 .prose-ai p {
-  margin: 0.5em 0;
+  margin: 0.6em 0;
 }
 .prose-ai h1,
 .prose-ai h2,
 .prose-ai h3 {
   font-weight: 600;
-  margin: 0.8em 0 0.4em;
+  margin: 1em 0 0.4em;
+  line-height: 1.4;
   color: var(--text);
 }
 .prose-ai h1 { font-size: 1.05rem; }
@@ -339,13 +355,16 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
 .prose-ai h3 { font-size: 0.95rem; }
 .prose-ai ul,
 .prose-ai ol {
-  margin: 0.5em 0;
-  padding-left: 1.4em;
+  margin: 0.6em 0;
+  padding-left: 1.5em;
 }
 .prose-ai ul { list-style: disc; }
 .prose-ai ol { list-style: decimal; }
 .prose-ai li {
-  margin: 0.2em 0;
+  margin: 0.25em 0;
+}
+.prose-ai li::marker {
+  color: var(--text-muted);
 }
 .prose-ai a {
   color: var(--accent);
@@ -356,31 +375,19 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
   color: var(--text);
 }
 .prose-ai blockquote {
-  border-left: 2px solid var(--border);
-  padding-left: 0.8em;
-  margin: 0.6em 0;
+  border-left: 3px solid var(--accent);
+  padding: 0.2em 0 0.2em 0.85em;
+  margin: 0.7em 0;
   color: var(--text-muted);
 }
-.prose-ai code {
+.prose-ai :not(pre) > code {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8em;
-  background: var(--bg);
+  font-size: 0.85em;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.1em 0.35em;
-}
-.prose-ai pre {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75em;
-  overflow-x: auto;
-  margin: 0.6em 0;
-}
-.prose-ai pre code {
-  background: transparent;
-  border: none;
-  padding: 0;
+  word-break: break-word;
 }
 .prose-ai hr {
   border: none;
@@ -395,10 +402,81 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
 .prose-ai th,
 .prose-ai td {
   border: 1px solid var(--border);
-  padding: 0.35em 0.6em;
+  padding: 0.4em 0.7em;
   text-align: left;
 }
 .prose-ai th {
   background: var(--bg-elevated);
   font-weight: 600;
+}
+
+/* 流式打字光标 — ChatGPT/Claude 同款:停在最后一个块的末尾,accent 色闪烁。
+   ::after 不进 textContent,故不影响测试断言;reduced-motion 下静止。 */
+.prose-ai.prose-ai-streaming > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: ai-caret-blink 1s steps(2, start) infinite;
+}
+@keyframes ai-caret-blink {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ============================================
+ * hljs 语法高亮主题(rehype-highlight 输出)— token 化,light/dark 双档
+ * 作用域限 .prose-ai code,不污染别处。色相对齐 indigo accent + 语义色。
+ * ============================================ */
+.prose-ai .hljs {
+  color: var(--text);
+  background: transparent;
+}
+.prose-ai .hljs-comment,
+.prose-ai .hljs-quote {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.prose-ai .hljs-keyword,
+.prose-ai .hljs-selector-tag,
+.prose-ai .hljs-built_in,
+.prose-ai .hljs-name,
+.prose-ai .hljs-tag {
+  color: var(--accent);
+}
+.prose-ai .hljs-string,
+.prose-ai .hljs-attr,
+.prose-ai .hljs-template-tag,
+.prose-ai .hljs-addition {
+  color: var(--success);
+}
+.prose-ai .hljs-number,
+.prose-ai .hljs-literal,
+.prose-ai .hljs-type,
+.prose-ai .hljs-params {
+  color: var(--warning);
+}
+.prose-ai .hljs-title,
+.prose-ai .hljs-section,
+.prose-ai .hljs-title.function_,
+.prose-ai .hljs-function .hljs-title {
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+.prose-ai .hljs-variable,
+.prose-ai .hljs-template-variable,
+.prose-ai .hljs-property,
+.prose-ai .hljs-attribute {
+  color: var(--text);
+}
+.prose-ai .hljs-deletion {
+  color: var(--danger);
+}
+.prose-ai .hljs-meta {
+  color: var(--text-muted);
 }

@@ -48,6 +48,7 @@
     "react-markdown": "^10.1.0",
     "react-mosaic-component": "^6.0.0",
     "react-resizable-panels": "^2.1.0",
+    "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "simple-git": "^3.20.0",
     "sonner": "^1.5.0",

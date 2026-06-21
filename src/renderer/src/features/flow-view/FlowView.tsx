@@ -1,27 +1,29 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
-  type Edge
+  type Edge,
+  type Node
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { GitBranch } from 'lucide-react'
+import { GitBranch, AppWindow } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
+import { Button } from '../../components/ui/button'
 import { useUiStore } from '../../lib/store'
-import { useScript } from '../../lib/ipc/use-script'
-import { parse } from '../../../../shared/dsl/parser'
+import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type {
   AstNode,
   ChoiceNode,
   DialogueNode,
   GotoNode,
+  MarkerNode,
   SceneNode,
   ScriptNode
 } from '../../../../shared/dsl/types'
-import { FlowNode, type SceneFlowNode } from './FlowNode'
+import { FlowNode, FlowMarkerNode, type SceneFlowNode, type MarkerFlowNode } from './FlowNode'
 
 // 读 CSS 变量(避免内联 style 写死颜色 token,light/dark 自动切换)
 const cssVar = (name: string): string => {
@@ -29,21 +31,34 @@ const cssVar = (name: string): string => {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
+type FlowResult = { nodes: Node[]; edges: Edge[] }
 
-const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } => {
+const buildFlow = (ast: ScriptNode): FlowResult => {
   const scenes = collectNodes(ast, (n): n is SceneNode => n.type === 'scene')
   const sceneIds = new Set(scenes.map((s) => s.id))
-  const nodes: SceneFlowNode[] = []
+  const nodes: Node[] = []
   const edges: Edge[] = []
-  const xSpacing = 260
-  const ySpacing = 180
+  const xSpacing = 280
+  const ySpacing = 200
 
-  // 找节点所属 scene:scene 内节点查 s.children;root 平铺层节点取前序 scene
-  // (root.children 中该节点之前最近的 scene),跨场景 goto/choice 的视觉源
+  // 场景节点位置(网格),并记录供 marker 偏移定位
+  const scenePos = new Map<string, { x: number; y: number }>()
+  scenes.forEach((scene, i) => {
+    const pos = { x: (i % 3) * xSpacing, y: Math.floor(i / 3) * ySpacing }
+    scenePos.set(scene.id, pos)
+    const dialogueCount = collectNodes(scene, (n): n is DialogueNode => n.type === 'dialogue').length
+    nodes.push({
+      id: scene.id,
+      type: 'scene',
+      position: pos,
+      data: { label: scene.id, dialogueCount }
+    } as SceneFlowNode)
+  })
+
+  // marker 节点:挂在其所属场景右下,作为跳转锚点可视化
   const findSourceScene = (node: AstNode): SceneNode | undefined => {
     const inScene = scenes.find((s) => s.children.includes(node))
     if (inScene) return inScene
-    // root 平铺层:线性找前序 scene
     const idx = ast.children.indexOf(node)
     for (let i = idx - 1; i >= 0; i--) {
       const prev = ast.children[i]
@@ -51,16 +66,19 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
     }
     return undefined
   }
-  scenes.forEach((scene, i) => {
-    const dialogueCount = collectNodes(scene, (n): n is DialogueNode => n.type === 'dialogue')
-      .length
+  const markers = collectNodes(ast, (n): n is MarkerNode => n.type === 'marker')
+  markers.forEach((m, i) => {
+    const parent = findSourceScene(m)
+    const base = parent ? scenePos.get(parent.id) : { x: 0, y: 0 }
     nodes.push({
-      id: scene.id,
-      type: 'scene',
-      position: { x: (i % 3) * xSpacing, y: Math.floor(i / 3) * ySpacing },
-      data: { label: scene.id, dialogueCount }
-    })
+      id: `marker:${m.id}`,
+      type: 'marker',
+      position: { x: (base?.x ?? 0) + 190, y: (base?.y ?? 0) + 60 + i * 40 },
+      data: { label: m.id }
+    } as MarkerFlowNode)
   })
+
+  // 决策边:每个 choice 选项 → 目标场景(带选项文本标签)
   const choices = collectNodes(ast, (n): n is ChoiceNode => n.type === 'choice')
   for (const choice of choices) {
     const sourceScene = findSourceScene(choice)
@@ -79,6 +97,7 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
       }
     }
   }
+  // 跳转边:goto → 目标场景(虚线)
   const gotos = collectNodes(ast, (n): n is GotoNode => n.type === 'goto')
   for (const goto of gotos) {
     if (!sceneIds.has(goto.target)) continue
@@ -95,35 +114,48 @@ const buildFlow = (ast: ScriptNode): { nodes: SceneFlowNode[]; edges: Edge[] } =
 }
 
 export const FlowView = (): JSX.Element => {
-  const projectPath = useUiStore((s) => s.projectPath)
-  const activeScript = useUiStore((s) => s.activeScriptFile)
-  const script = useScript()
-  const [source, setSource] = useState<string>('')
+  const scriptAst = useUiStore((s) => s.scriptAst)
+  const selectedSceneId = useUiStore((s) => s.selectedSceneId)
+  const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const setSelectedNode = useUiStore((s) => s.setSelectedNode)
+  const float = usePanelFloat()
 
-  useEffect(() => {
-    if (!projectPath || !activeScript) return
-    void script.read(projectPath, activeScript).then((text) => {
-      if (text) setSource(text)
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectPath, activeScript])
+  const { nodes, edges } = useMemo<FlowResult>(() => {
+    if (!scriptAst) return { nodes: [], edges: [] }
+    return buildFlow(scriptAst)
+  }, [scriptAst])
 
-  const { nodes, edges } = useMemo<{ nodes: SceneFlowNode[]; edges: Edge[] }>(() => {
-    const result = parse(source)
-    if (result.ok) return buildFlow(result.value)
-    return { nodes: [], edges: [] }
-  }, [source])
+  // 选中态:同步到 ReactFlow node selected
+  const styledNodes = useMemo(
+    () => nodes.map((n) => (n.id === selectedSceneId ? { ...n, selected: true } : { ...n, selected: false })),
+    [nodes, selectedSceneId]
+  )
 
   return (
-    <div className="h-full flex flex-col bg-bg">
+    <div className="h-full flex flex-col bg-bg" data-testid="flow-view">
       <PanelHeader
-        title="分支预览"
+        title="剧情决策树"
         icon={GitBranch}
         size="lg"
-        actions={<span className="text-[11px] text-text-muted">{nodes.length} 节点 · {edges.length} 边</span>}
+        actions={
+          <>
+            <span className="text-[11px] text-text-muted">
+              {nodes.length} 节点 · {edges.length} 边
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => float('flow-view')}
+              title="浮出"
+              aria-label="浮出"
+              data-testid="flow-float"
+            >
+              <AppWindow className="w-3.5 h-3.5" />
+            </Button>
+          </>
+        }
       />
-    <div className="flex-1">
+      <div className="flex-1">
         {nodes.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
@@ -133,18 +165,15 @@ export const FlowView = (): JSX.Element => {
           </div>
         ) : (
           <ReactFlow
-            nodes={nodes}
+            nodes={styledNodes}
             edges={edges}
-            nodeTypes={{ scene: FlowNode }}
+            nodeTypes={{ scene: FlowNode, marker: FlowMarkerNode }}
             fitView
             onNodeClick={(_e, node) => {
-              setSelectedNode({
-                type: 'scene',
-                id: node.id,
-                line: 0,
-                column: 0,
-                children: []
-              })
+              if (node.type === 'scene') {
+                setSelectedSceneId(node.id)
+                setSelectedNode({ type: 'scene', id: node.id, line: 0, column: 0, children: [] })
+              }
             }}
             proOptions={{ hideAttribution: true }}
           >
@@ -152,7 +181,11 @@ export const FlowView = (): JSX.Element => {
             <Controls className="!bg-surface !border-border !shadow-sm" />
             <MiniMap
               maskColor={cssVar('--flow-minimap-mask')}
-              style={{ background: cssVar('--flow-minimap-bg'), border: `1px solid ${cssVar('--border')}`, borderRadius: 12 }}
+              style={{
+                background: cssVar('--flow-minimap-bg'),
+                border: `1px solid ${cssVar('--border')}`,
+                borderRadius: 12
+              }}
               nodeColor={cssVar('--accent')}
             />
           </ReactFlow>

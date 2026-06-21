@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { GitCommit, Loader2, CheckCircle2, AlertCircle, GitBranch } from 'lucide-react'
+import { GitCommit, Loader2, CheckCircle2, AlertCircle, GitBranch, FileText } from 'lucide-react'
 import {
   Sheet,
   SheetContent,
@@ -21,10 +21,8 @@ type Stage = 'idle' | 'committing' | 'done' | 'error'
 /**
  * Git 提交对话框
  *
- * 规约: layers/main-process/conventions.yaml:28-32
- *   - "不支持的命令不暴露"
- *   - "每次保存自动 add + commit"(autocommit 是 preferences 默认行为;
- *     此对话框给用户"主动提交"的入口,免得 work tree 脏着不收口)
+ * 主历史提交入口(P2:存盘与提交解耦后,默认不自动提交,由本对话框收口)。
+ * 勾选要暂存的文件 + 填写提交信息 → git:addAndCommit(选中文件)。
  */
 export const CommitDialog = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -36,12 +34,21 @@ export const CommitDialog = (): JSX.Element => {
   const [message, setMessage] = useState('')
   const [stage, setStage] = useState<Stage>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+
+  // 工作区变更刷新时,默认全选
+  useEffect(() => {
+    if (open && gitStatus.data) {
+      setSelected(new Set(gitStatus.data.files.map((f) => f.path)))
+    }
+  }, [open, gitStatus.data])
 
   useEffect(() => {
     if (!open) {
       setMessage('')
       setStage('idle')
       setErrorMsg('')
+      setSelected(new Set())
     }
   }, [open])
 
@@ -61,7 +68,8 @@ export const CommitDialog = (): JSX.Element => {
     }
     setStage('committing')
     setErrorMsg('')
-    const r = await git.commit(projectPath, message.trim())
+    const files = Array.from(selected)
+    const r = await git.commit(projectPath, message.trim(), files.length > 0 ? files : undefined)
     if (!r?.ok) {
       setStage('error')
       setErrorMsg('提交失败(可能未 git init 或无改动)')
@@ -107,21 +115,41 @@ export const CommitDialog = (): JSX.Element => {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="text-xs text-text-muted font-mono max-h-32 overflow-y-auto border border-border rounded-lg bg-bg p-2 space-y-0.5">
-              {gitStatus.data?.files.map((f) => (
-                <div key={f.path} className="truncate">
-                  <span
-                    className={
-                      f.working_dir !== ' ' || f.index !== ' '
-                        ? 'text-warning'
-                        : 'text-text-muted'
-                    }
+            <div className="text-xs text-text-muted max-h-40 overflow-y-auto border border-border rounded-lg bg-bg p-1.5 space-y-0.5">
+              {gitStatus.data?.files.map((f) => {
+                const checked = selected.has(f.path)
+                return (
+                  <label
+                    key={f.path}
+                    className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-surface cursor-pointer font-mono"
                   >
-                    {f.working_dir === ' ' && f.index !== ' ' ? 'A' : f.working_dir}
-                  </span>
-                  <span className="ml-1">{f.path}</span>
-                </div>
-              ))}
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        setSelected((prev) => {
+                          const next = new Set(prev)
+                          if (next.has(f.path)) next.delete(f.path)
+                          else next.add(f.path)
+                          return next
+                        })
+                      }}
+                      className="accent-accent"
+                    />
+                    <FileText className="w-3 h-3 flex-shrink-0 text-text-muted" />
+                    <span
+                      className={
+                        f.working_dir !== ' ' || f.index !== ' '
+                          ? 'text-warning'
+                          : 'text-text-muted'
+                      }
+                    >
+                      {f.working_dir === ' ' && f.index !== ' ' ? 'A' : f.working_dir}
+                    </span>
+                    <span className="ml-1 truncate text-text">{f.path}</span>
+                  </label>
+                )
+              })}
             </div>
             <Textarea
               value={message}
@@ -143,7 +171,7 @@ export const CommitDialog = (): JSX.Element => {
           </Button>
           <Button
             onClick={() => void handleCommit()}
-            disabled={!initialized || dirtyCount === 0 || !message.trim() || stage === 'committing'}
+            disabled={!initialized || dirtyCount === 0 || selected.size === 0 || !message.trim() || stage === 'committing'}
           >
             {stage === 'committing' ? (
               <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />

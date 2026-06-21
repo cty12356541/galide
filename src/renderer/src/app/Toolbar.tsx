@@ -9,6 +9,7 @@
 import { Download, GitCommit, Settings, Moon, Sun, Sparkles, FolderOpen, ChevronRight } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { useUiStore } from '../lib/store'
+import { useProject } from '../lib/ipc/use-project'
 
 export const Toolbar = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -21,6 +22,7 @@ export const Toolbar = (): JSX.Element => {
   const openPreferences = useUiStore((s) => s.openPreferences)
   const openExportDialog = useUiStore((s) => s.openExportDialog)
   const openCommitDialog = useUiStore((s) => s.openCommitDialog)
+  const openProject = useProject().open
 
   return (
     <header
@@ -41,10 +43,10 @@ export const Toolbar = (): JSX.Element => {
           ) : null}
         </div>
       ) : (
-        <Button variant="ghost" size="sm" onClick={() => window.dispatchEvent(new CustomEvent('galide:open-project'))}>
-          <FolderOpen className="w-3.5 h-3.5 mr-1" />
-          打开项目
-        </Button>
+        <Button variant="ghost" size="sm" onClick={() => void openProject()}>
+         <FolderOpen className="w-3.5 h-3.5 mr-1" />
+         打开项目
+       </Button>
       )}
 
       <div className="flex-1" />

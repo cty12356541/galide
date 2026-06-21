@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
-import { Sparkles, ArrowRight, RefreshCw, Wand2, Languages, X } from 'lucide-react'
 import { useState } from 'react'
 import { useAiStream } from '../../lib/ipc/use-ai'
+import { useUiStore } from '../../lib/store'
+import { Sparkles, ArrowRight, RefreshCw, Wand2, Languages, X, Check } from 'lucide-react'
 
 type AiAction = 'continue' | 'rewrite' | 'polish' | 'translate'
 
@@ -47,6 +48,15 @@ export const AiInlineEdit = ({
   }
 
   const result = stream.text || (stream.error ? `错误: ${stream.error}` : errorMsg ? `错误: ${errorMsg}` : '')
+  const canApply = !!stream.text && !stream.error && !loading
+
+  /** 应用:把生成文本追加到剧本源串(store 内 reparse + 诊断反馈),不静默 */
+  const apply = (): void => {
+    if (!canApply) return
+    const cur = useUiStore.getState().scriptSource
+    useUiStore.getState().editScriptSource(`${cur}\n\n${stream.text}`)
+    onClose()
+  }
 
   return (
     <motion.div
@@ -92,6 +102,18 @@ export const AiInlineEdit = ({
           <div className="text-xs text-text-muted">选择上方动作以生成内容</div>
         )}
       </div>
+      {canApply ? (
+        <div className="px-3 pb-2">
+          <button
+            type="button"
+            onClick={apply}
+            className="w-full flex items-center justify-center gap-1.5 h-7 rounded-lg text-xs text-accent hover:bg-accent-soft border border-accent/30 transition-colors"
+          >
+            <Check className="w-3.5 h-3.5" />
+            应用到剧本
+          </button>
+        </div>
+      ) : null}
     </motion.div>
   )
 }

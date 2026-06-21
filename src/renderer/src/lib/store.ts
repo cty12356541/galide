@@ -17,6 +17,9 @@ import { create } from 'zustand'
 import type { ProjectManifest } from '../../../shared/types'
 import type { PreferencesSection } from '../../../shared/preferences'
 import type { RecentProject, ErrorEntry, SelectedNode } from './types'
+import { parse } from '../../../shared/dsl/parser'
+import { serialize } from '../../../shared/dsl/serializer'
+import type { ScriptNode, ParseError } from '../../../shared/dsl/types'
 import type {
   EditorDocId,
   ToolWindowId,
@@ -25,12 +28,8 @@ import type {
   DockSide,
   SlotContent
 } from '../components/workspace/mosaic/panel-registry'
-import type { MosaicNode } from 'react-mosaic-component'
 
 export type WorkspacePresetId = 'writing' | 'flow' | 'review'
-
-/** Mosaic 树节点 — 字符串叶子是 EditorDocId(编辑器大陆) */
-export type WorkspaceMosaicNode = MosaicNode<EditorDocId>
 
 type Theme = 'light' | 'dark'
 
@@ -47,6 +46,17 @@ const defaultLayout: EditorLayout = {
   editor: 46,
   flow: 18,
   preview: 18
+}
+
+/** P4:卡片撤销历史栈上限(按文件有界) */
+const MAX_HISTORY = 50
+
+/** P4:多 tab — 非活跃打开文件的缓存(仅存源串+脏态+撤销栈,激活时再 reparse) */
+type FileCacheEntry = {
+  source: string
+  dirty: boolean
+  past: string[]
+  future: string[]
 }
 
 /** 每侧可见内容 */
@@ -71,16 +81,28 @@ type UiState = {
   dockSide: Record<ToolWindowId, DockSide>
   visiblePerSide: VisiblePerSide
   activeSubIsland: Record<ToolWindowId, SubIslandId>
-  mosaicTree: WorkspaceMosaicNode | null
   floatingPanels: readonly FloatingId[]
+ // 编辑核心区(方案 B):单一 AST 真相源 + 场景选中态
+ scriptSource: string
+ scriptAst: ScriptNode | null
+ selectedSceneId: string | null
+ scriptDiagnostics: ParseError[]
+ scriptDirty: boolean
 
-  // editor layout (保留兼容)
-  layout: EditorLayout
+ // P4:多 tab + 卡片撤销(按文件有界历史栈)
+ openFiles: string[]
+ fileCache: Record<string, FileCacheEntry>
+ scriptPast: string[]
+ scriptFuture: string[]
+
+ // editor layout (保留兼容)
+ layout: EditorLayout
 
   // UI state
   theme: Theme
-  commandPaletteOpen: boolean
-  preferencesOpen: boolean
+ commandPaletteOpen: boolean
+ commandPaletteMode: 'all' | 'file'
+ preferencesOpen: boolean
   preferencesSection: PreferencesSection
   exportDialogOpen: boolean
   commitDialogOpen: boolean
@@ -105,16 +127,32 @@ type UiState = {
   toggleLeftPanel: () => void
   toggleAiPanel: () => void
   setAiDockedLocation: (loc: DockSide) => void
-  setMosaicTree: (tree: WorkspaceMosaicNode) => void
   setFloatingPanels: (panels: readonly FloatingId[]) => void
-  addFloatingPanel: (panel: FloatingId) => void
+  setSelectedSceneId: (id: string | null) => void
+  /** 读盘后灌入(parse 在此完成),dirty=false */
+  loadScriptText: (text: string) => void
+  /** 源串编辑(原始编辑器):reparse,dirty=true */
+  editScriptSource: (next: string) => void
+  /** AST mutator 编辑(卡片):clone+mutate+serialize,dirty=true */
+  editScriptAst: (mutator: (ast: ScriptNode) => void) => void
+ /** 存盘成功后清 dirty */
+ markScriptSaved: () => void
+ /** P4:卡片撤销 — 还原上一笔编辑(基于源串快照栈) */
+ undo: () => void
+ /** P4:卡片重做 */
+ redo: () => void
+ /** P4:关闭已打开文件 tab(切换到邻居,不丢其余文件脏态) */
+ closeScriptFile: (fileName: string) => void
+ addFloatingPanel: (panel: FloatingId) => void
   removeFloatingPanel: (panel: FloatingId) => void
   setLayout: (layout: Partial<EditorLayout>) => void
   setRecentProjects: (recent: RecentProject[]) => void
   setTheme: (theme: Theme) => void
   setSelectedNode: (node: SelectedNode) => void
-  toggleCommandPalette: (open?: boolean) => void
-  openPreferences: (section?: PreferencesSection) => void
+ toggleCommandPalette: (open?: boolean) => void
+ /** P5b:⌘P = Go to File(以文件模式打开命令面板) */
+ openGoToFile: () => void
+ openPreferences: (section?: PreferencesSection) => void
   closePreferences: () => void
   openExportDialog: () => void
   closeExportDialog: () => void
@@ -123,6 +161,8 @@ type UiState = {
   openNewProjectDialog: () => void
   closeNewProjectDialog: () => void
   closeProject: () => void
+  /** P5a:ESC 单源关闭 — 按优先级关最上层已开 modal */
+  dismissTopModal: () => void
   setShortcutRecording: (recording: boolean) => void
 }
 
@@ -150,7 +190,18 @@ const DEFAULT_VISIBLE: VisiblePerSide = {
   bottom: null
 }
 
-export const useUiStore = create<UiState>((set) => ({
+/** 把文本 parse 为 {source, ast, diagnostics}(供 loadScriptText / editScriptSource 共用) */
+const parseToDoc = (
+  text: string
+): { scriptSource: string; scriptAst: ScriptNode | null; scriptDiagnostics: ParseError[] } => {
+ const result = parse(text)
+  if (result.ok !== true) {
+    return { scriptSource: text, scriptAst: null, scriptDiagnostics: result.error }
+  }
+  return { scriptSource: text, scriptAst: result.value, scriptDiagnostics: result.value.errors }
+}
+
+export const useUiStore = create<UiState>((set, get) => ({
   projectPath: null,
   projectName: null,
   manifest: null,
@@ -159,23 +210,100 @@ export const useUiStore = create<UiState>((set) => ({
   dockSide: { ...DEFAULT_DOCK_SIDE },
   visiblePerSide: { ...DEFAULT_VISIBLE },
   activeSubIsland: { ...DEFAULT_ACTIVE_SUB },
-  mosaicTree: null,
   floatingPanels: [],
-  layout: defaultLayout,
+  scriptSource: '',
+  scriptAst: null,
+  selectedSceneId: null,
+ scriptDiagnostics: [],
+ scriptDirty: false,
+ openFiles: [],
+ fileCache: {},
+ scriptPast: [],
+ scriptFuture: [],
+ layout: defaultLayout,
   recentProjects: [],
   theme: 'light',
   selectedNode: null,
-  commandPaletteOpen: false,
-  preferencesOpen: false,
+ commandPaletteOpen: false,
+ commandPaletteMode: 'all',
+ preferencesOpen: false,
   preferencesSection: 'ai',
   exportDialogOpen: false,
   commitDialogOpen: false,
   newProjectDialogOpen: false,
   shortcutRecording: false,
 
-  setProject: (projectPath, manifest) =>
-    set({ projectPath, manifest, projectName: manifest.name }),
-  setActiveScript: (fileName) => set({ activeScriptFile: fileName }),
+ setProject: (projectPath, manifest) =>
+    // 切项目时清空旧项目的打开文件缓存(文件名可能跨项目撞名,避免脏恢复)
+    set({
+      projectPath,
+      manifest,
+      projectName: manifest.name,
+      openFiles: [],
+      fileCache: {},
+      scriptPast: [],
+      scriptFuture: []
+    }),
+  setActiveScript: (fileName) => {
+    // null = 无文件可显(全部关闭):重置脚本态
+    if (fileName === null) {
+      set({
+        activeScriptFile: null,
+        openFiles: [],
+        fileCache: {},
+        scriptSource: '',
+        scriptAst: null,
+        scriptDiagnostics: [],
+        scriptDirty: false,
+        scriptPast: [],
+        scriptFuture: [],
+        selectedSceneId: null
+      })
+      return
+    }
+    const s = get()
+    if (fileName === s.activeScriptFile) {
+      if (!s.openFiles.includes(fileName)) set({ openFiles: [...s.openFiles, fileName] })
+      return
+    }
+    // 快照当前活跃文件(源串+脏态+撤销栈)到缓存,供切回时恢复
+    const fileCache = { ...s.fileCache }
+    if (s.activeScriptFile) {
+      fileCache[s.activeScriptFile] = {
+        source: s.scriptSource,
+        dirty: s.scriptDirty,
+        past: s.scriptPast,
+        future: s.scriptFuture
+      }
+    }
+    const openFiles = s.openFiles.includes(fileName)
+      ? s.openFiles
+      : [...s.openFiles, fileName]
+    const cached = fileCache[fileName]
+    if (cached) {
+      // 已缓存(可能脏)→ 恢复到顶层;保留缓存项使 useScriptSync 跳过读盘
+      set({
+        activeScriptFile: fileName,
+        openFiles,
+        fileCache,
+        ...parseToDoc(cached.source),
+        scriptDirty: cached.dirty,
+        scriptPast: cached.past,
+        scriptFuture: cached.future,
+        selectedSceneId: null
+      })
+    } else {
+      // 未缓存 → useScriptSync 从盘载入(loadScriptText 会重置 history)
+      set({
+        activeScriptFile: fileName,
+        openFiles,
+        fileCache,
+        scriptPast: [],
+        scriptFuture: [],
+        selectedSceneId: null
+      })
+    }
+  },
   setWorkspacePreset: (preset) => set({ workspacePreset: preset }),
 
   setDockSide: (tw, side) =>
@@ -248,8 +376,6 @@ export const useUiStore = create<UiState>((set) => ({
       vis = { ...vis, [loc]: 'ai' }
       return { dockSide: nextDock, visiblePerSide: vis }
     }),
-
-  setMosaicTree: (tree) => set({ mosaicTree: tree }),
   setFloatingPanels: (panels) => set({ floatingPanels: panels }),
   addFloatingPanel: (panel) =>
     set((s) =>
@@ -259,6 +385,106 @@ export const useUiStore = create<UiState>((set) => ({
     ),
   removeFloatingPanel: (panel) =>
     set((s) => ({ floatingPanels: s.floatingPanels.filter((p) => p !== panel) })),
+  setSelectedSceneId: (id) => set({ selectedSceneId: id }),
+  loadScriptText: (text) =>
+    // 读盘载入(全新内容)→ 重置撤销栈(不可 undo 过载入点)
+    set({ ...parseToDoc(text), scriptDirty: false, scriptPast: [], scriptFuture: [] }),
+  editScriptSource: (next) =>
+    // 源串编辑(原始编辑器 / AI 落地):reparse+dirty;清 future(新编辑使重做失效),
+    // 不入 past(原始编辑器走 CodeMirror 自身撤销,避免每键一条历史)
+    set({ ...parseToDoc(next), scriptDirty: true, scriptFuture: [] }),
+  editScriptAst: (mutator) => {
+    const ast = get().scriptAst
+    if (!ast) return
+    const prev = get().scriptSource
+    const clone = structuredClone(ast) as ScriptNode
+    mutator(clone)
+    set({
+      scriptAst: clone,
+      scriptSource: serialize(clone),
+      scriptDiagnostics: clone.errors,
+      scriptDirty: true,
+      // commit 前 push 旧源串;卡片与原始编辑器共享此栈
+      scriptPast: [...get().scriptPast, prev].slice(-MAX_HISTORY),
+      scriptFuture: []
+    })
+  },
+  markScriptSaved: () => set({ scriptDirty: false }),
+  undo: () => {
+    const s = get()
+    if (s.scriptPast.length === 0) return
+    const past = [...s.scriptPast]
+    const prev = past.pop() as string
+    set({
+      ...parseToDoc(prev),
+      scriptDirty: true,
+      scriptPast: past,
+      scriptFuture: [s.scriptSource, ...s.scriptFuture].slice(0, MAX_HISTORY)
+    })
+  },
+  redo: () => {
+    const s = get()
+    if (s.scriptFuture.length === 0) return
+    const future = [...s.scriptFuture]
+    const next = future.shift() as string
+    set({
+      ...parseToDoc(next),
+      scriptDirty: true,
+      scriptPast: [...s.scriptPast, s.scriptSource].slice(-MAX_HISTORY),
+      scriptFuture: future
+    })
+  },
+  closeScriptFile: (fileName) => {
+    const s = get()
+    const openFiles = s.openFiles.filter((f) => f !== fileName)
+    const fileCache = { ...s.fileCache }
+    delete fileCache[fileName]
+    // 关闭非活跃文件:仅从 tab/缓存移除
+    if (s.activeScriptFile !== fileName) {
+      set({ openFiles, fileCache })
+      return
+    }
+    // 关闭活跃文件:切到邻居(不快照被关文件),邻居必在缓存中
+    const idx = s.openFiles.indexOf(fileName)
+    const neighbor = openFiles[idx] ?? openFiles[idx - 1] ?? null
+    if (neighbor === null) {
+      set({
+        openFiles: [],
+        fileCache: {},
+        activeScriptFile: null,
+        scriptSource: '',
+        scriptAst: null,
+        scriptDiagnostics: [],
+        scriptDirty: false,
+        scriptPast: [],
+        scriptFuture: [],
+        selectedSceneId: null
+      })
+      return
+    }
+    const cached = fileCache[neighbor]
+    if (cached) {
+      set({
+        activeScriptFile: neighbor,
+        openFiles,
+        fileCache,
+        ...parseToDoc(cached.source),
+        scriptDirty: cached.dirty,
+        scriptPast: cached.past,
+        scriptFuture: cached.future,
+        selectedSceneId: null
+      })
+    } else {
+      set({
+        activeScriptFile: neighbor,
+        openFiles,
+        fileCache,
+        scriptPast: [],
+        scriptFuture: [],
+        selectedSceneId: null
+      })
+    }
+  },
   setLayout: (layout) => set((s) => ({ layout: { ...s.layout, ...layout } })),
   setRecentProjects: (recent) => set({ recentProjects: recent }),
   setTheme: (theme) => {
@@ -268,8 +494,16 @@ export const useUiStore = create<UiState>((set) => ({
     }
   },
   setSelectedNode: (node) => set({ selectedNode: node }),
-  toggleCommandPalette: (open) =>
-    set((s) => ({ commandPaletteOpen: open !== undefined ? open : !s.commandPaletteOpen })),
+ toggleCommandPalette: (open) =>
+    set((s) => {
+      const next = open !== undefined ? open : !s.commandPaletteOpen
+      // 打开时重置为全命令模式(⌘P 走 openGoToFile 单独置 file 模式)
+      return next
+        ? { commandPaletteOpen: true, commandPaletteMode: 'all' as const }
+        : { commandPaletteOpen: false }
+    }),
+  /** P5b:⌘P = Go to File,以文件模式打开命令面板 */
+  openGoToFile: () => set({ commandPaletteOpen: true, commandPaletteMode: 'file' }),
   openPreferences: (section) =>
     set({ preferencesOpen: true, preferencesSection: section ?? 'ai' }),
   closePreferences: () => set({ preferencesOpen: false }),
@@ -279,14 +513,33 @@ export const useUiStore = create<UiState>((set) => ({
   closeCommitDialog: () => set({ commitDialogOpen: false }),
   openNewProjectDialog: () => set({ newProjectDialogOpen: true }),
   closeNewProjectDialog: () => set({ newProjectDialogOpen: false }),
-  closeProject: () =>
-    set({
-      projectPath: null,
-      manifest: null,
-      projectName: null,
-      activeScriptFile: 'chapter1.gal',
-      selectedNode: null
+  dismissTopModal: () =>
+    set((s) => {
+      // 优先级:命令面板 > 导出 > 提交 > 新建项目 > 偏好
+      if (s.commandPaletteOpen) return { commandPaletteOpen: false }
+      if (s.exportDialogOpen) return { exportDialogOpen: false }
+      if (s.commitDialogOpen) return { commitDialogOpen: false }
+      if (s.newProjectDialogOpen) return { newProjectDialogOpen: false }
+      if (s.preferencesOpen) return { preferencesOpen: false }
+      return s
     }),
+ closeProject: () =>
+  set({
+    projectPath: null,
+    manifest: null,
+    projectName: null,
+     activeScriptFile: null,
+     selectedNode: null,
+     scriptSource: '',
+     scriptAst: null,
+     scriptDiagnostics: [],
+     scriptDirty: false,
+     openFiles: [],
+     fileCache: {},
+     scriptPast: [],
+     scriptFuture: [],
+     selectedSceneId: null
+  }),
   setShortcutRecording: (recording) => set({ shortcutRecording: recording })
 }))
 

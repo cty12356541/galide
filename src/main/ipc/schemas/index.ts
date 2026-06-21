@@ -269,7 +269,8 @@ export const GitInitSchema = z.object({
 
 export const GitCommitSchema = z.object({
   projectPath: z.string().min(1),
-  message: z.string().min(1)
+  message: z.string().min(1),
+  files: z.array(z.string()).optional()
 })
 
 export const GitLogSchema = z.object({
@@ -320,37 +321,6 @@ export const ExportRequestSchema = z.object({
 
 export const ExportCancelSchema = z.object({
   jobId: z.string().min(1)
-})
-
-// =================== Mosaic 持久化 (PR2) ===================
-
-/** 叶子 panel id — 字符串白名单 */
-export const MosaicPanelIdSchema = z.enum(['script-editor', 'flow-view', 'preview-canvas'])
-
-/** Mosaic 树节点(递归) */
-export type MosaicTreeNode =
-  | string
-  | {
-      direction: 'row' | 'column'
-      first: MosaicTreeNode
-      second: MosaicTreeNode
-    }
-
-export const MosaicTreeNodeSchema: z.ZodType<MosaicTreeNode> = z.lazy(() =>
-  z.union([
-    MosaicPanelIdSchema,
-    z.object({
-      direction: z.enum(['row', 'column']),
-      first: MosaicTreeNodeSchema,
-      second: MosaicTreeNodeSchema
-    })
-  ])
-)
-
-export const MosaicReadSchema = z.object({})
-
-export const MosaicWriteSchema = z.object({
-  tree: MosaicTreeNodeSchema
 })
 
 // =================== 浮出 panel (PR3-A) ===================

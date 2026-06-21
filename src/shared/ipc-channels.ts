@@ -17,7 +17,9 @@ export const IPC = {
     parse: 'script:parse',
     read: 'script:read',
     write: 'script:write',
-    list: 'script:list'
+    list: 'script:list',
+    /** P0b: 脚本写盘后广播给所有窗口(跨窗口真相源同步) */
+    changed: 'script:changed'
   },
   git: {
     init: 'git:init',
@@ -96,11 +98,6 @@ export const IPC = {
     focusMain: 'workspace:focusMain',
     /** 功能即岛 v2:从主窗口收回浮出窗口(按 panelId 关闭) */
     closePanel: 'workspace:closePanel',
-    /** PR2: mosaic 树形布局持久化(独立 store,namespace=galide-mosaic) */
-    mosaic: {
-      read: 'workspace:mosaic:read',
-      write: 'workspace:mosaic:write'
-    }
   }
 } as const
 

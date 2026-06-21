@@ -21,8 +21,9 @@ export const registerGitHandlers = (): void => {
 
   ipcMain.handle(
     IPC.git.commit,
-    async (_e, projectPath: string, message: string): Promise<{ ok: boolean }> => {
-      const r = await gitService.addAndCommit(projectPath, [], message)
+    async (_e, projectPath: string, message: string, files?: string[]): Promise<{ ok: boolean }> => {
+      // files 为空数组或 undefined → add('.') 全部暂存;指定文件 → 只暂存选中
+      const r = await gitService.addAndCommit(projectPath, files ?? [], message)
       return { ok: r.ok }
     }
   )

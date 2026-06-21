@@ -50,12 +50,17 @@ export default {
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },
         'fade-out': { from: { opacity: '1' }, to: { opacity: '0' } },
-        'zoom-in': { from: { transform: 'scale(0.95)' }, to: { transform: 'scale(1)' } }
+        'zoom-in': { from: { transform: 'scale(0.95)' }, to: { transform: 'scale(1)' } },
+        'thinking-dot': {
+          '0%, 60%, 100%': { opacity: '0.3', transform: 'translateY(0)' },
+          '30%': { opacity: '1', transform: 'translateY(-2px)' }
+        }
       },
       animation: {
         'fade-in-0': 'fade-in 0.2s ease-out',
         'fade-out-0': 'fade-out 0.2s ease-out',
-        'zoom-in-95': 'zoom-in 0.2s ease-out'
+        'zoom-in-95': 'zoom-in 0.2s ease-out',
+        'thinking-dot': 'thinking-dot 1.2s ease-in-out infinite'
       }
     }
   },

@@ -153,3 +153,78 @@ describe('AiMessageBubble — 长行 key 唯一', () => {
     }
   })
 })
+
+describe('AiMessageBubble — 代码块(CodeBlock)', () => {
+  it('fenced 代码块渲染语言标签 + 复制按钮', () => {
+    const { container } = render(
+      <TypewriterText
+        text={'```js\nconsole.log(1)\n```'}
+        streaming={false}
+      />
+    )
+    // CodeBlock 容器存在
+    expect(container.querySelector('.code-block')).not.toBeNull()
+    // 语言标签
+    expect(container.textContent).toContain('js')
+    // 复制按钮
+    const copyBtn = screen.getByLabelText('复制代码')
+    expect(copyBtn).not.toBeNull()
+    // 代码正文
+    expect(container.textContent).toContain('console.log(1)')
+  })
+
+  it('点击复制按钮写入剪贴板', async () => {
+    const writes: string[] = []
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (t: string) => { writes.push(t); return Promise.resolve() } }
+    })
+    vi.useFakeTimers()
+    try {
+      render(<TypewriterText text={'```ts\nconst a = 1\n```'} streaming={false} />)
+      const btn = screen.getByLabelText('复制代码')
+      // onCopy 是 async(await clipboard),用 async act 冲掉微任务里的 setCopied
+      await act(async () => {
+        fireEvent.click(btn)
+      })
+      expect(writes).toContain('const a = 1')
+      // flush 复位定时器,避免 act 警告
+      act(() => {
+        vi.advanceTimersByTime(1500)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('AiMessageBubble — 语法高亮', () => {
+  it('JS 代码块带 hljs 着色 span(非纯文本)', () => {
+    const { container } = render(
+      <TypewriterText text={'```js\nconst x = 1\n```'} streaming={false} />
+    )
+    // rehype-highlight 应至少给关键字/变量加 hljs-xxx class
+    const spans = container.querySelectorAll('.prose-ai code span[class*="hljs-"]')
+    expect(spans.length).toBeGreaterThan(0)
+  })
+})
+
+describe('AiMessageBubble — 字面 \\n 转义还原', () => {
+  it('正文里的字面 \\n 还原成真换行(段落分隔,非字面文本)', () => {
+    const { container } = render(
+      <TypewriterText text={'第一段\\n\\n第二段'} streaming={false} />
+    )
+    // 字面 \n\n 被还原 → Markdown 解析成两个 <p>(而非一个里含字面 "\n")
+    const ps = container.querySelectorAll('.prose-ai p')
+    expect(ps.length).toBeGreaterThanOrEqual(2)
+    expect(container.textContent).not.toContain('\\n')
+  })
+
+  it('代码块内的字面 \\n 保留不动(源码字符串字面量)', () => {
+    const { container } = render(
+      <TypewriterText text={'```js\nconst s = "a\\nb"\n```'} streaming={false} />
+    )
+    // 代码块内 \n 是源码,必须保留为字面文本
+    expect(container.textContent).toContain('a\\nb')
+  })
+})

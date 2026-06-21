@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Square, Box } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
-import { useScript } from '../../lib/ipc/use-script'
-import { parse } from '../../../../shared/dsl/parser'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type { ChoiceNode, DialogueNode, SceneNode, ScriptNode } from '../../../../shared/dsl/types'
 import type { PreviewState } from './PreviewRuntime'
@@ -40,17 +38,33 @@ const collectScenes = (ast: ScriptNode): SceneNode[] =>
  *    原版 runtimeRef.current.getState() 在 render 中读,变化不触发重渲染 → 图标永远显示 Play
  */
 export const PreviewCanvas = (): JSX.Element => {
-  const projectPath = useUiStore((s) => s.projectPath)
-  const activeScript = useUiStore((s) => s.activeScriptFile)
-  const script = useScript()
-  const [items, setItems] = useState<PreviewItem[]>([])
-  const [sceneId, setSceneId] = useState<string | null>(null)
+  const scriptAst = useUiStore((s) => s.scriptAst)
+  const selectedSceneId = useUiStore((s) => s.selectedSceneId)
+  const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const [cursor, setCursor] = useState(0)
   const [runtimeState, setRuntimeState] = useState<PreviewState>('idle')
-  const [sceneEmpty, setSceneEmpty] = useState(true)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const runtimeRef = useRef<PreviewRuntime | null>(null)
-  const loadSeqRef = useRef(0)
+  const sceneRef = useRef<SceneNode | null>(null)
+
+  const scenes = useMemo(
+    () => (scriptAst ? collectScenes(scriptAst) : []),
+    [scriptAst]
+  )
+  const scene = useMemo<SceneNode | null>(() => {
+    if (scenes.length === 0) return null
+    return scenes.find((s) => s.id === selectedSceneId) ?? scenes[0] ?? null
+  }, [scenes, selectedSceneId])
+  sceneRef.current = scene
+
+  const sceneEmpty = scene === null
+  const sceneId = scene?.id ?? null
+  const items = useMemo(() => (scene ? buildItems(scene) : []), [scene])
+
+  // 切场景重置游标
+  useEffect(() => {
+    setCursor(0)
+  }, [sceneId])
 
   // mount-only: 创建 PixiJS runtime(空场景时不挂,避免黑块)
   useEffect(() => {
@@ -58,7 +72,11 @@ export const PreviewCanvas = (): JSX.Element => {
     if (!canvasRef.current) return
     const runtime = createPreviewRuntime()
     runtimeRef.current = runtime
-    void runtime.mount(canvasRef.current)
+    void runtime.mount(canvasRef.current).then(() => {
+      if (runtimeRef.current === runtime && sceneRef.current) {
+        void runtime.updateScene(sceneRef.current)
+      }
+    })
     const off = runtime.subscribeState(setRuntimeState)
     return () => {
       off()
@@ -67,61 +85,18 @@ export const PreviewCanvas = (): JSX.Element => {
     }
   }, [sceneEmpty])
 
-  const loadScene = useCallback(
-    (targetId?: string): void => {
-      if (!projectPath || !activeScript) return
-      const seq = ++loadSeqRef.current
-      void script.read(projectPath, activeScript).then(async (text) => {
-        if (seq !== loadSeqRef.current) return
-        if (!text) {
-          setSceneEmpty(true)
-          setItems([])
-          setSceneId(null)
-          return
-        }
-        const result = parse(text)
-        if (!result.ok) {
-          setSceneEmpty(true)
-          setItems([])
-          setSceneId(null)
-          return
-        }
-        const scenes = collectScenes(result.value)
-        if (scenes.length === 0) {
-          setSceneEmpty(true)
-          setItems([])
-          setSceneId(null)
-          return
-        }
-        const target = targetId ? scenes.find((s) => s.id === targetId) : scenes[0]
-        if (!target) {
-          setSceneEmpty(true)
-          setItems([])
-          setSceneId(null)
-          return
-        }
-        setSceneEmpty(false)
-        setSceneId(target.id)
-        setItems(buildItems(target))
-        setCursor(0)
-        if (runtimeRef.current) {
-          await runtimeRef.current.updateScene(target)
-        }
-      })
-    },
-    [projectPath, activeScript, script]
-  )
-
-  // activeScript 切换时重新加载
+  // 场景变更 → 实时更新 runtime(订阅 store.scriptAst,编辑即刷新)
   useEffect(() => {
-    loadScene()
-  }, [loadScene])
+    if (scene && runtimeRef.current) {
+      void runtimeRef.current.updateScene(scene)
+    }
+  }, [scene])
 
   const current = items[cursor]
   const next = (): void => setCursor((c) => c + 1)
 
   const jump = (target: string): void => {
-    loadScene(target)
+    setSelectedSceneId(target)
   }
 
   const togglePlay = (): void => {
@@ -151,7 +126,7 @@ export const PreviewCanvas = (): JSX.Element => {
           <div className="text-sm font-medium text-text">暂无场景</div>
           <div className="text-xs text-text-muted">在编辑器中写 [scene ...] 块</div>
           <div className="text-[11px] text-text-muted opacity-70 mt-1">
-            或按 <kbd className="px-1.5 py-0.5 bg-bg-elevated border border-border rounded text-[10px] font-mono">⌘N</kbd> 新建场景
+          或按 <kbd className="px-1.5 py-0.5 bg-bg-elevated border border-border rounded text-[10px] font-mono">⌘N</kbd> 新建脚本文件
           </div>
         </div>
       ) : (

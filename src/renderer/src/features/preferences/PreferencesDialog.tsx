@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { PreferencesSidebar } from './PreferencesPanel'
@@ -6,14 +5,6 @@ import { PreferencesContent } from './PreferencesContent'
 
 export const PreferencesDialog = (): JSX.Element => {
   const closePreferences = useUiStore((s) => s.closePreferences)
-  // Esc 关闭
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') closePreferences()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [closePreferences])
 
   return (
     <>

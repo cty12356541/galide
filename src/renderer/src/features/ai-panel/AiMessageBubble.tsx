@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, ChevronRight, Brain } from 'lucide-react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronRight, Brain, Copy, Check, CornerDownRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useUiStore } from '../../lib/store'
 import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
 
 type Message = {
@@ -12,16 +14,14 @@ type Message = {
 }
 
 /**
- * AI 对话气泡 — 流式逐字 + 结束后 Markdown 渲染
+ * AI 对话气泡 — 流式增量 Markdown + 闪烁光标 + think 折叠。
  *
  * 设计:
- * 1. 流式(streaming=true):逐字符淡入(45ms/字符),渲染原始文本
- *    — 流由 main 端 12字/25ms 缓冲推进,逐字展开给"AI 在写"的渐进感
- * 2. 结束(streaming=false):react-markdown 渲染完整 Markdown
- *    — **加粗** / 列表 / 代码块 / 段落结构得以正确呈现
- *    — 修复原"逐字打字机跟不上流,done 时一次性蹦出积压字符"
- * 3. <think> 段:流式时折叠 chip 内逐字;结束时 Markdown 渲染,仍折叠
- *    — think 与正文各自独立 reveal/渲染,互不抢占
+ * 1. 流式(streaming=true):逐字推进 shown,渲染走 Markdown(增量)
+ *    — 流式与结束同为 Markdown,无"纯文本→Markdown"重排跳动
+ *    — 末尾 accent 光标闪烁(prose-ai-streaming)
+ * 2. <think> 段:折叠 chip(流式逐字 / 结束 Markdown),accent 着色区分"推理"
+ *    — think 与正文各自独立渲染,互不抢占
  */
 // 18ms/字符 — 贴近 main 端 12字/25ms 流速度,避免大幅积压;略慢于流保留逐字淡入感
 const CHAR_DELAY_MS = 18
@@ -35,6 +35,31 @@ type Segment = { kind: 'text' | 'think'; content: string }
  *   - 闭合块:整段是一个 think
  *   - 未闭合块(只有开 <think> 没匹配到 </think>):把"开标签起的剩余"全归到 think 段
  */
+/**
+ * 把字面转义(反斜杠 n/t/r)还原成真换行/制表 —— 但只在代码围栏之外。
+ * - 模型有时会把 \n 当文本输出(尤其中文模型),正文里就成了字面 "\n" 而非换行。
+ * - 代码块(``` ... ```)内的 \n 必须保留(那是源码里的字符串字面量),不能动。
+ * - 围栏用 ``` 开闭计数;流式未闭合的代码块也视为"在块内",保守不转义。
+ */
+const normalizeEscapes = (text: string): string => {
+  if (!text.includes('\\n') && !text.includes('\\t') && !text.includes('\\r')) return text
+  const parts = text.split(/(```)/g)
+  let inCode = false
+  return parts
+    .map((part) => {
+      if (part === '```') {
+        inCode = !inCode
+        return part
+      }
+      if (inCode) return part
+      return part
+        .replace(/\\n/g, '\n')
+        .replace(/\\t/g, '\t')
+        .replace(/\\r/g, '')
+    })
+    .join('')
+}
+
 const splitThinkSegments = (raw: string): Segment[] => {
   const segs: Segment[] = []
   const re = /<think>([\s\S]*?)(<\/think>|$)/g
@@ -76,60 +101,76 @@ const estimateTokens = (s: string): number => {
 }
 
 /**
- * 把一段文本切成 typewriter 字符 span(仅流式期使用)
- * - `\n` → <br>;空行 → 段间距(block h-3)
- * - 每个字符走字符级 typewriter(保留淡入)
- *
- * startIndex 跨段唯一 → 避免 React key 碰撞(原版 lineIdx*50 近似,长行撞)。
- * 不用 dangerouslySetInnerHTML:自己 split + JSX 渲染,安全
+ * 递归抽取 React 节点树里的纯文本(rehype-highlight 把代码拆成 hljs span)。
+ * 用于"复制代码"——拿到的必须是去掉标记的源码,而非 [object Object]。
  */
-const renderChars = (s: string, startIndex: number): JSX.Element => {
-  const lines = s.split('\n')
-  let running = 0 // 跨行累计字符偏移(含被 split 掉的 \n),保证 globalIdx 跨行唯一
-  return (
-    <>
-      {lines.map((line, lineIdx) => {
-        const lineStart = running
-        running += line.length + 1
-        return (
-          <span key={`l-${startIndex}-${lineIdx}`}>
-            {line.length === 0 ? (
-              <span className="block h-3" aria-hidden="true" />
-            ) : (
-              <>
-                {Array.from(line).map((ch, chIdx) => {
-                  const globalIdx = startIndex + lineStart + chIdx
-                  return (
-                    <span
-                      key={`c-${globalIdx}-${ch}`}
-                      className="inline-block animate-char-fade-in"
-                      style={{ animationDelay: `${Math.min(chIdx * 8, 200)}ms` }}
-                    >
-                      {ch === ' ' ? '\u00A0' : ch}
-                    </span>
-                  )
-                })}
-                {lineIdx < lines.length - 1 && <br />}
-              </>
-            )}
-          </span>
-        )
-      })}
-    </>
-  )
+const nodeToText = (node: unknown): string => {
+  if (node == null || node === false) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(nodeToText).join('')
+  if (typeof node === 'object' && 'props' in node) {
+    return nodeToText((node as { props: { children?: unknown } }).props?.children)
+  }
+  return ''
 }
 
 /**
+ * Markdown 渲染 — 流式期与结束期共用。
+ * - pre(代码块)→ CodeBlock(语言标签 + 复制按钮 + 独立表面)
+ * - a(链接)→ 新窗口打开(Electron 外链不内嵌)
+ * 流式逐字推进的子串也走 Markdown,故结束时无"纯文本→Markdown"重排跳动。
+ * streaming 时挂 prose-ai-streaming → 末尾闪烁光标(CSS ::after)。
+ */
+const MarkdownBody = ({
+  content,
+  streaming = false,
+  muted = false
+}: {
+  content: string
+  streaming?: boolean
+  /** think 段用:弱化为副文字色 + 小一号,与正文答案区分(对齐 Claude 思考区) */
+  muted?: boolean
+}): JSX.Element => (
+  <div className={cn('prose-ai', muted && 'prose-ai-think', streaming && 'prose-ai-streaming')}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight]}
+      components={{
+        pre: ({ children }) => {
+          const codeEl = (Array.isArray(children) ? children[0] : children) as
+            | { props?: { className?: string; children?: unknown } }
+            | undefined
+          const className = codeEl?.props?.className ?? ''
+          const match = /language-([\w]+)/.exec(className)
+          const lang = match?.[1] ?? ''
+          // rehype-highlight 把 code 子节点拆成 <span class="hljs-...">,
+          // 不能再 String(children) — 递归抽纯文本用于复制。
+          const raw = nodeToText(codeEl?.props?.children).replace(/\n$/, '')
+          return <CodeBlock language={lang} value={raw}>{codeEl?.props?.children as React.ReactNode}</CodeBlock>
+        },
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            {children}
+          </a>
+        )
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  </div>
+)
+
+/**
  * 流式逐字打字机 — 仅 streaming=true 时工作。
- * streaming=false 时不再一次性蹦出全部(结束交给 Markdown 渲染),
- * 返回当前已 shown 的原始文本片段。
+ * 逐字推进 shown,但渲染走 Markdown(增量),流式与结束同为 Markdown,
+ * 消除"纯文本→Markdown"的结束重排跳动。
  */
 const StreamingTypewriter = ({
   content,
-  startIndex = 0
+  muted = false
 }: {
   content: string
-  startIndex?: number
+  muted?: boolean
 }): JSX.Element => {
   const totalLen = content.length
   const totalLenRef = useRef(totalLen)
@@ -173,18 +214,8 @@ const StreamingTypewriter = ({
 
   const visible = content.slice(0, shown)
   if (!visible) return <></>
-  return <>{renderChars(visible, startIndex)}</>
+  return <MarkdownBody content={visible} streaming={true} muted={muted} />
 }
-
-/**
- * Markdown 渲染 — 流式结束后用。
- * 套用 token 化的 prose 样式,继承气泡文字色(text-text)。
- */
-const MarkdownBody = ({ content }: { content: string }): JSX.Element => (
-  <div className="prose-ai">
-    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-  </div>
-)
 
 /**
  * think 折叠 chip — 正文主位,think 收成一行 pill,不挤压正文纵向空间。
@@ -223,7 +254,7 @@ const ThinkChip = ({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-bg border border-border text-[11px] text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-accent-soft/60 border border-accent/20 text-[11px] text-accent hover:bg-accent-soft transition-colors"
         aria-expanded={open}
         data-testid={`think-chip-${startIndex}`}
       >
@@ -232,11 +263,11 @@ const ThinkChip = ({
         <span>{label}</span>
       </button>
       {open ? (
-        <div className="mt-1.5 ml-1 pl-3 border-l border-border max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed font-mono text-[11px] text-text-muted">
+        <div className="mt-1.5 ml-1 pl-3 border-l border-border max-h-40 overflow-y-auto text-[12px] leading-relaxed">
           {segStreaming ? (
-            <StreamingTypewriter content={content} startIndex={startIndex} />
+            <StreamingTypewriter content={content} muted={true} />
           ) : (
-            <MarkdownBody content={content} />
+            <MarkdownBody content={content} muted={true} />
           )}
         </div>
       ) : null}
@@ -249,15 +280,13 @@ const ThinkChip = ({
  */
 const TextSegment = ({
   content,
-  streaming,
-  startIndex
+  streaming
 }: {
   content: string
   streaming: boolean
-  startIndex: number
 }): JSX.Element => {
   if (streaming) {
-    return <StreamingTypewriter content={content} startIndex={startIndex} />
+    return <StreamingTypewriter content={content} />
   }
   return <MarkdownBody content={content} />
 }
@@ -276,9 +305,11 @@ export const TypewriterText = ({
   text: string
   streaming: boolean
 }): JSX.Element => {
-  const segments = useMemo(() => splitThinkSegments(text), [text])
+  // 先把字面 \n 还原成真换行(代码块外),再分段 —— 避免正文里出现字面 "\n"
+  const normalized = useMemo(() => normalizeEscapes(text), [text])
+  const segments = useMemo(() => splitThinkSegments(normalized), [normalized])
   const lastSeg = segments[segments.length - 1]
-  const lastIsOpenThink = streaming && lastSeg?.kind === 'think' && !text.endsWith('</think>')
+  const lastIsOpenThink = streaming && lastSeg?.kind === 'think' && !normalized.endsWith('</think>')
 
   let offset = 0 // 跨段累计字符偏移,给每段唯一 startIndex(避免 key 碰撞)
   return (
@@ -298,11 +329,144 @@ export const TypewriterText = ({
             />
           )
         }
-        return <div key={`text-${segIdx}`}><TextSegment content={seg.content} streaming={streaming} startIndex={segStart} /></div>
+        return <div key={`text-${segIdx}`}><TextSegment content={seg.content} streaming={streaming} /></div>
       })}
     </div>
   )
 }
+
+/**
+ * 剥离 <think> 段,只留对外可见的正文(用于"复制回复")。
+ */
+const stripThink = (raw: string): string =>
+  raw.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim()
+
+/**
+ * 代码块 — 对齐 ChatGPT/Claude/Cursor:
+ * - 顶栏:语言标签(左)+ 复制按钮(右,带"已复制"反馈)
+ * - 独立表面(bg-bg 最深档,凹陷感),与行内 code(bg-bg-elevated 抬起)区分
+ * - 语法高亮:rehype-highlight 已把 code 子节点拆成 hljs span,直接渲染着色;
+ *   value(纯文本)仅用于"复制代码"。
+ */
+const CodeBlock = ({
+  language,
+  value,
+  children
+}: {
+  language: string
+  value: string
+  children?: React.ReactNode
+}): JSX.Element => {
+  const [copied, setCopied] = useState(false)
+  const onCopy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard?.writeText(value)
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = value
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      try {
+        document.execCommand('copy')
+      } catch {
+        /* noop */
+      }
+      document.body.removeChild(ta)
+    }
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1500)
+  }
+  const long = value.split('\n').length > 16
+  return (
+    <div className="code-block my-2 rounded-md border border-border overflow-hidden">
+      <div className="flex items-center justify-between h-7 px-2.5 bg-bg-elevated border-b border-border">
+        <span className="text-[10px] font-mono uppercase tracking-wide text-text-muted select-none">
+          {language || 'text'}
+        </span>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="inline-flex items-center gap-1 text-[10px] text-text-muted hover:text-text transition-colors"
+          aria-label="复制代码"
+        >
+          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          <span>{copied ? '已复制' : '复制'}</span>
+        </button>
+      </div>
+      <pre
+        className={cn(
+          'overflow-x-auto bg-bg p-2.5 text-[12px] leading-[1.6] text-text',
+          long && 'max-h-72 overflow-y-auto'
+        )}
+      >
+        <code className="font-mono whitespace-pre">{children}</code>
+      </pre>
+    </div>
+  )
+}
+
+/**
+ * 消息操作条 — hover 显形(对齐 ChatGPT)。当前仅"复制回复"。
+ */
+const MessageActions = ({ text }: { text: string }): JSX.Element => {
+  const [copied, setCopied] = useState(false)
+  const onCopy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard?.writeText(stripThink(text))
+    } catch {
+      /* noop */
+    }
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1500)
+  }
+  const [inserted, setInserted] = useState(false)
+  const onInsert = (): void => {
+    const cur = useUiStore.getState().scriptSource
+    useUiStore.getState().editScriptSource(`${cur}\n\n${stripThink(text)}`)
+    setInserted(true)
+    window.setTimeout(() => setInserted(false), 1500)
+  }
+  return (
+    <div className="mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        type="button"
+        onClick={onCopy}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-muted hover:text-text hover:bg-bg-elevated transition-colors"
+        aria-label="复制回复"
+      >
+        {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+        <span>{copied ? '已复制' : '复制'}</span>
+      </button>
+      <button
+        type="button"
+        onClick={onInsert}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-text-muted hover:text-accent hover:bg-accent-soft transition-colors"
+        aria-label="插入到剧本"
+      >
+        {inserted ? <Check className="w-3 h-3" /> : <CornerDownRight className="w-3 h-3" />}
+        <span>{inserted ? '已插入' : '插入到剧本'}</span>
+      </button>
+    </div>
+  )
+}
+
+/**
+ * "思考中"指示器 — 首个 token 到达前的等待态。
+ * 三个 accent 圆点依次脉动(对齐 ChatGPT/Claude 的生成前动效),比孤立 spinner 更贴合对话语境。
+ */
+const ThinkingDots = (): JSX.Element => (
+  <div className="inline-flex items-center gap-1 py-1.5" aria-label="AI 正在思考">
+    {[0, 1, 2].map((i) => (
+      <span
+        key={i}
+        className="w-1.5 h-1.5 rounded-full bg-accent animate-thinking-dot"
+        style={{ animationDelay: `${i * 160}ms` }}
+      />
+    ))}
+  </div>
+)
 
 export const AiMessageBubble = ({
   message,
@@ -314,25 +478,26 @@ export const AiMessageBubble = ({
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] bg-accent text-white px-3 py-2 rounded-2xl rounded-tr-md text-sm">
+        <div className="max-w-[85%] bg-accent text-white px-3 py-2 rounded-2xl rounded-tr-md text-sm whitespace-pre-wrap break-words">
           {message.text}
         </div>
       </div>
     )
   }
-  // 从 message 拿 provider(没存就 fallback accent)
+  // assistant:全宽文档式(对齐 ChatGPT/Cursor),无气泡;头像 + 正文 + hover 操作
   const initial = (provider ?? 'AI').charAt(0).toUpperCase()
   return (
-    <div className="flex gap-2">
+    <div className="group flex gap-2">
       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-accent-soft to-accent/20 border border-accent/30 flex items-center justify-center shrink-0 shadow-sm">
         <span className="text-[10px] font-semibold text-accent">{initial}</span>
       </div>
-      <div className="max-w-[85%] bg-bg-elevated border border-border/60 px-3.5 py-2.5 rounded-2xl rounded-tl-md text-sm text-text shadow-sm">
+      <div className="min-w-0 flex-1 pt-0.5 text-sm text-text">
         {message.streaming && !message.text ? (
-          <Loader2 className="w-3 h-3 animate-spin text-text-muted" />
+          <ThinkingDots />
         ) : (
           <TypewriterText text={message.text} streaming={message.streaming} />
         )}
+        {!message.streaming && message.text ? <MessageActions text={message.text} /> : null}
       </div>
     </div>
   )

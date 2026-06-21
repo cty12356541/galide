@@ -54,7 +54,7 @@ const DEFAULTS: PreferencesShape = {
   },
   git: {
     autoInit: true,
-    autoCommitOnSave: true,
+    autoCommitOnSave: false,
     defaultAuthorName: '',
     defaultAuthorEmail: '',
     initialCommitMessage: 'initial commit'

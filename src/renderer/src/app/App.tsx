@@ -24,30 +24,16 @@ import { CommandPalette } from '../features/command-palette/CommandPalette'
 import { PreferencesDialog } from '../features/preferences/PreferencesDialog'
 import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
+import { NewProjectDialog } from '../features/project/NewProjectDialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
-import { useMosaicPersistence } from '../lib/hooks/use-mosaic-persistence'
+import { useScriptSync } from '../lib/hooks/use-script-sync'
+import { useWorkspacePersistence } from '../lib/hooks/use-workspace-persistence'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
-import { sanitizeTree, getAllLeafIds } from '../components/workspace/mosaic/MosaicRoot'
 import {
-  isEditorDoc,
   isToolWindowId,
   isSubIslandId,
-  parentOfSubIsland,
-  type EditorDocId
+  parentOfSubIsland
 } from '../components/workspace/mosaic/panel-registry'
-import type { WorkspaceMosaicNode } from '../lib/store'
-
-const insertPanelIntoTree = (
-  tree: WorkspaceMosaicNode,
-  panelId: EditorDocId
-): WorkspaceMosaicNode => {
-  if (typeof tree === 'string') {
-    return tree === panelId
-      ? tree
-      : ({ direction: 'row' as const, first: tree, second: panelId } as WorkspaceMosaicNode)
-  }
-  return { direction: 'row' as const, first: tree, second: panelId } as WorkspaceMosaicNode
-}
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -55,25 +41,18 @@ export const App = (): JSX.Element => {
   const commandPaletteOpen = useUiStore((s) => s.commandPaletteOpen)
   const exportDialogOpen = useUiStore((s) => s.exportDialogOpen)
   const commitDialogOpen = useUiStore((s) => s.commitDialogOpen)
+  const newProjectDialogOpen = useUiStore((s) => s.newProjectDialogOpen)
 
   useAppearanceEffect()
   useKeyboardShortcuts()
-  useMosaicPersistence()
+  useScriptSync()
+  useWorkspacePersistence()
 
-  // 浮出窗口关闭 → 同步 store + restore(编辑器大陆 / 主岛 / 子岛 三分支)
+  // 浮出窗口关闭 → 同步 store + restore(主岛回 dockSide 槽 / 子岛回 tab)
   useEffect(() => {
     const off = window.galide.workspace.onPanelClosed(({ panelId }) => {
       useUiStore.getState().removeFloatingPanel(panelId)
-      if (isEditorDoc(panelId)) {
-        const cur = useUiStore.getState().mosaicTree
-        if (cur) {
-          const leaves = getAllLeafIds(cur)
-          if (!leaves.includes(panelId)) {
-            const next = insertPanelIntoTree(cur, panelId)
-            useUiStore.getState().setMosaicTree(sanitizeTree(next))
-          }
-        }
-      } else if (isToolWindowId(panelId)) {
+      if (isToolWindowId(panelId)) {
         useUiStore.getState().showToolWindow(panelId)
       } else if (isSubIslandId(panelId)) {
         const parent = parentOfSubIsland(panelId)
@@ -104,6 +83,7 @@ export const App = (): JSX.Element => {
       {preferencesOpen && <PreferencesDialog />}
       {projectPath && exportDialogOpen && <ExportDialog />}
       {projectPath && commitDialogOpen && <CommitDialog />}
+      {newProjectDialogOpen && <NewProjectDialog />}
     </div>
   )
 }

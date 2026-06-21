@@ -13,7 +13,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useUiStore } from '../../lib/store'
 import { LeftToolWindow } from './LeftToolWindow'
 import { SideToolWindow } from './SideToolWindow'
-import { MosaicRoot } from './mosaic/MosaicRoot'
+import { EditorCore } from './EditorCore'
 import {
   isToolWindowId,
   isPlaceholderId,
@@ -59,7 +59,7 @@ export const CenterSplit = (): JSX.Element => {
         </>
       ) : null}
       <Panel defaultSize={showLeft ? (showRight ? 60 : 80) : showRight ? 80 : 100} minSize={30} order={2}>
-        <MosaicRoot />
+        <EditorCore />
       </Panel>
       {showRight ? (
         <>

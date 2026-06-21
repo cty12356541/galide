@@ -1,4 +1,5 @@
-import { ArrowRight, RefreshCw, Wand2, Languages, Sparkles, ChevronDown } from 'lucide-react'
+import { ArrowRight, RefreshCw, Wand2, Languages, Sparkles, ChevronDown, Check } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { cn } from '../../lib/utils'
 
 const SHORTCUTS = [
@@ -38,6 +39,10 @@ export const AiShortcutToolbar = ({
   providers: ProviderInfo[]
   activeShortcut?: string | null
 }): JSX.Element => {
+  // 真实 provider 列表优先,无则退回内置三选
+  const list = providers.length > 0 ? providers : ['openai', 'claude', 'ollama'].map((p) => ({ id: p, name: p }))
+  const current = list.find((p) => p.id === provider) ?? list[0]
+
   return (
     <div className="h-12 flex items-center gap-1 px-2 border-b border-border bg-surface flex-shrink-0">
       <Sparkles className="w-3.5 h-3.5 text-accent mr-1.5 shrink-0" />
@@ -69,36 +74,45 @@ export const AiShortcutToolbar = ({
 
       <div className="w-px h-4 bg-border mx-1.5" />
 
-      {/* Provider 选择器(chip + dot + 下拉) */}
-      <div className="relative">
-        <select
-          value={provider}
-          onChange={(e) => onProviderChange(e.target.value as never)}
-          className="h-7 pl-2 pr-6 rounded-full text-[11px] font-medium text-text-muted hover:text-text bg-transparent hover:bg-bg-elevated transition-colors appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/30"
-          data-testid="ai-provider-select"
-        >
-          {providers.length > 0
-            ? providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))
-            : ['openai', 'claude', 'ollama'].map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-        </select>
-        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
-          <span
-            className={cn(
-              'w-1.5 h-1.5 rounded-full',
-              PROVIDER_DOT[provider] ?? 'bg-text-muted'
-            )}
-          />
-        </div>
-        <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-muted" />
-      </div>
+      {/* Provider 选择器(Radix dropdown — 原生 select 在 dark mode 下弹浅色 OS 菜单,无法主题化) */}
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <button
+            type="button"
+            className="relative inline-flex items-center gap-1.5 h-7 pl-2 pr-5 rounded-full text-[11px] font-medium text-text-muted hover:text-text hover:bg-bg-elevated transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+            data-testid="ai-provider-select"
+          >
+            <span className={cn('w-1.5 h-1.5 rounded-full', PROVIDER_DOT[provider] ?? 'bg-text-muted')} />
+            <span className="capitalize">{current?.name ?? provider}</span>
+            <ChevronDown className="w-3 h-3 absolute right-1.5 pointer-events-none text-text-muted" />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            align="start"
+            sideOffset={4}
+            className="z-50 min-w-[140px] rounded-md border border-border bg-surface p-1 shadow-popover"
+          >
+            {list.map((p) => {
+              const active = p.id === provider
+              return (
+                <DropdownMenu.Item
+                  key={p.id}
+                  onSelect={() => onProviderChange(p.id as never)}
+                  className={cn(
+                    'flex items-center gap-2 px-2 py-1.5 rounded text-[11px] cursor-pointer outline-none transition-colors',
+                    active ? 'bg-accent-soft text-accent' : 'text-text hover:bg-bg-elevated'
+                  )}
+                >
+                  <span className={cn('w-1.5 h-1.5 rounded-full', PROVIDER_DOT[p.id] ?? 'bg-text-muted')} />
+                  <span className="capitalize flex-1">{p.name}</span>
+                  {active ? <Check className="w-3 h-3" /> : null}
+                </DropdownMenu.Item>
+              )
+            })}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
 
       <div className="flex-1" />
     </div>
