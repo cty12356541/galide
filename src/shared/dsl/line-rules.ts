@@ -24,6 +24,11 @@ export type LineType =
   | 'dialogue'
   | 'choice'
   | 'marker'
+  | 'set'
+  | 'if'
+  | 'elif'
+  | 'else'
+  | 'endif'
   | 'comment'
   | 'empty'
   | 'unknown'
@@ -56,6 +61,21 @@ export const MARKER_RE = /^===\s*[^=]+\s*===$/
 /** 选项行: `* "文本" -> 目标`(允许前导空白) */
 export const CHOICE_RE = /^\s*\* ".+"/
 
+/** 选项行完整捕获: text + 可选 target + 可选 condition */
+export const CHOICE_FULL_RE = /^\s*\* "(.+?)"(?:\s*->\s*(\S+))?(?:\s*\[当:\s*(.+)\])?\s*$/
+
+/** 设变量行: `设: name = value` / `设: name += value` / `设: name -= value` */
+export const SET_RE = /^设:\s*\w+\s*(=|\+=|-=)\s*.+/
+
+/** 设变量完整捕获 */
+export const SET_FULL_RE = /^设:\s*(\w+)\s*(=|\+=|-=)\s*(.+)$/
+
+/** 条件块: `[若: expr]` / `[否则若: expr]` / `[否则]` / `[若终]` */
+export const IF_START_RE = /^\[若:\s*.+\]$/
+export const ELIF_RE = /^\[否则若:\s*.+\]$/
+export const ELSE_RE = /^\[否则\]$/
+export const IF_END_RE = /^\[若终\]$/
+
 /** 注释行: `// ...`(允许前导空白) */
 export const COMMENT_RE = /^\s*\/\/.*/
 
@@ -67,9 +87,6 @@ export const DIALOGUE_PREFIX_RE = /^[^\s[].*:\s*".*"/
 
 /** 对白行完整捕获: character + text */
 export const DIALOGUE_RE = /^([^:]+):\s*"(.*)"$/
-
-/** 选项行完整捕获: text + 可选 target */
-export const CHOICE_FULL_RE = /^\s*\* "(.+?)"(?:\s*->\s*(.+))?$/
 
 /**
  * 检测单行类型(ordered — 优先级高的在前)。
@@ -84,6 +101,11 @@ export const detectLineType = (line: string): LineType => {
   if (BGM_RE.test(line)) return 'bgm'
   if (SPRITE_RE.test(line)) return 'sprite'
   if (GOTO_RE.test(line)) return 'goto'
+  if (IF_END_RE.test(line)) return 'endif'
+  if (ELIF_RE.test(line)) return 'elif'
+  if (ELSE_RE.test(line)) return 'else'
+  if (IF_START_RE.test(line)) return 'if'
+  if (SET_RE.test(line)) return 'set'
   if (MARKER_RE.test(line)) return 'marker'
   if (CHOICE_RE.test(line)) return 'choice'
   if (COMMENT_RE.test(line)) return 'comment'

@@ -16,9 +16,11 @@ import type {
   CommentNode,
   DialogueNode,
   GotoNode,
+  IfNode,
   MarkerNode,
   SceneNode,
-  ScriptNode
+  ScriptNode,
+  SetNode
 } from './types.js'
 
 /** ScriptVisitor — 经典 Visitor 模式 */
@@ -27,13 +29,18 @@ export interface ScriptVisitor<T> {
   visitScene?(node: SceneNode): T
   visitDialogue?(node: DialogueNode): T
   visitChoice?(node: ChoiceNode): T
+  visitSet?(node: SetNode): T
+  visitIf?(node: IfNode): T
   visitGoto?(node: GotoNode): T
   visitMarker?(node: MarkerNode): T
   visitComment?(node: CommentNode): T
 }
 
-const isParentNode = (n: AstNode): n is ScriptNode | SceneNode =>
-  n.type === 'script' || n.type === 'scene'
+const isParentNode = (n: AstNode): n is ScriptNode | SceneNode | IfNode =>
+  n.type === 'script' || n.type === 'scene' || n.type === 'if'
+
+const childNodes = (n: ScriptNode | SceneNode | IfNode): AstNode[] =>
+  n.type === 'if' ? n.branches.flatMap((b) => b.children) : n.children
 
 /** 任何可作为遍历起点的节点(ScriptNode 或 SceneNode,均有 children) */
 export type AstRoot = ScriptNode | SceneNode
@@ -61,6 +68,12 @@ export function walkScript<T>(ast: ScriptNode, visitor: ScriptVisitor<T>): T[] {
       case 'choice':
         value = visitor.visitChoice?.(n)
         break
+      case 'set':
+        value = visitor.visitSet?.(n)
+        break
+      case 'if':
+        value = visitor.visitIf?.(n)
+        break
       case 'goto':
         value = visitor.visitGoto?.(n)
         break
@@ -73,7 +86,7 @@ export function walkScript<T>(ast: ScriptNode, visitor: ScriptVisitor<T>): T[] {
     }
     if (value !== undefined) results.push(value)
     if (isParentNode(n)) {
-      for (const child of n.children) visit(child)
+      for (const child of childNodes(n)) visit(child)
     }
   }
   visit(ast)
@@ -98,7 +111,7 @@ export function collectNodes(
   const visit = (n: AstNode): void => {
     if (predicate(n)) out.push(n)
     if (isParentNode(n)) {
-      for (const child of n.children) visit(child)
+      for (const child of childNodes(n)) visit(child)
     }
   }
   visit(root)
@@ -114,6 +127,8 @@ export const countByType = (root: AstRoot): Record<NodeType, number> => {
     scene: 0,
     dialogue: 0,
     choice: 0,
+    set: 0,
+    if: 0,
     goto: 0,
     marker: 0,
     comment: 0
@@ -121,7 +136,7 @@ export const countByType = (root: AstRoot): Record<NodeType, number> => {
   const visit = (n: AstNode): void => {
     counts[n.type] += 1
     if (isParentNode(n)) {
-      for (const child of n.children) visit(child)
+      for (const child of childNodes(n)) visit(child)
     }
   }
   visit(root)
@@ -140,7 +155,7 @@ export const findById = (root: AstRoot, id: string): AstNode | undefined => {
       if (n.id === id) return n
     }
     if (isParentNode(n)) {
-      for (const child of n.children) {
+      for (const child of childNodes(n)) {
         const hit = visit(child)
         if (hit) return hit
       }

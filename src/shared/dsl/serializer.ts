@@ -16,10 +16,13 @@ import type {
   AstNode,
   DialogueNode,
   GotoNode,
+  IfNode,
   MarkerNode,
   SceneNode,
-  ScriptNode
+  ScriptNode,
+  SetNode
 } from './types.js'
+import { serializeExpression } from './expression.js'
 
 type SpriteState = { sprite: string | undefined; position: 'left' | 'right' | 'center' | undefined }
 
@@ -46,9 +49,37 @@ const spriteStageLine = (node: DialogueNode, last: SpriteState): string | null =
   return `[${parts.join(' | ')}]`
 }
 
-/** 选项行:`* "文本" -> 目标`(无目标则 `* "文本"`) */
-const choiceLine = (text: string, target: string): string =>
-  target ? `* "${text}" -> ${target}` : `* "${text}"`
+/** 选项行:`* "文本" -> 目标 [当: expr]` */
+const choiceLine = (text: string, target: string, condition?: import('./types.js').ChoiceOption['condition']): string => {
+  const cond = condition !== undefined ? ` [当: ${serializeExpression(condition)}]` : ''
+  return target ? `* "${text}" -> ${target}${cond}` : `* "${text}"${cond}`
+}
+
+const SET_OP_LABEL: Record<SetNode['op'], string> = {
+  set: '=',
+  add: '+=',
+  sub: '-='
+}
+
+const setLine = (node: SetNode): string =>
+  `设: ${node.name} ${SET_OP_LABEL[node.op]} ${serializeExpression(node.value)}`
+
+const ifBlockLines = (node: IfNode, sprite: SpriteState, out: string[]): SpriteState => {
+  for (const branch of node.branches) {
+    if (branch.kind === 'if') {
+      out.push(`[若: ${branch.condition ? serializeExpression(branch.condition) : 'true'}]`)
+    } else if (branch.kind === 'elif') {
+      out.push(`[否则若: ${branch.condition ? serializeExpression(branch.condition) : 'true'}]`)
+    } else {
+      out.push('[否则]')
+    }
+    for (const child of branch.children) {
+      sprite = serializeChild(child, sprite, out)
+    }
+  }
+  out.push('[若终]')
+  return sprite
+}
 
 /** 序列化一个场景块(含其 children),维护 sticky sprite 状态 */
 const serializeScene = (scene: SceneNode, sprite: SpriteState, out: string[]): SpriteState => {
@@ -76,10 +107,15 @@ const serializeChild = (
       return { sprite: node.sprite, position: node.position }
     }
     case 'choice': {
-      // ChoiceNode.options 在 parser 中恒为单元素(每行一个选项),
-      // 这里逐项输出,保证多选项 ChoiceNode 也能落地
-      for (const opt of node.options) out.push(choiceLine(opt.text, opt.target))
+      for (const opt of node.options) out.push(choiceLine(opt.text, opt.target, opt.condition))
       return sprite
+    }
+    case 'set': {
+      out.push(setLine(node as SetNode))
+      return sprite
+    }
+    case 'if': {
+      return ifBlockLines(node as IfNode, sprite, out)
     }
     case 'goto': {
       out.push(`[跳转:${(node as GotoNode).target}]`)

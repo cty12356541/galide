@@ -14,6 +14,8 @@
  *     若全 warning,ok = true 但 ScriptNode.errors 仍携带警告列表。
  */
 
+import type { Expression } from './expression.js'
+
 export type ScriptNode = BaseNode & {
   type: 'script'
   children: AstNode[]
@@ -44,6 +46,29 @@ export type ChoiceNode = BaseNode & {
 export type ChoiceOption = {
   text: string
   target: string
+  condition?: Expression
+}
+
+export type SetOp = 'set' | 'add' | 'sub'
+
+export type SetNode = BaseNode & {
+  type: 'set'
+  name: string
+  op: SetOp
+  value: Expression
+}
+
+export type IfBranchKind = 'if' | 'elif' | 'else'
+
+export interface IfBranch {
+  kind: IfBranchKind
+  condition?: Expression
+  children: AstNode[]
+}
+
+export type IfNode = BaseNode & {
+  type: 'if'
+  branches: IfBranch[]
 }
 
 export type GotoNode = BaseNode & {
@@ -63,6 +88,8 @@ export type AstNode =
   | SceneNode
   | DialogueNode
   | ChoiceNode
+  | SetNode
+  | IfNode
   | GotoNode
   | MarkerNode
   | CommentNode
@@ -83,6 +110,12 @@ export type TokenType =
   | 'choice'
   | 'marker'
   | 'goto'
+  | 'set'
+  | 'if'
+  | 'elif'
+  | 'else'
+  | 'endif'
+  | 'when'
   | 'comment'
   | 'text'
   | 'quote'

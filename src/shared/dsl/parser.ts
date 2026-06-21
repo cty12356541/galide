@@ -6,15 +6,21 @@
  * 解析失败不抛异常,返回结构化错误
  */
 
+import { parseExpression } from './expression.js'
 import type {
+  AstNode,
   ChoiceNode,
   DialogueNode,
   GotoNode,
+  IfBranch,
+  IfNode,
   MarkerNode,
   ParseError,
   Result,
   SceneNode,
   ScriptNode,
+  SetNode,
+  SetOp,
   Token
 } from './types.js'
 import { tokenize } from './lexer.js'
@@ -38,9 +44,63 @@ type Pending = {
   pendingPosition: 'left' | 'right' | 'center' | undefined
 }
 
-const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], root: ScriptNode): void => {
+type IfFrame = {
+  node: IfNode
+  branchIndex: number
+}
+
+type ParseCtx = {
+  pending: Pending
+  errors: ParseError[]
+  root: ScriptNode
+  ifStack: IfFrame[]
+}
+
+const pushNode = (ctx: ParseCtx, node: AstNode): void => {
+  const frame = ctx.ifStack[ctx.ifStack.length - 1]
+  if (frame) {
+    const branch = frame.node.branches[frame.branchIndex]
+    branch?.children.push(node)
+    return
+  }
+  if (ctx.pending.currentScene) {
+    ctx.pending.currentScene.children.push(node)
+  } else {
+    ctx.root.children.push(node)
+  }
+}
+
+const parseSetOp = (raw: string): SetOp => {
+  if (raw === 'add') return 'add'
+  if (raw === 'sub') return 'sub'
+  return 'set'
+}
+
+const parseExprToken = (
+  source: string,
+  line: number,
+  column: number,
+  errors: ParseError[],
+  label: string
+): ReturnType<typeof parseExpression> extends { ok: true; expr: infer E } ? E | undefined : never => {
+  const r = parseExpression(source)
+  if (!r.ok) {
+    errors.push({
+      message: `${label}表达式无效: ${r.error.message}`,
+      line,
+      column,
+      severity: 'warning'
+    })
+    return undefined
+  }
+  return r.expr
+}
+
+const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
+  const { pending, errors, root } = ctx
   const first = line[0]
   if (!first) return
+
   switch (first.type) {
     case 'chapter': {
       pending.currentScene = null
@@ -86,8 +146,6 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
     }
     case 'sprite':
     case 'position': {
-      // 立绘舞台行:扫描行内 sprite / position token,更新 pending
-      // galgame 语义:持续到下次 sprite 行改变,后续 dialogue 继承
       const spriteToken = line.find((t) => t.type === 'sprite')
       const positionToken = line.find((t) => t.type === 'position')
       if (spriteToken) pending.pendingSprite = spriteToken.value
@@ -104,6 +162,84 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
       }
       return
     }
+    case 'set': {
+      const parts = first.value.split('|')
+      const name = parts[0] ?? ''
+      const op = parseSetOp(parts[1] ?? 'set')
+      const exprSrc = parts.slice(2).join('|')
+      const value = parseExprToken(exprSrc, first.line, first.column, errors, '设:')
+      if (!value) return
+      const setNode: SetNode = {
+        type: 'set',
+        name,
+        op,
+        value,
+        line: first.line,
+        column: first.column
+      }
+      pushNode(ctx, setNode)
+      return
+    }
+    case 'if': {
+      const condition = parseExprToken(first.value, first.line, first.column, errors, '若:')
+      const ifNode: IfNode = {
+        type: 'if',
+        line: first.line,
+        column: first.column,
+        branches: [{ kind: 'if', ...(condition !== undefined ? { condition } : {}), children: [] }]
+      }
+      ctx.ifStack.push({ node: ifNode, branchIndex: 0 })
+      return
+    }
+    case 'elif': {
+      const frame = ctx.ifStack[ctx.ifStack.length - 1]
+      if (!frame) {
+        errors.push({
+          message: '[否则若:] 缺少匹配的 [若:]',
+          line: first.line,
+          column: first.column,
+          severity: 'warning'
+        })
+        return
+      }
+      const condition = parseExprToken(first.value, first.line, first.column, errors, '否则若:')
+      frame.node.branches.push({
+        kind: 'elif',
+        ...(condition !== undefined ? { condition } : {}),
+        children: []
+      })
+      frame.branchIndex = frame.node.branches.length - 1
+      return
+    }
+    case 'else': {
+      const frame = ctx.ifStack[ctx.ifStack.length - 1]
+      if (!frame) {
+        errors.push({
+          message: '[否则] 缺少匹配的 [若:]',
+          line: first.line,
+          column: first.column,
+          severity: 'warning'
+        })
+        return
+      }
+      frame.node.branches.push({ kind: 'else', children: [] })
+      frame.branchIndex = frame.node.branches.length - 1
+      return
+    }
+    case 'endif': {
+      const frame = ctx.ifStack.pop()
+      if (!frame) {
+        errors.push({
+          message: '[若终] 缺少匹配的 [若:]',
+          line: first.line,
+          column: first.column,
+          severity: 'warning'
+        })
+        return
+      }
+      pushNode(ctx, frame.node)
+      return
+    }
     case 'dialogue': {
       const textToken = line.find((t) => t.type === 'text')
       const dialogue: DialogueNode = {
@@ -115,17 +251,16 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
         sprite: pending.pendingSprite,
         position: pending.pendingPosition
       }
-      if (pending.currentScene) {
-        pending.currentScene.children.push(dialogue)
-      } else {
-        // scene 外的 dialogue 挂到 root 平铺层(方向 B:不再静默丢弃)
-        root.children.push(dialogue)
-      }
+      pushNode(ctx, dialogue)
       pending.currentDialogue = dialogue
       return
     }
     case 'choice': {
       const targetToken = line.find((t) => t.type === 'goto')
+      const whenToken = line.find((t) => t.type === 'when')
+      const condition = whenToken
+        ? parseExprToken(whenToken.value, whenToken.line, whenToken.column, errors, '当:')
+        : undefined
       const choice: ChoiceNode = {
         type: 'choice',
         line: first.line,
@@ -133,7 +268,8 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
         options: [
           {
             text: first.value,
-            target: targetToken?.value ?? ''
+            target: targetToken?.value ?? '',
+            ...(condition !== undefined ? { condition } : {})
           }
         ]
       }
@@ -145,11 +281,7 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
           severity: 'warning'
         })
       }
-      if (pending.currentScene) {
-        pending.currentScene.children.push(choice)
-      } else {
-        root.children.push(choice)
-      }
+      pushNode(ctx, choice)
       return
     }
     case 'marker': {
@@ -159,12 +291,7 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
         line: first.line,
         column: first.column
       }
-      if (pending.currentScene) {
-        pending.currentScene.children.push(marker)
-      } else {
-        // scene 外的 marker 挂到 root 平铺层(跨场景跳转目标)
-        root.children.push(marker)
-      }
+      pushNode(ctx, marker)
       return
     }
     case 'goto': {
@@ -174,11 +301,7 @@ const buildLineAst = (line: Token[], pending: Pending, errors: ParseError[], roo
         line: first.line,
         column: first.column
       }
-      if (pending.currentScene) {
-        pending.currentScene.children.push(goto)
-      } else {
-        root.children.push(goto)
-      }
+      pushNode(ctx, goto)
       return
     }
     case 'comment': {
@@ -200,21 +323,23 @@ export const parse = (source: string): Result<ScriptNode> => {
     children: [],
     errors: []
   }
-  const pending: Pending = {
-    currentScene: null,
-    currentDialogue: null,
-    pendingSprite: undefined,
-    pendingPosition: undefined
+  const ctx: ParseCtx = {
+    pending: {
+      currentScene: null,
+      currentDialogue: null,
+      pendingSprite: undefined,
+      pendingPosition: undefined
+    },
+    errors,
+    root,
+    ifStack: []
   }
 
   for (const line of lines) {
     const first = line[0]
-    buildLineAst(line, pending, errors, root)
-    // P1-5 修复: 仅在 scene 行(new scene 进入时)做"是否已存在"判定与合并,
-    // 不能每行都做 — 否则 pending.currentScene 在对话/选项行已经累积了 children,
-    // 合并会触发自引用数组展开,导致 children 长度指数级翻倍。
-    if (first?.type === 'scene' && pending.currentScene) {
-      const scene = pending.currentScene
+    buildLineAst(line, ctx)
+    if (first?.type === 'scene' && ctx.pending.currentScene) {
+      const scene = ctx.pending.currentScene
       const existingIdx = root.children.findIndex(
         (n) => n.type === 'scene' && n.id === scene.id
       )
@@ -227,22 +352,33 @@ export const parse = (source: string): Result<ScriptNode> => {
           column: scene.column,
           severity: 'warning'
         })
-        // 合并策略: 把当前 scene(空 children,刚被 buildLineAst 重置)的 background/bgm
-        // 写到 existing 节点;后续 dialogue/choice/goto 由 pending.currentScene 仍
-        // 指向 existing(rebind),所以不会再走 root.children.push,也不再产生新 children 引用。
         const existing = root.children[existingIdx]
         if (existing && existing.type === 'scene') {
           if (scene.background !== undefined) existing.background = scene.background
           if (scene.bgm !== undefined) existing.bgm = scene.bgm
         }
-        pending.currentScene = existing && existing.type === 'scene' ? existing : null
+        ctx.pending.currentScene = existing && existing.type === 'scene' ? existing : null
       }
-    } else if (first?.type === 'scene' && !pending.currentScene) {
-      // 正常 case: scene 行但 pending 没建立(应该不会发生,buildLineAst 已建)
     }
   }
 
-  // P2-11: 把 errors 也存到 ScriptNode 上(规约要求 errors: ParseError[])
+  if (ctx.ifStack.length > 0) {
+    for (const frame of [...ctx.ifStack]) {
+      errors.push({
+        message: `[若:] (L${frame.node.line}) 缺少 [若终]`,
+        line: frame.node.line,
+        column: frame.node.column,
+        severity: 'warning'
+      })
+      ctx.ifStack.pop()
+      if (ctx.pending.currentScene) {
+        ctx.pending.currentScene.children.push(frame.node)
+      } else {
+        root.children.push(frame.node)
+      }
+    }
+  }
+
   root.errors = errors
 
   if (errors.some((e) => e.severity === 'error')) {
@@ -254,17 +390,6 @@ export const parse = (source: string): Result<ScriptNode> => {
 export const collectScenes = (script: ScriptNode): SceneNode[] =>
   script.children.filter((n): n is SceneNode => n.type === 'scene')
 
-/**
- * 场景摘要(供 UI 消费):从 .gal AST 派生,
- * 不写入 .galproj,符合 core/conventions.yaml "决策树在 .gal" 的规约。
- *
- * 用法:
- *   import { collectScenes, collectSceneSummaries } from '@shared/dsl/parser'
- *   const summaries = collectSceneSummaries(ast, 'chapter1.gal')
- *
- * 若需要 IPC 派生版本(基于 .galproj 目录扫描),参考 .style-spec/layers/dsl/conventions.yaml
- * 由 renderer 端在 useScript 之上自行组合。
- */
 export type SceneSummary = {
   id: string
   fileName: string

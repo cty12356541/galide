@@ -14,9 +14,14 @@ import {
   CHOICE_FULL_RE,
   COMMENT_RE,
   DIALOGUE_RE,
+  ELIF_RE,
+  ELSE_RE,
   GOTO_RE,
+  IF_END_RE,
+  IF_START_RE,
   MARKER_RE,
   SCENE_RE,
+  SET_FULL_RE,
   SPRITE_RE
 } from './line-rules.js'
 
@@ -119,13 +124,56 @@ const choiceRule: LineRule = {
   tokenize: (line, lineNo) => {
     const match = line.match(CHOICE_FULL_RE)
     if (!match) return []
+    const tokens: Token[] = [
+      { type: 'choice', value: match[1] ?? '', line: lineNo, column: 1 }
+    ]
+    if (match[2]) {
+      tokens.push({ type: 'goto', value: match[2].trim(), line: lineNo, column: 1 })
+    }
+    if (match[3]) {
+      tokens.push({ type: 'when', value: match[3].trim(), line: lineNo, column: 1 })
+    }
+    return tokens
+  }
+}
+
+const setRule: LineRule = {
+  test: (line) => SET_FULL_RE.test(line),
+  tokenize: (line, lineNo) => {
+    const match = line.match(SET_FULL_RE)
+    if (!match) return []
+    const opToken =
+      match[2] === '+=' ? 'add' : match[2] === '-=' ? 'sub' : 'set'
     return [
-      { type: 'choice', value: match[1] ?? '', line: lineNo, column: 1 },
-      ...(match[2]
-        ? [{ type: 'goto' as TokenType, value: match[2].trim(), line: lineNo, column: 1 }]
-        : [])
+      { type: 'set', value: `${match[1] ?? ''}|${opToken}|${match[3]?.trim() ?? ''}`, line: lineNo, column: 1 }
     ]
   }
+}
+
+const ifStartRule: LineRule = {
+  test: (line) => IF_START_RE.test(line),
+  tokenize: (line, lineNo) => {
+    const expr = line.replace(/^\[若:\s*/, '').replace(/\]$/, '').trim()
+    return [{ type: 'if', value: expr, line: lineNo, column: 1 }]
+  }
+}
+
+const elifRule: LineRule = {
+  test: (line) => ELIF_RE.test(line),
+  tokenize: (line, lineNo) => {
+    const expr = line.replace(/^\[否则若:\s*/, '').replace(/\]$/, '').trim()
+    return [{ type: 'elif', value: expr, line: lineNo, column: 1 }]
+  }
+}
+
+const elseRule: LineRule = {
+  test: (line) => ELSE_RE.test(line),
+  tokenize: (line, lineNo) => [{ type: 'else', value: '', line: lineNo, column: 1 }]
+}
+
+const endifRule: LineRule = {
+  test: (line) => IF_END_RE.test(line),
+  tokenize: (line, lineNo) => [{ type: 'endif', value: '', line: lineNo, column: 1 }]
 }
 
 const markerRule: LineRule = {
@@ -162,6 +210,11 @@ const RULES: LineRule[] = [
   bgmRule,
   spriteRule,
   gotoRule,
+  endifRule,
+  elifRule,
+  elseRule,
+  ifStartRule,
+  setRule,
   dialogueRule,
   choiceRule,
   markerRule,
