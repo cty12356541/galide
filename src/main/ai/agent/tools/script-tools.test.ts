@@ -132,3 +132,112 @@ describe('script-tools — 安全写', () => {
     expect(reg.get('read_script')?.risk).toBe('read')
   })
 })
+
+describe('script-tools — 变量/条件', () => {
+  const varGal = `## intro
+设: affinity = 0
+小雪: "你好"
+`
+
+  it('set_variable 追加设: 行', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'set_variable',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', name: 'affinity', op: 'add', value: '5' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('设: affinity += 5')
+  })
+
+  it('add_conditional_block 插入 [若:] 块', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_conditional_block',
+        args: {
+          fileName: 'chapter1.gal',
+          sceneId: 'intro',
+          condition: 'affinity >= 10',
+          ifDialogue: { character: '小雪', text: '高好感' },
+          elseDialogue: { character: '小雪', text: '低好感' }
+        }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('[若: affinity >= 10]')
+    expect(out).toContain('[否则]')
+    expect(out).toContain('[若终]')
+    expect(out).toContain('高好感')
+  })
+
+  it('add_gated_choice 追加带 [当:] 的选项', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_gated_choice',
+        args: {
+          fileName: 'chapter1.gal',
+          sceneId: 'intro',
+          text: '秘密路线',
+          target: 'secret',
+          condition: 'affinity >= 10'
+        }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('[当: affinity >= 10]')
+    expect(out).toContain('秘密路线')
+  })
+
+  it('read_variables 扫描变量与条件', async () => {
+    const vol = Volume.fromJSON({ '/proj/chapter1.gal': varGal })
+    const mfs = createFsFromVolume(vol)
+    const fs: ToolFs = {
+      readFile: (p) => mfs.promises.readFile(p, 'utf-8') as Promise<string>,
+      writeFile: (p, c) => mfs.promises.writeFile(p, c) as Promise<void>,
+      readdir: (p) => mfs.promises.readdir(p) as Promise<string[]>
+    }
+    const ctx: ToolContext = { projectPath: '/proj', fs }
+    const r = await reg.execute({ id: '1', name: 'read_variables', args: { fileName: 'chapter1.gal' } }, ctx)
+    expect(r.ok).toBe(true)
+    expect(r.content).toContain('affinity')
+  })
+
+  it('set_variable 非法 op 被 schema 拒绝', async () => {
+    const { ctx } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'set_variable',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', name: 'x', op: 'mul', value: '1' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(false)
+    expect(r.error?.code).toBe('SCHEMA_FAILED')
+  })
+
+  it('add_conditional_block 无效条件表达式 → ok=false', async () => {
+    const { ctx } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_conditional_block',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', condition: '!!!' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(false)
+  })
+})

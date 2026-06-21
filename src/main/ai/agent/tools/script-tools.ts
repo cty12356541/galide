@@ -11,7 +11,9 @@ import * as z from 'zod/v4'
 import { parse, collectSceneSummaries } from '../../../../shared/dsl/parser.js'
 import { serialize } from '../../../../shared/dsl/serializer.js'
 import { findById, collectNodes } from '../../../../shared/dsl/visitor.js'
-import type { DialogueNode, SceneNode, ScriptNode } from '../../../../shared/dsl/types.js'
+import { parseExpression, type Expression } from '../../../../shared/dsl/expression.js'
+import { scanScriptVariables } from '../../../../shared/dsl/scan-variables.js'
+import type { DialogueNode, IfNode, SceneNode, ScriptNode, SetNode } from '../../../../shared/dsl/types.js'
 import { defineTool, type RegisteredTool } from '../tool-registry.js'
 import type { ToolContext, ToolHandlerResult } from '../types.js'
 
@@ -220,11 +222,222 @@ const addDialogue = defineTool({
   }
 })
 
+const SetOpSchema = z.enum(['set', 'add', 'sub'])
+
+const parseExprOrFail = (text: string): { ok: true; expr: Expression } | { ok: false; message: string } => {
+  const parsed = parseExpression(text)
+  if (!parsed.ok) return { ok: false, message: parsed.error.message }
+  if (parsed.rest.trim().length > 0) return { ok: false, message: `表达式尾部有多余内容: ${parsed.rest}` }
+  return { ok: true, expr: parsed.expr }
+}
+
+const setVariable = defineTool({
+  name: 'set_variable',
+  description: '向指定场景追加一条设变量行(设: name = value | += | -=)。',
+  risk: 'safeWrite',
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    name: z.string().min(1),
+    op: SetOpSchema,
+    value: z.string().min(1)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findById(r.ast, args.sceneId)
+    if (!scene || scene.type !== 'scene') {
+      return {
+        ok: false,
+        content: `场景 "${args.sceneId}" 不存在`,
+        error: { code: 'SCENE_NOT_FOUND', message: `scene ${args.sceneId} not found` }
+      }
+    }
+    const exprR = parseExprOrFail(args.value)
+    if (!exprR.ok) {
+      return {
+        ok: false,
+        content: `值表达式无效: ${exprR.message}`,
+        error: { code: 'INVALID_EXPRESSION', message: exprR.message }
+      }
+    }
+    const setNode: SetNode = {
+      type: 'set',
+      name: args.name,
+      op: args.op,
+      value: exprR.expr,
+      line: 0,
+      column: 1
+    }
+    scene.children.push(setNode)
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已在场景 "${args.sceneId}" 追加 设: ${args.name}` }
+  }
+})
+
+const DialogueStubSchema = z.object({
+  character: z.string().min(1),
+  text: z.string().min(1)
+})
+
+const addConditionalBlock = defineTool({
+  name: 'add_conditional_block',
+  description: '向指定场景插入 [若: condition] ... [否则] ... [若终] 条件块;可选分支对白 stub。',
+  risk: 'safeWrite',
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    condition: z.string().min(1),
+    elifConditions: z.array(z.string()).optional(),
+    ifDialogue: DialogueStubSchema.optional(),
+    elseDialogue: DialogueStubSchema.optional()
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findById(r.ast, args.sceneId)
+    if (!scene || scene.type !== 'scene') {
+      return {
+        ok: false,
+        content: `场景 "${args.sceneId}" 不存在`,
+        error: { code: 'SCENE_NOT_FOUND', message: `scene ${args.sceneId} not found` }
+      }
+    }
+    const condR = parseExprOrFail(args.condition)
+    if (!condR.ok) {
+      return {
+        ok: false,
+        content: `条件表达式无效: ${condR.message}`,
+        error: { code: 'INVALID_EXPRESSION', message: condR.message }
+      }
+    }
+    const mkDialogue = (stub: z.infer<typeof DialogueStubSchema>): DialogueNode => ({
+      type: 'dialogue',
+      character: stub.character,
+      lines: [stub.text],
+      line: 0,
+      column: 1
+    })
+    const branches: IfNode['branches'] = [
+      {
+        kind: 'if',
+        condition: condR.expr,
+        children: args.ifDialogue ? [mkDialogue(args.ifDialogue)] : []
+      }
+    ]
+    if (args.elifConditions) {
+      for (const elifText of args.elifConditions) {
+        const elifR = parseExprOrFail(elifText)
+        if (!elifR.ok) {
+          return {
+            ok: false,
+            content: `否则若条件无效: ${elifR.message}`,
+            error: { code: 'INVALID_EXPRESSION', message: elifR.message }
+          }
+        }
+        branches.push({ kind: 'elif', condition: elifR.expr, children: [] })
+      }
+    }
+    branches.push({
+      kind: 'else',
+      children: args.elseDialogue ? [mkDialogue(args.elseDialogue)] : []
+    })
+    const ifNode: IfNode = { type: 'if', line: 0, column: 1, branches }
+    scene.children.push(ifNode)
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已在场景 "${args.sceneId}" 插入条件块` }
+  }
+})
+
+const addGatedChoice = defineTool({
+  name: 'add_gated_choice',
+  description: '向指定场景追加带 [当: condition] 门控的选项行。',
+  risk: 'safeWrite',
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    text: z.string().min(1),
+    target: z.string().min(1),
+    condition: z.string().min(1)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findById(r.ast, args.sceneId)
+    if (!scene || scene.type !== 'scene') {
+      return {
+        ok: false,
+        content: `场景 "${args.sceneId}" 不存在`,
+        error: { code: 'SCENE_NOT_FOUND', message: `scene ${args.sceneId} not found` }
+      }
+    }
+    const condR = parseExprOrFail(args.condition)
+    if (!condR.ok) {
+      return {
+        ok: false,
+        content: `条件表达式无效: ${condR.message}`,
+        error: { code: 'INVALID_EXPRESSION', message: condR.message }
+      }
+    }
+    scene.children.push({
+      type: 'choice',
+      line: 0,
+      column: 1,
+      options: [{ text: args.text, target: args.target, condition: condR.expr }]
+    })
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已在场景 "${args.sceneId}" 追加门控选项 "${args.text}"` }
+  }
+})
+
+const readVariables = defineTool({
+  name: 'read_variables',
+  description: '扫描 .gal 中所有 SetNode 变量名、门控选项 [当:] 条件、if 分支条件。',
+  risk: 'read',
+  domain: 'disk',
+  schema: z.object({ fileName: FileNameSchema }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scan = scanScriptVariables(r.ast)
+    const lines: string[] = []
+    if (scan.setVariables.length > 0) {
+      lines.push(`设变量: ${scan.setVariables.join(', ')}`)
+    } else {
+      lines.push('设变量: (无)')
+    }
+    if (scan.gatedChoices.length > 0) {
+      lines.push('门控选项:')
+      for (const g of scan.gatedChoices) {
+        lines.push(`  - "${g.text}" → ${g.target} [当: ${g.condition}]`)
+      }
+    }
+    if (scan.conditionalBranches.length > 0) {
+      lines.push('条件分支:')
+      for (const b of scan.conditionalBranches) {
+        lines.push(`  - [${b.kind}] ${b.condition} (场景 ${b.sceneId})`)
+      }
+    }
+    return {
+      ok: true,
+      content: lines.join('\n'),
+      data: scan
+    }
+  }
+})
+
 /** 剧本相关工具集合(注册进 tool-registry) */
 export const scriptTools: readonly RegisteredTool[] = [
   listScenes,
   readScript,
   findNode,
   createScene,
-  addDialogue
+  addDialogue,
+  setVariable,
+  addConditionalBlock,
+  addGatedChoice,
+  readVariables
 ]
