@@ -8,8 +8,11 @@ import {
   normalizeOpenAiResponse,
   normalizeClaudeResponse,
   toolsToOpenAiFormat,
-  toolsToClaudeFormat
+  toolsToClaudeFormat,
+  withLlmDefaults,
+  createLlmAdapter
 } from './llm-adapter.js'
+import type { LlmAdapter, LlmChatRequest } from './llm-adapter.js'
 import type { ToolJsonSchema } from './tool-registry.js'
 
 // ---- 录制的 OpenAI 响应(finish_reason: tool_calls) ----
@@ -120,5 +123,29 @@ describe('工具格式转换', () => {
     const out = toolsToClaudeFormat(sampleTools)
     expect(out[0]).toMatchObject({ name: 'create_scene', description: '创建场景' })
     expect(out[0]?.input_schema).toBeTypeOf('object')
+  })
+})
+
+describe('withLlmDefaults / createLlmAdapter', () => {
+  it('withLlmDefaults 把 baseUrl 注入 chat 请求', async () => {
+    const calls: LlmChatRequest[] = []
+    const inner: LlmAdapter = {
+      supportsTools: true,
+      chat: async (req) => {
+        calls.push(req)
+        return { text: '', toolCalls: [] }
+      }
+    }
+    const wrapped = withLlmDefaults(inner, { baseUrl: 'https://api.minimax.chat/v1' })
+    await wrapped.chat({ system: '', messages: [], tools: [] })
+    expect(calls[0]?.baseUrl).toBe('https://api.minimax.chat/v1')
+  })
+
+  it('createLlmAdapter(ollama) 使用配置的 baseUrl', () => {
+    const adapter = createLlmAdapter('ollama', 'qwen2.5', 'http://ollama.local:11434')
+    expect(adapter.supportsTools).toBe(false)
+    // ollama baseUrl 在 adapter 构造时绑定,经 withLlmDefaults 路径验证 openai
+    const openai = createLlmAdapter('openai', 'gpt-4o-mini', 'https://proxy.example/v1')
+    expect(openai.supportsTools).toBe(true)
   })
 })

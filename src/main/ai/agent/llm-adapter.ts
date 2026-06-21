@@ -204,13 +204,31 @@ export const createOllamaLlmAdapter = (
   }
 })
 
-export const createLlmAdapter = (provider: AiProvider, model?: string): LlmAdapter => {
+export const createLlmAdapter = (
+  provider: AiProvider,
+  model?: string,
+  baseUrl?: string
+): LlmAdapter => {
   switch (provider) {
     case 'openai':
-      return createOpenAiLlmAdapter(model)
+      return withLlmDefaults(createOpenAiLlmAdapter(model), { baseUrl })
     case 'claude':
-      return createClaudeLlmAdapter(model)
+      return withLlmDefaults(createClaudeLlmAdapter(model), { baseUrl })
     case 'ollama':
-      return createOllamaLlmAdapter(undefined, model)
+      return createOllamaLlmAdapter(baseUrl, model)
   }
 }
+
+/** 注入默认 baseUrl/model,per-request 显式值优先 */
+export const withLlmDefaults = (
+  adapter: LlmAdapter,
+  defaults: { baseUrl?: string; model?: string }
+): LlmAdapter => ({
+  supportsTools: adapter.supportsTools,
+  chat: (req) =>
+    adapter.chat({
+      ...req,
+      baseUrl: req.baseUrl ?? defaults.baseUrl,
+      model: req.model ?? defaults.model
+    })
+})
