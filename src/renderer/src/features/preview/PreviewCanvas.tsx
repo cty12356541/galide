@@ -3,29 +3,11 @@ import { Play, Square, Box } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
 import { collectNodes } from '../../../../shared/dsl/visitor'
-import type { ChoiceNode, DialogueNode, SceneNode, ScriptNode } from '../../../../shared/dsl/types'
+import type { SceneNode, ScriptNode } from '../../../../shared/dsl/types'
+import { buildPreviewItems } from './preview-items'
 import type { PreviewState } from './PreviewRuntime'
 import { motion } from 'framer-motion'
 import { createPreviewRuntime, type PreviewRuntime } from './PreviewRuntime'
-
-type PreviewDialogue = { type: 'dialogue'; character: string; text: string }
-type PreviewChoice = { type: 'choice'; options: { text: string; target: string }[] }
-type PreviewItem = PreviewDialogue | PreviewChoice
-
-const buildItems = (scene: SceneNode): PreviewItem[] => {
-  const items: PreviewItem[] = []
-  const dialogues = collectNodes(scene, (n): n is DialogueNode => n.type === 'dialogue')
-  for (const d of dialogues) {
-    for (const line of d.lines) {
-      items.push({ type: 'dialogue', character: d.character, text: line })
-    }
-  }
-  const choices = collectNodes(scene, (n): n is ChoiceNode => n.type === 'choice')
-  for (const c of choices) {
-    items.push({ type: 'choice', options: c.options })
-  }
-  return items
-}
 
 const collectScenes = (ast: ScriptNode): SceneNode[] =>
   collectNodes(ast, (n): n is SceneNode => n.type === 'scene')
@@ -59,7 +41,7 @@ export const PreviewCanvas = (): JSX.Element => {
 
   const sceneEmpty = scene === null
   const sceneId = scene?.id ?? null
-  const items = useMemo(() => (scene ? buildItems(scene) : []), [scene])
+  const items = useMemo(() => (scene ? buildPreviewItems(scene) : []), [scene])
 
   // 切场景重置游标
   useEffect(() => {
