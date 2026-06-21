@@ -6,8 +6,10 @@ import { Bot, Loader2, Square } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { useUiStore } from '../../lib/store'
+import { AiErrorBanner } from '../../lib/ai-error-banner'
 import { useAgent, useAgentRun, type AgentStep } from '../../lib/ipc/use-agent'
 import { useAiConfig } from '../../lib/ipc/use-ai-task'
+import { AgentConfirmDiff } from './agent-confirm-diff'
 import type { AgentPreferences } from '@shared/preferences'
 
 type Mode = AgentPreferences['autonomy']
@@ -52,12 +54,14 @@ const StepView = ({ step }: { step: AgentStep }): JSX.Element => {
 
 export const AgentModePanel = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
+  const activeScriptFile = useUiStore((s) => s.activeScriptFile)
   const selectedSceneId = useUiStore((s) => s.selectedSceneId)
   const agent = useAgent()
   const config = useAiConfig()
   const [goal, setGoal] = useState('')
   const [taskId, setTaskId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
   const [autonomy, setAutonomy] = useState<Mode>('hybrid')
   const [topology, setTopology] = useState<Topology>('litePlanExecute')
   const run = useAgentRun(taskId)
@@ -87,9 +91,11 @@ export const AgentModePanel = (): JSX.Element => {
   const onStart = async (): Promise<void> => {
     if (!goal.trim() || !projectPath || busy) return
     setBusy(true)
+    setStartError(null)
     const r = await agent.start({
       goal: goal.trim(),
       projectPath,
+      activeScriptFile,
       selectedSceneId,
       provider: config.data?.provider,
       model: config.data?.model,
@@ -99,6 +105,7 @@ export const AgentModePanel = (): JSX.Element => {
       setTaskId(r.taskId)
     } else {
       setBusy(false)
+      setStartError(r && 'error' in r ? r.error : 'Agent 启动失败')
     }
   }
 
@@ -142,6 +149,7 @@ export const AgentModePanel = (): JSX.Element => {
             </select>
           </label>
         </div>
+        {startError ? <AiErrorBanner message={startError} preferencesSection="ai" /> : null}
       </div>
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-2">
@@ -150,7 +158,7 @@ export const AgentModePanel = (): JSX.Element => {
               <StepView step={s} />
             </div>
           ))}
-          {run.error ? <div className="text-xs text-danger">{run.error}</div> : null}
+          {run.error ? <AiErrorBanner message={run.error} preferencesSection="ai" /> : null}
         </div>
       </ScrollArea>
       {run.pendingConfirm ? (
@@ -158,6 +166,12 @@ export const AgentModePanel = (): JSX.Element => {
           <div className="text-xs">
             确认执行工具 <strong>{run.pendingConfirm.call.name}</strong> ({run.pendingConfirm.risk})?
           </div>
+          {run.pendingConfirm.diff ? (
+            <AgentConfirmDiff
+              before={run.pendingConfirm.diff.before}
+              after={run.pendingConfirm.diff.after}
+            />
+          ) : null}
           <div className="flex gap-2">
             <Button size="sm" variant="default" onClick={() => void onConfirm(true)}>
               允许
