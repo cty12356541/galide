@@ -106,11 +106,49 @@ export const useKeyboardShortcuts = (): void => {
       // modal guard:其余快捷键在 modal 打开时一律不触发,防叠弹
       if (anyModalOpen) return
 
-      // 撤销/重做:卡片编辑器走 store 撤销栈;CodeMirror 内由其自身 history 自管,跳过。
-      // 放在 modal guard 之后、浮出窗 guard 之前 → 浮出窗仍可撤销(编辑器内键)。
+      // F5 运行预览:切评审预设 + 展开预览(无修饰键,需在 meta guard 前)
+      if (acceleratorMatches(s.resolvedShortcuts.togglePreview ?? '', e)) {
+        if (!s.projectPath) return
+        e.preventDefault()
+        s.applyWorkspacePreset('review')
+        s.setPreviewOpen(true)
+        return
+      }
+
+      // ⌘S 立即存盘(卡片面 / 非 CodeMirror 焦点)
       const inCodeMirror = !!document.activeElement?.closest?.('.cm-editor')
+      const useSourceEditor = s.editorSurface === 'source'
+      if (meta && e.key.toLowerCase() === 's' && !inCodeMirror) {
+        e.preventDefault()
+        void s.flushPendingScriptSave()
+        return
+      }
+
+      // ⌘F 查找:源码 tab 或内嵌编辑器
+      if (meta && e.key.toLowerCase() === 'f') {
+        if (useSourceEditor || inCodeMirror) {
+          if (!inCodeMirror && useSourceEditor) {
+            e.preventDefault()
+            s.setEditorSurface('source')
+            requestAnimationFrame(() => {
+              const cm = document.querySelector<HTMLElement>(
+                '[data-testid="script-editor-cm-host"] .cm-editor'
+              )
+              cm?.focus()
+              const target = cm?.querySelector<HTMLElement>('.cm-content') ?? cm
+              target?.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true })
+              )
+            })
+          }
+          return
+        }
+      }
+
+      // 撤销/重做:源码 tab → CodeMirror history;卡片 → store 栈
+      const routeToCodeMirror = useSourceEditor || inCodeMirror
       if (acceleratorMatches(s.resolvedShortcuts.undo ?? '', e)) {
-        if (inCodeMirror) return
+        if (routeToCodeMirror) return
         if (s.scriptPast.length > 0) {
           e.preventDefault()
           s.undo()
@@ -118,7 +156,7 @@ export const useKeyboardShortcuts = (): void => {
         return
       }
       if (acceleratorMatches(s.resolvedShortcuts.redo ?? '', e)) {
-        if (inCodeMirror) return
+        if (routeToCodeMirror) return
         if (s.scriptFuture.length > 0) {
           e.preventDefault()
           s.redo()

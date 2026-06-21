@@ -13,7 +13,7 @@
  *
  * 已知边界:chapter / 注释 不入 AST(parser 丢弃),卡片编辑不承载。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import {
   MessageSquare,
   GitBranch,
@@ -29,7 +29,7 @@ import {
 import { PanelHeader } from '../../components/ui/panel-header'
 import { Button } from '../../components/ui/button'
 import { useUiStore } from '../../lib/store'
-import { useScript } from '../../lib/ipc/use-script'
+import { useScriptSave } from '../../lib/hooks/use-script-save'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type {
@@ -42,7 +42,6 @@ import type {
   ScriptNode
 } from '../../../../shared/dsl/types'
 import { cn } from '../../lib/utils'
-import { toast } from '../../components/ui/toast'
 
 type Position = 'left' | 'right' | 'center'
 
@@ -83,21 +82,15 @@ const posLabel = (p: Position): string => ({ left: '左', right: '右', center: 
 const inputCls =
   'w-full bg-transparent border border-border rounded-lg px-2.5 py-1.5 text-sm text-text focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors'
 
-export const BeatCardEditor = (): JSX.Element => {
-  const projectPath = useUiStore((s) => s.projectPath)
-  const activeScript = useUiStore((s) => s.activeScriptFile)
+export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JSX.Element => {
   const scriptAst = useUiStore((s) => s.scriptAst)
   const scriptDiagnostics = useUiStore((s) => s.scriptDiagnostics)
   const scriptDirty = useUiStore((s) => s.scriptDirty)
   const selectedSceneId = useUiStore((s) => s.selectedSceneId)
   const editScriptAst = useUiStore((s) => s.editScriptAst)
-  const markScriptSaved = useUiStore((s) => s.markScriptSaved)
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
-  const script = useScript()
+  const { saving, scheduleSave } = useScriptSave()
   const float = usePanelFloat()
-
-  const [saving, setSaving] = useState(false)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 选中场景(缺省取第一个)
   const scenes = useMemo(
@@ -116,28 +109,12 @@ export const BeatCardEditor = (): JSX.Element => {
 
   const beats = useMemo(() => (scene ? groupBeats(scene.children) : []), [scene])
 
-  /** 提交一次编辑:克隆 AST → 已就地改 → 写回 store + 防抖存盘 */
   const commit = useCallback(
     (mutator: (ast: ScriptNode) => void): void => {
       editScriptAst(mutator)
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        if (!projectPath || !activeScript) return
-        setSaving(true)
-        const source = useUiStore.getState().scriptSource
-        void script
-          .write(projectPath, activeScript, source)
-          .then((r) => {
-            setSaving(false)
-            if (r && r.ok === true) {
-              markScriptSaved()
-            } else if (r && r.ok !== true) {
-              toast({ message: '自动保存失败', variant: 'error' })
-            }
-          })
-      }, 600)
+      scheduleSave()
     },
-    [editScriptAst, markScriptSaved, projectPath, activeScript, script]
+    [editScriptAst, scheduleSave]
   )
 
   /** 定位场景内 children 并改写(按 beat 的起始索引) */
@@ -255,25 +232,49 @@ export const BeatCardEditor = (): JSX.Element => {
 
   return (
     <section
-      className="group island h-full flex flex-col bg-surface overflow-hidden rounded-xl"
+      className={cn(
+        'group island h-full flex flex-col bg-surface overflow-hidden',
+        embedded ? '' : 'rounded-xl'
+      )}
       data-testid="beat-card-editor"
     >
-      <PanelHeader
-        title={scene ? `场景 · ${scene.id}` : '对话文本'}
-        subtitle={scene ? `${beats.length} beat` : undefined}
-        icon={MessageSquare}
-        actions={
-          <>
-           <span className="text-[10px] text-text-muted">{saving ? '保存中…' : scriptDirty ? '未保存' : '已同步'}</span>
-           {scriptDirty && !saving ? (
-             <span className="w-1.5 h-1.5 rounded-full bg-warning" title="未保存" />
-           ) : null}
-           <Button variant="ghost" size="icon" onClick={() => float('script-editor')} title="原始文本编辑" aria-label="原始文本编辑" data-testid="beat-float">
-              <AppWindow className="w-3.5 h-3.5" />
-            </Button>
-          </>
-        }
-      />
+      {embedded ? (
+        <div className="h-8 flex items-center gap-2 px-3 border-b border-border bg-bg-elevated flex-shrink-0">
+          <MessageSquare className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+          <span className="text-sm text-text truncate">
+            {scene ? `场景 · ${scene.id}` : '对话文本'}
+          </span>
+          {saving ? (
+            <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">保存中…</span>
+          ) : null}
+        </div>
+      ) : (
+        <PanelHeader
+          title={scene ? `场景 · ${scene.id}` : '对话文本'}
+          subtitle={scene ? `${beats.length} beat` : undefined}
+          icon={MessageSquare}
+          actions={
+            <>
+              <span className="text-[10px] text-text-muted">
+                {saving ? '保存中…' : scriptDirty ? '未保存' : '已同步'}
+              </span>
+              {scriptDirty && !saving ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" title="未保存" />
+              ) : null}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => float('script-editor')}
+                title="原始文本编辑"
+                aria-label="原始文本编辑"
+                data-testid="beat-float"
+              >
+                <AppWindow className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          }
+        />
+      )}
       {sceneMeta.length > 0 ? (
         <div className="px-3 py-1.5 text-[11px] text-text-muted bg-bg-elevated border-b border-border flex gap-3">
           {sceneMeta.map((m) => (

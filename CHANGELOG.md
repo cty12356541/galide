@@ -4,6 +4,26 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [0.5.0] - 2026-06-21
 
+### 新增 — 预览保真度 Preview Fidelity (Phases 1–3)
+
+- **Phase 1 — 立绘 + 有序播放** — `shared/preview/playback-timeline.ts` 按 `scene.children` 文档序产出 dialogue/choice/goto/marker 步骤;PixiJS 立绘层(left/center/right)持久至下次变更;预览游标推进全部 beat 类型
+- **Phase 2 — BGM** — `preview-audio.ts` Web Audio 播放 `SceneNode.bgm`,场景切换 crossfade;预览 chrome 暴露静音/音量(语音/TTS 仍仅在 Voice 面板)
+- **Phase 3 — 共享 VM + Web 导出 parity** — `shared/preview/runtime-vm.ts` 标记注册表、goto/marker/choice 跳转(场景 ID 或 marker ID);`$variable` 仅 scaffold( AST 尚无 variable 节点);Web 导出播放器内联同一 VM 函数 + 立绘渲染
+
+### 新增 — 工作区预设 declarative 布局(B2)
+
+- **`workspace-presets.ts`** — 写作 / 流程 / 评审三预设含 `visiblePerSide`、`activeSubIsland`、`editorCoreLayout`、`previewOpen` 默认值
+- **`applyWorkspacePreset`** — 切预设时快照 outgoing 布局至 `layoutsByPreset[prev]` 并恢复 target(首访用默认)
+- **`EditorCore`** — 分栏比例读 `store.editorCoreLayout`,`onLayout` 写回 store
+- **F5 / 运行预览** — 快捷键、MenuBar、command handler 统一 `applyWorkspacePreset('review')` + `setPreviewOpen(true)`
+- **持久化** — `use-workspace-persistence` 扩展 `{ lastPreset, layoutsByPreset, editorCoreLayout }`;开项目时 `setProject` 重应用全局预设
+
+### 新增 — 卡片 / 源码主编辑面(C1)
+
+- **`EditorSurfaceTabs`** — 卡片(默认) | 源码 tabs;源码内嵌 `ScriptEditor`(embed),保留浮出
+- **`useScriptSave`** — 卡片/源码统一 debounce 800ms autosave;⌘S 立即 flush;切换至源码前 flush 待存
+- **`editorSurface`** store 字段;⌘Z / ⌘F 按活跃面路由(CodeMirror vs 卡片撤销栈)
+
 ### 修复 — UX 审计「控件说真话」(10 项 quick wins)
 
 - **预览开关与 store 同步** — `EditorCore` 读写 `useUiStore.previewOpen`,F5 / 菜单 / `togglePreview` 命令真正展开底栏预览
@@ -45,7 +65,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 测试
 
-- 54 个测试文件 / 397 个测试全过(preview-items / resolve-active-gal / outline-scenes / script-editor-jump / StatusBar / DiagnosticsPanel 等)
+- 59 个测试文件 / 426 个测试全过(workspace-presets / applyWorkspacePreset 快照 / use-script-save debounce+flush 等)
 
 ## [0.4.0] - 2026-06-17
 

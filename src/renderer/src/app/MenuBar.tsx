@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { FileText, Edit3, Eye, Wrench, HelpCircle, Plus, Folder, Settings, Download, GitCommit, Sparkles, ChevronDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
-import { useUiStore, type WorkspacePresetId } from '../lib/store'
+import { useUiStore } from '../lib/store'
 import { usePanelFloat } from '../lib/hooks/use-panel-float'
 import { useNewScriptFile } from '../lib/hooks/use-new-script-file'
 import { useProject } from '../lib/ipc/use-project'
@@ -39,8 +39,10 @@ export const MenuBar = (): JSX.Element => {
   const openCommitDialog = useUiStore((s) => s.openCommitDialog)
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
   const toggleAiPanel = useUiStore((s) => s.toggleAiPanel)
-  const setWorkspacePreset = useUiStore((s) => s.setWorkspacePreset)
+  const applyWorkspacePreset = useUiStore((s) => s.applyWorkspacePreset)
+  const setPreviewOpen = useUiStore((s) => s.setPreviewOpen)
   const workspacePreset = useUiStore((s) => s.workspacePreset)
+  const editorSurface = useUiStore((s) => s.editorSurface)
   const setAiDockedLocation = useUiStore((s) => s.setAiDockedLocation)
   const float = usePanelFloat()
   const closeProject = useUiStore((s) => s.closeProject)
@@ -49,15 +51,25 @@ export const MenuBar = (): JSX.Element => {
   const undo = useUiStore((s) => s.undo)
   const redo = useUiStore((s) => s.redo)
 
-  /** 聚焦编辑器并触发 CodeMirror 内置查找(⌘F 由 searchKeymap 处理) */
+  /** 聚焦源码编辑器并触发 CodeMirror 内置查找 */
   const focusEditorAndSearch = (): void => {
-    const cm = document.querySelector<HTMLElement>('.cm-editor')
-    if (!cm) return
-    cm.focus()
-    const target = cm.querySelector<HTMLElement>('.cm-content') ?? cm
-    target.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true })
-    )
+    if (editorSurface !== 'source') {
+      useUiStore.getState().setEditorSurface('source')
+    }
+    requestAnimationFrame(() => {
+      const cm = document.querySelector<HTMLElement>('[data-testid="script-editor-cm-host"] .cm-editor')
+      if (!cm) return
+      cm.focus()
+      const target = cm.querySelector<HTMLElement>('.cm-content') ?? cm
+      target.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true })
+      )
+    })
+  }
+
+  const runPreview = (): void => {
+    applyWorkspacePreset('review')
+    setPreviewOpen(true)
   }
 
   const groups: MenuGroup[] = [
@@ -88,9 +100,9 @@ export const MenuBar = (): JSX.Element => {
       label: 'View',
       icon: Eye,
       items: [
-        { label: '工作区: 写作', onClick: () => setWorkspacePreset('writing' as WorkspacePresetId), active: workspacePreset === 'writing' },
-        { label: '工作区: 流程', onClick: () => setWorkspacePreset('flow' as WorkspacePresetId), active: workspacePreset === 'flow' },
-        { label: '工作区: 评审', onClick: () => setWorkspacePreset('review' as WorkspacePresetId), active: workspacePreset === 'review', separatorAfter: true },
+        { label: '工作区: 写作', onClick: () => applyWorkspacePreset('writing'), active: workspacePreset === 'writing' },
+        { label: '工作区: 流程', onClick: () => applyWorkspacePreset('flow'), active: workspacePreset === 'flow' },
+        { label: '工作区: 评审', onClick: () => applyWorkspacePreset('review'), active: workspacePreset === 'review', separatorAfter: true },
         { label: '项目 Tool Window', shortcut: '⌘1', onClick: toggleLeftPanel },
         { label: 'AI Tool Window', onClick: toggleAiPanel, separatorAfter: true },
         { label: 'AI 移到右侧', onClick: () => setAiDockedLocation('right') },
@@ -103,7 +115,7 @@ export const MenuBar = (): JSX.Element => {
       label: 'Run',
       icon: Wrench,
       items: [
-        { label: '运行预览', shortcut: 'F5', onClick: () => setWorkspacePreset('review' as WorkspacePresetId) },
+        { label: '运行预览', shortcut: 'F5', onClick: runPreview },
         { label: '导出 Web', onClick: openExportDialog }
       ]
     },
