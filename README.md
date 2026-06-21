@@ -146,7 +146,7 @@ pnpm build:linux  # Linux
 
 ### 已知限制
 
-- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink / Electron-desktop ⏳(stub,UI 标注"即将支持")
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink ✅ / Electron-desktop ⏳(stub,UI 标注"即将支持")
 - 多窗口 IPC sync:export progress 按发送者路由,其他 IPC 暂用 default focused window
 - e2e 测试需本地有 GUI 环境跑
 

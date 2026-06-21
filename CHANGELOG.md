@@ -22,6 +22,12 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 - **表达式发射** — `expression-to-renpy.ts` 将 gal Expression 转为 Ren'Py Python 子集(True/False、and/or/not、比较)
 - **ExportDialog** — Ren'Py 目标已启用(移出 stub 列表)
 
+### 新增 — Ink 导出
+
+- **InkComposer** — gal AST → 单文件 `story.ink`; knot 映射 scene/marker; VAR 块 + 条件块 + 门控选项
+- **表达式发射** — `expression-to-ink.ts` 将 gal Expression 转为 Ink 逻辑子集(&&/||/not、比较、true/false)
+- **ExportDialog** — Ink 目标已启用(移出 stub 列表)
+
 ## [0.5.0] - 2026-06-21
 
 ### 新增 — 预览保真度 Preview Fidelity (Phases 1–3)
@@ -131,7 +137,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 已知限制
 
-- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink / Electron-desktop ⏳(stub)
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink ✅ / Electron-desktop ⏳(stub)
 - 多窗口 IPC sync 仅 export progress 按发送者路由
 - e2e 测试需本地 GUI 环境跑
 

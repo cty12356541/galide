@@ -14,11 +14,11 @@ import { Input } from '../../components/ui/input'
 /**
  * P0-10 修复(2026-06-15): STUB_TARGETS 标识 — 老 button-clickability.test.ts
  * (P2 #7) 断言 startExport 按钮在 stub target 下应 disabled 并显示 tooltip。
- * in-flight 之前 T2 review P0-9 已记录 3 个 stub composer (renpy/ink/electron-desktop)
+ * in-flight 之前 T2 review P0-9 已记录 stub composer (electron-desktop)
  * 假实现 → 0 字节输出,UI 需明确提示用户。
  */
 const STUB_TARGETS: ReadonlySet<ExportPreferences['defaultTarget']> = new Set([
-  'ink', 'electron-desktop'
+  'electron-desktop'
 ])
 
 /** 当前选中的 target 是否是 stub(给按钮 title 用) */

@@ -1,12 +1,11 @@
 /**
  * Stub Composer 拒绝语义测试(功能即岛后续批次)
  *
- * 验证:ink / electron-desktop 两个 stub composer 的 emit
+ * 验证:electron-desktop stub composer 的 emit
  * 抛 ExportError('NOT_IMPLEMENTED'),且 code 端到端可提取
  * (export-handlers catch 据此透传给前端)。
  */
 import { describe, it, expect } from 'vitest'
-import { InkComposer } from './ink-composer.js'
 import { ElectronDesktopComposer } from './electron-desktop-composer.js'
 import { ExportError, runComposer } from './composer.js'
 import type { ExportContext, AstEntry } from './composer.js'
@@ -16,7 +15,7 @@ const emptyCtx: ExportContext = {
   request: {
     projectPath: '/p',
     outputPath: '/tmp/out',
-    target: 'ink'
+    target: 'electron-desktop'
   },
   asts: [] as readonly AstEntry[],
   outputDir: '/tmp/out',
@@ -24,15 +23,16 @@ const emptyCtx: ExportContext = {
 } as unknown as ExportContext
 
 const stubScript: ScriptNode = {
-  type: 'program',
-  body: []
-} as unknown as ScriptNode
+  type: 'script',
+  line: 1,
+  column: 1,
+  children: [],
+  errors: []
+}
 
 describe('stub composer 拒绝语义', () => {
-  it.each([
-    ['ink', new InkComposer()],
-    ['electron-desktop', new ElectronDesktopComposer()]
-  ])('%s 的 emit 抛 ExportError(NOT_IMPLEMENTED)', (_name, composer) => {
+  it('electron-desktop 的 emit 抛 ExportError(NOT_IMPLEMENTED)', () => {
+    const composer = new ElectronDesktopComposer()
     expect(() => composer.emit(null, emptyCtx)).toThrow(ExportError)
     try {
       composer.emit(null, emptyCtx)
@@ -43,9 +43,9 @@ describe('stub composer 拒绝语义', () => {
   })
 
   it('runComposer 对 stub composer 透传 NOT_IMPLEMENTED(端到端)', async () => {
-    const composer = new InkComposer()
+    const composer = new ElectronDesktopComposer()
     const ctx: ExportContext = {
-      request: { projectPath: '/p', outputPath: '/tmp/out', target: 'ink' },
+      request: { projectPath: '/p', outputPath: '/tmp/out', target: 'electron-desktop' },
       asts: [{ file: 'a.gal', ast: stubScript }] as readonly AstEntry[],
       outputDir: '/tmp/out',
       progress: () => undefined
