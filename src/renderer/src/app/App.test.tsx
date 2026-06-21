@@ -6,6 +6,8 @@
  */
 import { describe, expect, it, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
 import { StatusBar } from './StatusBar'
@@ -70,8 +72,23 @@ describe('Toolbar', () => {
 })
 
 describe('StatusBar', () => {
+  const wrapStatusBar = (): ReactNode => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return (
+      <QueryClientProvider client={client}>
+        <StatusBar />
+      </QueryClientProvider>
+    )
+  }
+
+  beforeEach(() => {
+    (window as unknown as { galide: unknown }).galide = {
+      git: { status: () => Promise.resolve({ initialized: true, current: 'main', files: [] }) }
+    }
+  })
+
   it('渲染 6 区块(git/错误/消息/缩放/AI/preset toggle)', () => {
-    render(<StatusBar />)
+    render(wrapStatusBar())
     const sb = screen.getByTestId('status-bar')
     const blocks = within(sb).getAllByRole('button')
     // 至少 5 个 button(精简版)
@@ -79,7 +96,7 @@ describe('StatusBar', () => {
   })
 
   it('AI 状态按钮 toggle', () => {
-    render(<StatusBar />)
+    render(wrapStatusBar())
     fireEvent.click(screen.getByTestId('status-ai-toggle'))
     expect(useUiStore.getState().visiblePerSide.right).toBeNull()
   })
