@@ -23,6 +23,7 @@ import { createBroadcastingWriteFile } from '../../ipc/script-broadcast.js'
 import { parse } from '../../../shared/dsl/parser.js'
 import type { AiProvider } from '../types.js'
 import type { ToolDispatch } from './types.js'
+import { resolveActiveGalFile } from './resolve-active-gal.js'
 
 export type AgentTaskStatus = 'pending' | 'running' | 'done' | 'error' | 'cancelled'
 
@@ -30,6 +31,7 @@ export interface AgentStartRequest {
   goal: string
   projectPath: string
   selectedSceneId?: string | null
+  activeScriptFile?: string | null
   provider?: AiProvider
   model?: string
   baseUrl?: string
@@ -87,12 +89,15 @@ const createDispatch = (sender: WebContents): ToolDispatch => {
   }
 }
 
-const readPrimaryGal = async (projectPath: string): Promise<string | null> => {
+const readGalScript = async (
+  projectPath: string,
+  activeScriptFile?: string | null
+): Promise<string | null> => {
   try {
-    const files = (await fs.readdir(projectPath)).filter((f) => f.endsWith('.gal')).sort()
-    const first = files[0]
-    if (!first) return null
-    return await fs.readFile(join(projectPath, first), 'utf-8')
+    const files = (await fs.readdir(projectPath)).filter((f) => f.endsWith('.gal'))
+    const target = resolveActiveGalFile(activeScriptFile, files)
+    if (!target) return null
+    return await fs.readFile(join(projectPath, target), 'utf-8')
   } catch {
     return null
   }
@@ -237,7 +242,7 @@ const drain = async (): Promise<void> => {
             sendStep(item.sender, item.taskId, step)
           },
           loadScriptAst: async () => {
-            const src = await readPrimaryGal(item.req.projectPath)
+            const src = await readGalScript(item.req.projectPath, item.req.activeScriptFile)
             if (!src) return null
             const parsed = parse(src)
             return parsed.ok ? parsed.value : null

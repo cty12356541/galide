@@ -366,6 +366,7 @@ export const AgentStartSchema = z.object({
   goal: z.string().min(1),
   projectPath: z.string().min(1),
   selectedSceneId: z.string().nullable().optional(),
+  activeScriptFile: z.string().nullable().optional(),
   provider: z.enum(['openai', 'claude', 'ollama']).optional(),
   model: z.string().optional(),
   baseUrl: z.string().optional()

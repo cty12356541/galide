@@ -173,6 +173,7 @@ const api = {
         goal: string
         projectPath: string
         selectedSceneId?: string | null
+        activeScriptFile?: string | null
         provider?: string
         model?: string
         baseUrl?: string

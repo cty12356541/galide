@@ -32,6 +32,7 @@ export const useAgent = () => {
         goal: string
         projectPath: string
         selectedSceneId?: string | null
+        activeScriptFile?: string | null
         provider?: AiProvider
         model?: string
         baseUrl?: string
