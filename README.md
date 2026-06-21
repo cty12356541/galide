@@ -104,10 +104,10 @@ pnpm build:linux  # Linux
 - **Tool Registry** — list_scenes / read_script / add_dialogue / analyze_reachability / generate_sprite / dispatch_command 等
 - **Agent 面板** — 步骤流、计划预览、destructive 确认、autonomy + topology 偏好
 
-### 多模态(部分)
+### 多模态
 
-- **语音** — Edge TTS(免费),VoicePreferences 驱动 voiceId 映射
-- **立绘** — image-proxy 支持 SD WebUI / DALL-E / ComfyUI 占位;角色 sdPrompt 与 sprite 路径分离
+- **语音** — Edge TTS(免费,默认) + ElevenLabs REST(VoicePreferences / voiceConfig.voiceId;Key 走 key-store)
+- **立绘** — image-proxy 支持 SD WebUI / DALL-E / ComfyUI(完整 workflow 提交+轮询);角色 sdPrompt 与 sprite 路径分离
 
 ## v0.4 状态(2026-06-17)
 
@@ -146,6 +146,6 @@ pnpm build:linux  # Linux
 ```bash
 pnpm typecheck    # 0 error
 pnpm lint         # 0 error
-pnpm test         # 45 文件 / 360 测试
+pnpm test         # 45 文件 / 368 测试
 pnpm build        # 成功
 ```

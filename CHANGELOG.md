@@ -12,8 +12,8 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 - **Context Engine** — 角色表 + 场景索引 + 选中场景 + git diff,带 token 预算
 - **Tool Registry** — schema 校验 + risk/domain;只读/安全写剧本工具;多模态(generate_sprite/voice);`dispatch_command` 暴露 CommandId
 - **安全闸** — 任务前 git snapshot、失败 reset 回滚、destructive 工具 `ai:agent:confirm` 往返
-- **image-proxy** — SD / DALL-E / ComfyUI(mock HTTP 可测);CharacterCard.sdPrompt 独立于 spriteSet.path
-- **tts-proxy** — Edge TTS 真实实现(可注入 synthesize);读取 VoicePreferences
+- **image-proxy** — SD / DALL-E / ComfyUI(完整 workflow:提交+轮询 history+/view);CharacterCard.sdPrompt 独立于 spriteSet.path
+- **tts-proxy** — Edge TTS + ElevenLabs REST(可注入 fetchFn);读取 VoicePreferences 与 voiceConfig.voiceId
 - **Agent 模式 UI** — AiPanel 对话/Agent 双 tab;步骤流 + autonomy/topology 切换器
 
 ### IPC 协议
@@ -23,7 +23,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 测试
 
-- 45 个测试文件 / 360 个测试全过(agent-loop / gate / topology / image-proxy / tts-proxy / command-dispatcher 等)
+- 45 个测试文件 / 368 个测试全过(agent-loop / gate / topology / image-proxy / tts-proxy / command-dispatcher 等)
 
 ## [0.4.0] - 2026-06-17
 
