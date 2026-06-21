@@ -2,20 +2,13 @@
  * PreviewRuntime — PixiJS v8 预览运行时封装
  *
  * 规约依据: .style-spec/core/conventions.yaml:19 `game_runtime: "PixiJS v8"`
- * 职责: 把 PixiJS v8 的 Application 创建/销毁/场景更新封装成稳定 API,
- *      让上层 (PreviewCanvas.tsx) 只关心 React 生命周期。
- *
- * 设计原则:
- * 1. Pixi v8 强制要求 `await app.init({...})`(不要传构造选项)
- * 2. 只渲染背景(Sprite 加载 SceneNode.background 路径);对话气泡继续走 HTML overlay(字体加载不在本 worker 范围)
- * 3. 资源加载失败必须降级到背景色,绝不抛
- * 4. 单实例:一个 PreviewRuntime 对应一个 HTMLCanvasElement
+ * 职责: 背景 + 立绘层;对话气泡走 HTML overlay。
  */
 
 import { Application, Assets, Container, Sprite, Texture } from 'pixi.js'
 import type { SceneNode } from '../../../../shared/dsl/types'
-
 export type PreviewState = 'idle' | 'playing' | 'paused' | 'stopped'
+export type SpritePosition = 'left' | 'center' | 'right'
 
 export type PreviewOptions = {
   width?: number
@@ -24,15 +17,31 @@ export type PreviewOptions = {
   fallbackBackgroundColor?: number
 }
 
-/** 内部用:背景层与状态 */
 type RuntimeState = {
   app: Application
   backgroundLayer: Container
+  characterLayer: Container
   currentBackgroundUrl: string | null
+  currentSpriteKey: string | null
   state: PreviewState
 }
 
 const DEFAULT_BG_COLOR = 0x1a1a1a
+
+const positionX = (
+  position: SpritePosition,
+  spriteWidth: number,
+  stageWidth: number
+): number => {
+  switch (position) {
+    case 'left':
+      return stageWidth * 0.08
+    case 'right':
+      return stageWidth * 0.92 - spriteWidth
+    default:
+      return (stageWidth - spriteWidth) / 2
+  }
+}
 
 export const createPreviewRuntime = (options: PreviewOptions = {}) => {
   let state: RuntimeState | null = null
@@ -52,11 +61,15 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
       preference: 'webgl'
     })
     const backgroundLayer = new Container()
+    const characterLayer = new Container()
     app.stage.addChild(backgroundLayer)
+    app.stage.addChild(characterLayer)
     state = {
       app,
       backgroundLayer,
+      characterLayer,
       currentBackgroundUrl: null,
+      currentSpriteKey: null,
       state: 'idle'
     }
   }
@@ -67,10 +80,6 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
     state = null
   }
 
-  /**
-   * 加载背景图并替换背景层。
-   * 资源不可用时,降级到 fallback 背景色,不抛异常。
-   */
   const setBackground = async (url: string | undefined): Promise<void> => {
     if (!state) return
     const { app, backgroundLayer } = state
@@ -94,7 +103,6 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
       backgroundLayer.addChild(sprite)
       state.currentBackgroundUrl = url
     } catch (err) {
-      // P1-6 修复: 资源加载失败不再静默,留 warn 便于排错
       console.warn(`[galide preview] 背景图加载失败: ${url}`, err)
       app.renderer.background.color = options.fallbackBackgroundColor ?? DEFAULT_BG_COLOR
       state.currentBackgroundUrl = null
@@ -102,9 +110,34 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
   }
 
   /**
-   * 用 SceneNode 更新当前场景的视觉层。
-   * 当前只取 background;dialogue/sprite 由 React overlay 渲染。
+   * 更新立绘层。相同 sprite+position 不重复加载(VN 持久语义)。
+   * url 为空时清除立绘。
    */
+  const setCharacter = async (
+    url: string | undefined,
+    position: SpritePosition = 'center'
+  ): Promise<void> => {
+    if (!state) return
+    const key = url ? `${url}|${position}` : null
+    if (state.currentSpriteKey === key) return
+    state.characterLayer.removeChildren()
+    state.currentSpriteKey = key
+    if (!url) return
+    try {
+      const texture: Texture = await Assets.load({ src: url })
+      const sprite = new Sprite(texture)
+      const maxHeight = state.app.renderer.height * 0.85
+      const scale = Math.min(1, maxHeight / sprite.height)
+      sprite.scale = scale
+      sprite.x = positionX(position, sprite.width * scale, state.app.renderer.width)
+      sprite.y = state.app.renderer.height - sprite.height * scale
+      state.characterLayer.addChild(sprite)
+    } catch (err) {
+      console.warn(`[galide preview] 立绘加载失败: ${url}`, err)
+      state.currentSpriteKey = null
+    }
+  }
+
   const updateScene = (scene: SceneNode | null): Promise<void> => {
     if (!state) return Promise.resolve()
     if (!scene) {
@@ -131,8 +164,6 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
 
   const getApp = (): Application | null => state?.app ?? null
 
-  // P0-5 修复: 暴露订阅接口,React 端能正确响应播放/停止状态变化
-  // (原版用 runtimeRef.current.getState() 在 render 中读,变化不触发重渲染 → 图标永远不更新)
   const subscribers = new Set<(s: PreviewState) => void>()
   const notifySubscribers = (): void => {
     const current = getState()
@@ -140,7 +171,6 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
   }
   const subscribeState = (cb: (s: PreviewState) => void): (() => void) => {
     subscribers.add(cb)
-    // 立即同步当前状态
     cb(getState())
     return () => {
       subscribers.delete(cb)
@@ -151,6 +181,8 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
     mount,
     unmount,
     updateScene,
+    setBackground,
+    setCharacter,
     playScene,
     stopScene,
     isMounted,
