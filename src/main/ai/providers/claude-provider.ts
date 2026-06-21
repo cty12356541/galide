@@ -20,11 +20,16 @@ export const createClaudeProvider = (model = 'claude-3-5-sonnet-20241022') => {
       try {
         // 请求级 model 优先(req.model ?? 工厂默认)
         const useModel = req.model ?? model
+        // 多轮:有 req.messages 用它,否则退回单条 prompt
+        const turns =
+          req.messages && req.messages.length > 0
+            ? req.messages.map((m) => ({ role: m.role, content: m.content }))
+            : [{ role: 'user' as const, content: req.prompt }]
        const stream = await client.messages.stream({
          model: useModel,
          max_tokens: 2048,
          system: req.context,
-         messages: [{ role: 'user', content: req.prompt }],
+         messages: turns,
          ...(req.signal ? { signal: req.signal } : {})
        })
         for await (const event of stream) {

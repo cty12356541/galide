@@ -27,13 +27,18 @@ export const createOpenAIProvider = (model = 'gpt-4o-mini') => {
       // 工厂默认 model 仅在 req 没传时兜底
       const useModel = req.model ?? model
       const client = new OpenAI({ apiKey, baseURL })
+      // 多轮:有 req.messages 用它,否则退回单条 prompt(向后兼容)
+      const turns =
+        req.messages && req.messages.length > 0
+          ? req.messages.map((m) => ({ role: m.role, content: m.content }))
+          : [{ role: 'user' as const, content: req.prompt }]
       onChunk({ type: 'start' })
       try {
        const stream = await client.chat.completions.create({
          model: useModel,
          messages: [
            { role: 'system', content: req.context },
-           { role: 'user', content: req.prompt }
+           ...turns
          ],
           stream: true,
           ...(req.signal ? { signal: req.signal } : {})

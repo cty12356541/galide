@@ -13,7 +13,7 @@ import { DiagnosticsPanel } from './DiagnosticsPanel'
 import { AiInlineEdit } from './AiInlineEdit'
 import { galLanguage } from '../../lib/codemirror/gal-language'
 
-const defaultContent = `# 第一章:相遇
+const _defaultContent = `# 第一章:相遇
 
 ## 教室·午后
 背景: assets/backgrounds/classroom.png

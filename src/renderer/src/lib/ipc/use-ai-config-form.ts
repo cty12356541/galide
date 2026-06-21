@@ -154,10 +154,11 @@ export const useAiConfigForm = () => {
         taskIdRef.current = taskId
         setTestState({ phase: 'pending', text: '', error: null, taskId })
 
-        // 订阅流
+        // 订阅流 — 必须用 connTest 专用通道(main 端 connection-test.ts 在此发流),
+        // 不是共享的 ai:stream / ai:status(那是 AI 面板任务用的,connTest 永远收不到)
         return await new Promise<TestStreamState>((resolve) => {
           let resolved = false
-          const offStream = window.galide.ai.stream((chunk) => {
+          const offStream = window.galide.ai.connTestStream((chunk) => {
             if (chunk.taskId !== taskId) return
             setTestState((prev) => ({
               ...prev,
@@ -165,7 +166,7 @@ export const useAiConfigForm = () => {
               text: prev.text + chunk.delta
             }))
           })
-          const offStatus = window.galide.ai.onStatus((evt) => {
+          const offStatus = window.galide.ai.connTestStatus((evt) => {
             if (evt.taskId !== taskId) return
             offStream()
             offStatus()

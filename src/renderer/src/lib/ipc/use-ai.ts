@@ -5,12 +5,19 @@ export type AiProvider = 'openai' | 'claude' | 'ollama'
 
 export type AiTaskStatusValue = 'pending' | 'running' | 'done' | 'error'
 
+export type ChatMessage = {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export type AiGenerateRequest = {
   prompt: string
   context: string
   provider: AiProvider
   model?: string
   baseUrl?: string
+  /** 多轮对话历史(含本轮用户输入) */
+  messages?: ChatMessage[]
 }
 
 export type AiGenerateResponse = {

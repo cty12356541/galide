@@ -255,6 +255,9 @@ const drain = async (): Promise<void> => {
         }
       }, TASK_TIMEOUT_MS)
 
+      // provider 通过 onChunk 报错(非 throw)时置位,防止流正常返回后再补发 done
+      // —— error→done 竞态会把错误 UI 覆盖成成功,见 task-queue.test.ts
+      let errored = false
       try {
         await aiProxy.generate(record.request, (chunk) => {
           if (cancelRequested.has(record.taskId)) return
@@ -264,13 +267,11 @@ const drain = async (): Promise<void> => {
           }
           if (chunk.type === 'error' && chunk.error) {
             // 错误:把 buffer 残余先 flush,再发 status
+            errored = true
+            record.status = 'error'
+            record.error = `${chunk.error.code}: ${chunk.error.message}`
             flushStreamImmediate(record.sender, record.taskId)
-            sendStatus(
-              record.sender,
-              record.taskId,
-              'error',
-              `${chunk.error.code}: ${chunk.error.message}`
-            )
+            sendStatus(record.sender, record.taskId, 'error', record.error)
           }
         })
         // 流结束 — flush buffer 残余,renderer 端会看到完整 text
@@ -278,7 +279,10 @@ const drain = async (): Promise<void> => {
         // give a tiny yield so cancel() between chunks is observed promptly
         await sleep(0)
 
-        if (cancelRequested.has(record.taskId)) {
+        if (errored) {
+          // 已发 error 终态,不再补发 done(竞态修复)
+          cancelRequested.delete(record.taskId)
+        } else if (cancelRequested.has(record.taskId)) {
           cancelRequested.delete(record.taskId)
           record.status = 'error'
           record.error = 'cancelled'

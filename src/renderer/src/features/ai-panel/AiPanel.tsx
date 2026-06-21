@@ -9,6 +9,7 @@ import { AiShortcutToolbar } from './AiShortcutToolbar'
 import { AiMessageBubble } from './AiMessageBubble'
 import { useAiConfig, useAiProviders } from '../../lib/ipc/use-ai-task'
 import { useAi } from '../../lib/ipc/use-ai'
+import { toChatMessages } from './chat-history'
 
 type Provider = 'openai' | 'claude' | 'ollama'
 
@@ -162,6 +163,8 @@ export const AiPanel = (): JSX.Element => {
     if (!text.trim() || busy) return
     pinnedRef.current = true
     setShowJump(false)
+    // 多轮:用更新前的历史 + 本轮输入打包 messages[](provider 才有上下文记忆)
+    const chatMessages = toChatMessages(messages, text)
     const userId = crypto.randomUUID()
     setMessages((m) => [...m, { id: userId, role: 'user', text, streaming: false, taskId: null, status: null }])
     setInput('')
@@ -174,6 +177,7 @@ export const AiPanel = (): JSX.Element => {
       // 不传时 main 端会从 aiConfig 读 fallback
       const result = await ai.generate({
         prompt: text,
+        messages: chatMessages,
         context:
           '你是 Galide 的 AI 编剧助手,温柔、体贴、懂 galgame。\n' +
           '回复时按以下结构分段,段落之间用空行隔开(直接换行,不要写 \\n 字符):\n' +

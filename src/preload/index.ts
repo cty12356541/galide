@@ -108,6 +108,7 @@ const api = {
       provider: string
       model?: string
       baseUrl?: string
+      messages?: { role: 'user' | 'assistant'; content: string }[]
     }): Promise<{ taskId: string; status: 'pending' }> => ipcRenderer.invoke(IPC.ai.generate, req),
     cancel: (taskId: string): Promise<{ ok: boolean; cancelled: boolean }> =>
       ipcRenderer.invoke(IPC.ai.cancel, taskId),
@@ -150,7 +151,22 @@ const api = {
       model?: string
       baseUrl?: string
     }): Promise<{ taskId: string; status: 'pending' } | { ok: false; error: string }> =>
-      ipcRenderer.invoke(IPC.ai.connectionTest, req)
+      ipcRenderer.invoke(IPC.ai.connectionTest, req),
+    /** 连接测试专用流通道(独立于 AI 面板的 ai:stream,避免混入 listTasks) */
+    connTestStream: (callback: (chunk: { taskId: string; delta: string }) => void): (() => void) => {
+      const listener = (_e: unknown, chunk: { taskId: string; delta: string }): void => callback(chunk)
+      ipcRenderer.on(IPC.ai.connTest.stream, listener)
+      return () => ipcRenderer.removeListener(IPC.ai.connTest.stream, listener)
+    },
+    /** 连接测试专用状态通道 */
+    connTestStatus: (
+      callback: (status: { taskId: string; status: string; error?: string }) => void
+    ): (() => void) => {
+      const listener = (_e: unknown, status: { taskId: string; status: string; error?: string }): void =>
+        callback(status)
+      ipcRenderer.on(IPC.ai.connTest.status, listener)
+      return () => ipcRenderer.removeListener(IPC.ai.connTest.status, listener)
+    }
   },
   preferences: {
     get: <K extends string>(key: K): Promise<unknown> => ipcRenderer.invoke(IPC.preferences.get, key),

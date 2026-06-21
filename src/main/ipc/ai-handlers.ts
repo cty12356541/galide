@@ -4,7 +4,7 @@ import { aiProxy } from '../ai/ai-proxy.js'
 import { aiTaskQueue } from '../ai/task-queue.js'
 import { keyManager } from '../preferences/key-manager.js'
 import { startConnectionTest, type ConnectionTestRequest } from '../ai/connection-test.js'
-import type { AiProvider, AiProviderInfo } from '../ai/types.js'
+import type { AiProvider, AiProviderInfo, ChatMessage } from '../ai/types.js'
 
 const isAiProvider = (s: string): s is AiProvider => s === 'openai' || s === 'claude' || s === 'ollama'
 
@@ -14,6 +14,7 @@ type AiGenerateRequest = {
   provider: AiProvider
   model?: string
   baseUrl?: string
+  messages?: ChatMessage[]
 }
 
 type AiListTasksResult = {

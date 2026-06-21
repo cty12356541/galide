@@ -9,12 +9,17 @@ export const createOllamaProvider = (baseUrl = 'http://localhost:11434', model =
       try {
         // 请求级 model 优先(req.model ?? 工厂默认)
         const useModel = req.model ?? model
+        // 多轮:把历史扁平化进 prompt(ollama /api/generate 无原生 messages)
+        const history =
+          req.messages && req.messages.length > 0
+            ? req.messages.map((m) => `${m.role === 'user' ? '用户' : '助手'}: ${m.content}`).join('\n')
+            : req.prompt
        const response = await fetch(`${baseUrl}/api/generate`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
            model: useModel,
-           prompt: `${req.context}\n\n${req.prompt}`,
+           prompt: `${req.context}\n\n${history}`,
            stream: true
          }),
          ...(req.signal ? { signal: req.signal } : {})

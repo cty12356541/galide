@@ -1,10 +1,13 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAiStream } from '../../lib/ipc/use-ai'
 import { useUiStore } from '../../lib/store'
+import { getGalide } from '../../lib/ipc/galide-safe'
 import { Sparkles, ArrowRight, RefreshCw, Wand2, Languages, X, Check } from 'lucide-react'
 
 type AiAction = 'continue' | 'rewrite' | 'polish' | 'translate'
+
+type Provider = 'openai' | 'claude' | 'ollama'
 
 const ACTIONS: { id: AiAction; label: string; icon: typeof Sparkles }[] = [
   { id: 'continue', label: '续写', icon: ArrowRight },
@@ -23,7 +26,24 @@ export const AiInlineEdit = ({
   const [loading, setLoading] = useState<AiAction | null>(null)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  // provider 取自用户配置(不再硬编码 openai),getConfig 落地前兜底 openai
+  const [provider, setProvider] = useState<Provider>('openai')
   const stream = useAiStream(taskId)
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const cfg = await getGalide()?.ai.getConfig()
+        if (alive && cfg?.provider) setProvider(cfg.provider)
+      } catch {
+        // 读配置失败保持兜底 provider,不打断 UI
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const handleAction = async (action: AiAction): Promise<void> => {
     setLoading(action)
@@ -36,7 +56,7 @@ export const AiInlineEdit = ({
         context:
           '你是 galgame 剧本作家,延续文字游戏风格的自然对话。\n' +
           '输出格式:用空行 \\n\\n 分段(开场白 / 实际剧本 / 引导性提问)。',
-        provider: 'openai'
+        provider
       })
       // generate 立即返回 { taskId, status: 'pending' };实际文本由 useAiStream 订阅 ai:stream 累积
       if (response) setTaskId(response.taskId)
