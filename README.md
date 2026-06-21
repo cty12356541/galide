@@ -104,6 +104,14 @@ pnpm build:linux  # Linux
 - **Tool Registry** — list_scenes / read_script / add_dialogue / analyze_reachability / generate_sprite / dispatch_command 等
 - **Agent 面板** — 步骤流、计划预览、destructive 确认、autonomy + topology 偏好
 
+### 预览 (Preview Fidelity)
+
+- **有序播放** — 共享 `playback-timeline` 按 AST 文档序推进 dialogue / choice / goto / marker
+- **立绘层** — PixiJS 角色 sprite(left/center/right),VN 持久语义;资产经 `asset:resolve` IPC
+- **BGM** — 场景 BGM 播放 + crossfade;预览 chrome 音量/静音(不含语音/TTS)
+- **共享 VM** — `runtime-vm` 驱动编辑器预览与 Web 导出播放器;choice/goto 目标解析为场景或 marker
+- **已知限制** — `$variable`/条件分支 AST 尚未实装,VM 仅 scaffold `variables` 字段
+
 ### 多模态
 
 - **语音** — Edge TTS(免费,默认) + ElevenLabs REST(VoicePreferences / voiceConfig.voiceId;Key 走 key-store)
@@ -146,6 +154,6 @@ pnpm build:linux  # Linux
 ```bash
 pnpm typecheck    # 0 error
 pnpm lint         # 0 error
-pnpm test         # 45 文件 / 368 测试
+pnpm test         # 59 文件 / 426 测试
 pnpm build        # 成功
 ```
