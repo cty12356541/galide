@@ -1,20 +1,13 @@
 /**
  * EditorCore — 编辑核心区布局(方案 B)
  *
- * 左一右二(右上下):对话卡片 | (场景轨 / 剧情决策树)
- *   - 左:BeatCardEditor 对话卡片(主写作区,占大)
- *   - 右上:SceneRail 场景轨(索引枢纽)
- *   - 右下:FlowView 剧情决策树(结构图)
- * 对话卡(左主区)占大头;场景轨与决策树(右列)初始偏小。
- * 三者共享 store.scriptAst 单一真相源 + selectedSceneId 协同选中。
- *
- * 预览 PreviewCanvas 作为可折叠底栏(默认收起);各视图仍可浮出独立窗。
- * 用 react-resizable-panels(与 CenterSplit 同栈),动态 Panel 带 stable id + order。
+ * 左一右二(右上下):主编辑面(卡片/源码 tabs) | (场景轨 / 剧情决策树)
+ * 预览 PreviewCanvas 作为可折叠底栏;分栏比例读 store.editorCoreLayout(B2)。
  */
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Eye, EyeOff } from 'lucide-react'
 import { SceneRail } from './SceneRail'
-import { BeatCardEditor } from '../../features/beat-editor/BeatCardEditor'
+import { EditorSurfaceTabs } from './EditorSurfaceTabs'
 import { FlowView } from '../../features/flow-view/FlowView'
 import { PreviewCanvas } from '../../features/preview/PreviewCanvas'
 import { useUiStore } from '../../lib/store'
@@ -25,21 +18,49 @@ const handleV = 'h-1.5 rounded-full bg-border hover:bg-accent transition-colors 
 export const EditorCore = (): JSX.Element => {
   const previewOpen = useUiStore((s) => s.previewOpen)
   const setPreviewOpen = useUiStore((s) => s.setPreviewOpen)
+  const layout = useUiStore((s) => s.editorCoreLayout)
+  const workspacePreset = useUiStore((s) => s.workspacePreset)
+  const setEditorCoreLayout = useUiStore((s) => s.setEditorCoreLayout)
 
-  /** 左一右二核心行:对话卡 | (场景轨 / 决策树 上下) */
+  const patchCenterHorizontal = (sizes: number[]): void => {
+    if (sizes.length < 2) return
+    setEditorCoreLayout({ beat: sizes[0], right: sizes[1] })
+  }
+
+  const patchRightVertical = (sizes: number[]): void => {
+    if (sizes.length < 2) return
+    setEditorCoreLayout({ sceneRail: sizes[0], flow: sizes[1] })
+  }
+
+  const patchPreviewVertical = (sizes: number[]): void => {
+    if (sizes.length < 2) return
+    setEditorCoreLayout({ centerRow: sizes[0], preview: sizes[1] })
+  }
+
+  /** 左一右二核心行:主编辑面 | (场景轨 / 决策树 上下) */
   const CenterRow = (): JSX.Element => (
-    <PanelGroup direction="horizontal" className="h-full">
-      <Panel id="ec-beat-editor" order={1} defaultSize={68} minSize={40}>
-        <BeatCardEditor />
+    <PanelGroup
+      direction="horizontal"
+      className="h-full"
+      key={`ec-h-${workspacePreset}-${layout.beat}-${layout.right}`}
+      onLayout={patchCenterHorizontal}
+    >
+      <Panel id="ec-beat-editor" order={1} defaultSize={layout.beat} minSize={40}>
+        <EditorSurfaceTabs />
       </Panel>
       <PanelResizeHandle className={handleH} />
-      <Panel id="ec-right" order={2} defaultSize={32} minSize={20} maxSize={50}>
-        <PanelGroup direction="vertical" className="h-full">
-          <Panel id="ec-scene-rail" order={1} defaultSize={40} minSize={20} maxSize={70}>
+      <Panel id="ec-right" order={2} defaultSize={layout.right} minSize={20} maxSize={50}>
+        <PanelGroup
+          direction="vertical"
+          className="h-full"
+          key={`ec-v-${workspacePreset}-${layout.sceneRail}-${layout.flow}`}
+          onLayout={patchRightVertical}
+        >
+          <Panel id="ec-scene-rail" order={1} defaultSize={layout.sceneRail} minSize={20} maxSize={70}>
             <SceneRail />
           </Panel>
           <PanelResizeHandle className={handleV} />
-          <Panel id="ec-flow-view" order={2} defaultSize={60} minSize={20} maxSize={80}>
+          <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={20} maxSize={80}>
             <FlowView />
           </Panel>
         </PanelGroup>
@@ -50,12 +71,17 @@ export const EditorCore = (): JSX.Element => {
   return (
     <div className="relative h-full w-full">
       {previewOpen ? (
-        <PanelGroup direction="vertical" className="h-full">
-          <Panel id="ec-center-row" order={1} defaultSize={68} minSize={30}>
+        <PanelGroup
+          direction="vertical"
+          className="h-full"
+          key={`ec-pv-${workspacePreset}-${layout.centerRow}-${layout.preview}`}
+          onLayout={patchPreviewVertical}
+        >
+          <Panel id="ec-center-row" order={1} defaultSize={layout.centerRow} minSize={30}>
             <CenterRow />
           </Panel>
           <PanelResizeHandle className={handleV} />
-          <Panel id="ec-preview" order={2} defaultSize={32} minSize={15} maxSize={70}>
+          <Panel id="ec-preview" order={2} defaultSize={layout.preview} minSize={15} maxSize={70}>
             <PreviewCanvas />
           </Panel>
         </PanelGroup>

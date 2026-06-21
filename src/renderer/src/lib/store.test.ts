@@ -243,6 +243,58 @@ describe('useUiStore — P4 卡片撤销 + 多 tab', () => {
   })
 })
 
+describe('useUiStore — B2 workspace presets', () => {
+  beforeEach(() => {
+    useUiStore.setState({
+      workspacePreset: 'writing',
+      layoutsByPreset: {},
+      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
+      visiblePerSide: { left: 'project', right: 'ai', bottom: null },
+      activeSubIsland: {
+        project: 'scripts',
+        git: 'git',
+        outline: 'outline',
+        character: 'profiles',
+        ai: 'ai'
+      },
+      editorCoreLayout: {
+        beat: 72,
+        right: 28,
+        sceneRail: 35,
+        flow: 65,
+        centerRow: 100,
+        preview: 32
+      },
+      previewOpen: false
+    })
+  })
+
+  it('applyWorkspacePreset 应用 declarative 默认(流程 → outline 左)', () => {
+    useUiStore.getState().applyWorkspacePreset('flow')
+    expect(useUiStore.getState().workspacePreset).toBe('flow')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('outline')
+    expect(useUiStore.getState().visiblePerSide.right).toBeNull()
+    expect(useUiStore.getState().previewOpen).toBe(false)
+  })
+
+  it('applyWorkspacePreset 快照往返:定制写作布局切走再切回', () => {
+    useUiStore.getState().showToolWindow('git')
+    useUiStore.getState().setEditorCoreLayout({ beat: 80, right: 20 })
+    useUiStore.getState().applyWorkspacePreset('flow')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('outline')
+    useUiStore.getState().applyWorkspacePreset('writing')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('git')
+    expect(useUiStore.getState().editorCoreLayout.beat).toBe(80)
+  })
+
+  it('评审预设打开预览且 AI 在底栏', () => {
+    useUiStore.getState().applyWorkspacePreset('review')
+    expect(useUiStore.getState().previewOpen).toBe(true)
+    expect(useUiStore.getState().visiblePerSide.bottom).toBe('ai')
+    expect(useUiStore.getState().dockSide.ai).toBe('bottom')
+  })
+})
+
 describe('useErrorStore — P1 兼容输入', () => {
   beforeEach(() => {
     useErrorStore.setState({ entries: [] })

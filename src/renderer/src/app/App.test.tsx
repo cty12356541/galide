@@ -50,7 +50,7 @@ describe('MenuBar', () => {
   })
 
   it('切换 preset 反映到 label', () => {
-    useUiStore.getState().setWorkspacePreset('flow')
+    useUiStore.getState().applyWorkspacePreset('flow')
     render(<MenuBar />)
     expect(screen.getByTestId('workspace-preset-label').textContent).toContain('流程')
   })

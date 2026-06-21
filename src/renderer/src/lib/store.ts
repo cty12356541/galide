@@ -29,24 +29,20 @@ import type {
   SlotContent
 } from '../components/workspace/mosaic/panel-registry'
 
-export type WorkspacePresetId = 'writing' | 'flow' | 'review'
+import {
+  WORKSPACE_PRESET_DEFAULTS,
+  DEFAULT_EDITOR_CORE_LAYOUT,
+  captureWorkspaceSnapshot,
+  type WorkspacePresetId,
+  type EditorCoreLayout,
+  type LayoutsByPreset
+} from './workspace-presets'
+
+export type { WorkspacePresetId, EditorCoreLayout, LayoutsByPreset }
 
 type Theme = 'light' | 'dark'
 
-/** 老 EditorLayout 字段(保留兼容,后续可弃用) */
-type EditorLayout = {
-  sidebar: number
-  editor: number
-  flow: number
-  preview: number
-}
-
-const defaultLayout: EditorLayout = {
-  sidebar: 18,
-  editor: 46,
-  flow: 18,
-  preview: 18
-}
+export type EditorSurface = 'cards' | 'source'
 
 /** P4:卡片撤销历史栈上限(按文件有界) */
 const MAX_HISTORY = 50
@@ -78,6 +74,10 @@ type UiState = {
 
   // workspace(功能即岛 v2:dock 模型)
   workspacePreset: WorkspacePresetId
+  /** B2:各预设的用户定制快照(全局,非 per-project) */
+  layoutsByPreset: LayoutsByPreset
+  /** C1:主编辑面 — 卡片 vs 源码 */
+  editorSurface: EditorSurface
   dockSide: Record<ToolWindowId, DockSide>
   visiblePerSide: VisiblePerSide
   activeSubIsland: Record<ToolWindowId, SubIslandId>
@@ -90,6 +90,8 @@ type UiState = {
  scriptDirty: boolean
  /** P2a:预览面板开关(F5/菜单/dispatcher 统一切换,原为 EditorCore 本地态) */
  previewOpen: boolean
+ /** B2:EditorCore react-resizable-panels 分栏比例 */
+ editorCoreLayout: EditorCoreLayout
  /** 诊断点击跳转:ScriptEditor 消费后清空 */
  scriptEditorScrollTarget: { line: number; column: number } | null
 
@@ -98,9 +100,6 @@ type UiState = {
  fileCache: Record<string, FileCacheEntry>
  scriptPast: string[]
  scriptFuture: string[]
-
- // editor layout (保留兼容)
- layout: EditorLayout
 
   // UI state
   theme: Theme
@@ -122,7 +121,12 @@ type UiState = {
   // actions
   setProject: (projectPath: string, manifest: ProjectManifest) => void
   setActiveScript: (fileName: string | null) => void
+  /** B2:应用预设(快照 outgoing + 恢复 target) */
+  applyWorkspacePreset: (preset: WorkspacePresetId) => void
+  /** @deprecated 请用 applyWorkspacePreset */
   setWorkspacePreset: (preset: WorkspacePresetId) => void
+  setEditorCoreLayout: (layout: Partial<EditorCoreLayout>) => void
+  setEditorSurface: (surface: EditorSurface) => void
   setDockSide: (tw: ToolWindowId, side: DockSide) => void
   showToolWindow: (tw: ToolWindowId) => void
   hideToolWindow: (tw: ToolWindowId) => void
@@ -154,7 +158,10 @@ type UiState = {
  closeScriptFile: (fileName: string) => void
  addFloatingPanel: (panel: FloatingId) => void
   removeFloatingPanel: (panel: FloatingId) => void
-  setLayout: (layout: Partial<EditorLayout>) => void
+  /** C1:切换编辑面前先 flush 卡片待存(由 EditorSurfaceTabs 调用) */
+  flushPendingScriptSave: () => Promise<void>
+  /** C1:注册 flush 实现(由 useScriptSave 挂载) */
+  registerScriptSaveFlush: (fn: (() => Promise<void>) | null) => void
   setRecentProjects: (recent: RecentProject[]) => void
   setTheme: (theme: Theme) => void
   setSelectedNode: (node: SelectedNode) => void
@@ -212,12 +219,17 @@ const parseToDoc = (
   return { scriptSource: text, scriptAst: result.value, scriptDiagnostics: result.value.errors }
 }
 
+/** C1:useScriptSave 注册的即时 flush(切换 tab 前清 debounce) */
+let scriptSaveFlushImpl: (() => Promise<void>) | null = null
+
 export const useUiStore = create<UiState>((set, get) => ({
   projectPath: null,
   projectName: null,
   manifest: null,
   activeScriptFile: 'chapter1.gal',
   workspacePreset: 'writing',
+  layoutsByPreset: {},
+  editorSurface: 'cards',
   dockSide: { ...DEFAULT_DOCK_SIDE },
   visiblePerSide: { ...DEFAULT_VISIBLE },
   activeSubIsland: { ...DEFAULT_ACTIVE_SUB },
@@ -228,12 +240,12 @@ export const useUiStore = create<UiState>((set, get) => ({
  scriptDiagnostics: [],
  scriptDirty: false,
  previewOpen: false,
+ editorCoreLayout: { ...DEFAULT_EDITOR_CORE_LAYOUT },
  scriptEditorScrollTarget: null,
  openFiles: [],
  fileCache: {},
  scriptPast: [],
  scriptFuture: [],
- layout: defaultLayout,
   recentProjects: [],
   theme: 'light',
   selectedNode: null,
@@ -247,7 +259,7 @@ export const useUiStore = create<UiState>((set, get) => ({
  shortcutRecording: false,
  resolvedShortcuts: {},
 
-setProject: (projectPath, manifest) =>
+setProject: (projectPath, manifest) => {
     // 切项目时清空旧项目的打开文件缓存(文件名可能跨项目撞名,避免脏恢复)
     set({
       projectPath,
@@ -257,7 +269,10 @@ setProject: (projectPath, manifest) =>
       fileCache: {},
       scriptPast: [],
       scriptFuture: []
-    }),
+    })
+    // B2:打开项目时恢复全局上次预设布局
+    get().applyWorkspacePreset(get().workspacePreset)
+  },
   setActiveScript: (fileName) => {
     // null = 无文件可显(全部关闭):重置脚本态
     if (fileName === null) {
@@ -318,7 +333,37 @@ setProject: (projectPath, manifest) =>
       })
     }
   },
-  setWorkspacePreset: (preset) => set({ workspacePreset: preset }),
+  applyWorkspacePreset: (preset) => {
+    const s = get()
+    const prev = s.workspacePreset
+    const layoutsByPreset = { ...s.layoutsByPreset }
+    layoutsByPreset[prev] = captureWorkspaceSnapshot(s)
+    const snapshot = layoutsByPreset[preset] ?? WORKSPACE_PRESET_DEFAULTS[preset]
+    set({
+      workspacePreset: preset,
+      layoutsByPreset,
+      visiblePerSide: { ...snapshot.visiblePerSide },
+      activeSubIsland: { ...snapshot.activeSubIsland },
+      dockSide: { ...snapshot.dockSide },
+      editorCoreLayout: { ...snapshot.editorCoreLayout },
+      previewOpen: snapshot.previewOpen
+    })
+  },
+
+  setWorkspacePreset: (preset) => get().applyWorkspacePreset(preset),
+
+  setEditorCoreLayout: (layout) =>
+    set((s) => ({ editorCoreLayout: { ...s.editorCoreLayout, ...layout } })),
+
+  setEditorSurface: (surface) => set({ editorSurface: surface }),
+
+  registerScriptSaveFlush: (fn) => {
+    scriptSaveFlushImpl = fn
+  },
+
+  flushPendingScriptSave: async () => {
+    if (scriptSaveFlushImpl) await scriptSaveFlushImpl()
+  },
 
   setDockSide: (tw, side) =>
     set((s) => {
@@ -502,7 +547,6 @@ setProject: (projectPath, manifest) =>
       })
     }
   },
-  setLayout: (layout) => set((s) => ({ layout: { ...s.layout, ...layout } })),
   setRecentProjects: (recent) => set({ recentProjects: recent }),
   setTheme: (theme) => {
     set({ theme })

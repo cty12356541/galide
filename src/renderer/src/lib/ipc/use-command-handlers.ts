@@ -28,7 +28,10 @@ export const useCommandHandlers = (): void => {
       showCharacter: () => useUiStore.getState().showToolWindow('character'),
       showAi: () => useUiStore.getState().showToolWindow('ai'),
       toggleAi: () => useUiStore.getState().toggleAiPanel(),
-      togglePreview: () => useUiStore.getState().setPreviewOpen(!useUiStore.getState().previewOpen),
+      togglePreview: () => {
+        useUiStore.getState().applyWorkspacePreset('review')
+        useUiStore.getState().setPreviewOpen(true)
+      },
       undo: () => useUiStore.getState().undo(),
       redo: () => useUiStore.getState().redo()
     })
