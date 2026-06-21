@@ -1,10 +1,16 @@
 import type {
   AstNode,
   ChoiceNode,
+  ChoiceOption,
   DialogueNode,
+  Expression,
   GotoNode,
+  IfBranchKind,
+  IfNode,
   MarkerNode,
-  SceneNode
+  SceneNode,
+  SetNode,
+  SetOp
 } from '../dsl/types'
 
 export interface PlaybackDialogueStep {
@@ -15,9 +21,15 @@ export interface PlaybackDialogueStep {
   position?: 'left' | 'right' | 'center'
 }
 
+export interface PlaybackChoiceOption {
+  text: string
+  target: string
+  condition?: Expression
+}
+
 export interface PlaybackChoiceStep {
   type: 'choice'
-  options: { text: string; target: string }[]
+  options: PlaybackChoiceOption[]
 }
 
 export interface PlaybackGotoStep {
@@ -30,31 +42,57 @@ export interface PlaybackMarkerStep {
   id: string
 }
 
+export interface PlaybackSetStep {
+  type: 'set'
+  name: string
+  op: SetOp
+  value: Expression
+}
+
+export interface PlaybackIfBranch {
+  kind: IfBranchKind
+  condition?: Expression
+  steps: PlaybackStep[]
+}
+
+export interface PlaybackIfStep {
+  type: 'if'
+  branches: PlaybackIfBranch[]
+}
+
 export type PlaybackStep =
   | PlaybackDialogueStep
   | PlaybackChoiceStep
   | PlaybackGotoStep
   | PlaybackMarkerStep
+  | PlaybackSetStep
+  | PlaybackIfStep
 
-/** Walk scene.children in document order (mirrors BeatCardEditor groupBeats sequencing). */
-export const buildPlaybackTimeline = (scene: SceneNode): PlaybackStep[] => {
+const buildStepsFromNodes = (nodes: AstNode[]): PlaybackStep[] => {
   const steps: PlaybackStep[] = []
   let i = 0
-  while (i < scene.children.length) {
-    const node = scene.children[i]
+  while (i < nodes.length) {
+    const node = nodes[i]
     if (!node) {
       i++
       continue
     }
     if (node.type === 'choice') {
       const group: ChoiceNode[] = []
-      while (i < scene.children.length && scene.children[i]?.type === 'choice') {
-        const c = scene.children[i]
+      while (i < nodes.length && nodes[i]?.type === 'choice') {
+        const c = nodes[i]
         if (c?.type === 'choice') group.push(c)
         i++
       }
       for (const c of group) {
-        steps.push({ type: 'choice', options: c.options })
+        steps.push({
+          type: 'choice',
+          options: c.options.map((o: ChoiceOption) => ({
+            text: o.text,
+            target: o.target,
+            ...(o.condition !== undefined ? { condition: o.condition } : {})
+          }))
+        })
       }
       continue
     }
@@ -63,6 +101,10 @@ export const buildPlaybackTimeline = (scene: SceneNode): PlaybackStep[] => {
   }
   return steps
 }
+
+/** Walk scene.children in document order (mirrors BeatCardEditor groupBeats sequencing). */
+export const buildPlaybackTimeline = (scene: SceneNode): PlaybackStep[] =>
+  buildStepsFromNodes(scene.children)
 
 const appendNodeStep = (node: AstNode, steps: PlaybackStep[]): void => {
   switch (node.type) {
@@ -77,6 +119,23 @@ const appendNodeStep = (node: AstNode, steps: PlaybackStep[]): void => {
           ...(d.position !== undefined ? { position: d.position } : {})
         })
       }
+      break
+    }
+    case 'set': {
+      const s = node as SetNode
+      steps.push({ type: 'set', name: s.name, op: s.op, value: s.value })
+      break
+    }
+    case 'if': {
+      const n = node as IfNode
+      steps.push({
+        type: 'if',
+        branches: n.branches.map((b) => ({
+          kind: b.kind,
+          ...(b.condition !== undefined ? { condition: b.condition } : {}),
+          steps: buildStepsFromNodes(b.children)
+        }))
+      })
       break
     }
     case 'goto':

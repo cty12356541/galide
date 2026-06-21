@@ -22,6 +22,8 @@ import {
   buildVmGraph,
   createVmState,
   jumpToTarget,
+  getCurrentStep,
+  advanceVm,
   buildPlayerRuntimeFunctions
 } from '../../shared/preview/runtime-vm.js'
 
@@ -177,5 +179,55 @@ describe('WebComposer (Batch 3)', () => {
     ) => ReturnType<typeof jumpToTarget>
     const browserResult = browserJump(graph, state)
     expect(browserResult).toEqual(tsJump)
+  })
+
+  it('VM graph matches inline player variable/if semantics', () => {
+    const ast = makeAst([
+      makeScene('s1', [
+        {
+          ...base(1),
+          type: 'set',
+          name: 'affinity',
+          op: 'set',
+          value: { kind: 'literal', value: 15 }
+        },
+        {
+          ...base(1),
+          type: 'if',
+          branches: [
+            {
+              kind: 'if',
+              condition: {
+                kind: 'binary',
+                op: 'ge',
+                left: { kind: 'var', name: 'affinity' },
+                right: { kind: 'literal', value: 10 }
+              },
+              children: [makeDialogue('A', 'high')]
+            },
+            { kind: 'else', children: [makeDialogue('A', 'low')] }
+          ]
+        }
+      ])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    const adv = advanceVm(graph, state)
+    expect(adv.ok).toBe(true)
+    if (!adv.ok) return
+    state = adv.state
+    const tsStep = getCurrentStep(graph, state)
+    expect(tsStep).toMatchObject({ text: 'high' })
+
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserGet = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return getCurrentStep(graph, state);`
+    ) as (
+      graph: ReturnType<typeof buildVmGraph>,
+      state: ReturnType<typeof createVmState>
+    ) => ReturnType<typeof getCurrentStep>
+    expect(browserGet(graph, state)).toEqual(tsStep)
   })
 })
