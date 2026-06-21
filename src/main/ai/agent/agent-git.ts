@@ -14,7 +14,8 @@ export const createAgentGit = (projectPath: string): AgentGit => ({
     return { ok: true, ref: r.value }
   },
   rollback: async (ref) => {
-    const r = await gitService.resetHard(projectPath, ref ?? 'HEAD')
+    if (!ref) return { ok: false, error: 'no snapshot ref — rollback skipped' }
+    const r = await gitService.resetHard(projectPath, ref)
     if (r.ok === false) return { ok: false, error: r.error.message }
     return { ok: true }
   }

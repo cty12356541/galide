@@ -274,4 +274,62 @@ describe('agent-loop — 错误与取消分支', () => {
     expect(result.error).toContain('MAX_STEPS')
     expect(git.events.some((e) => e.startsWith('rollback'))).toBe(true)
   })
+
+  it('snapshot 失败 → 中止且不调用 rollback', async () => {
+    const llm = fakeLlm([{ text: '完成', toolCalls: [] }])
+    const { registry } = makeTools()
+    const git: AgentGit & { events: string[] } = {
+      events: [],
+      snapshot: async () => ({ ok: false, error: 'not a git repo' }),
+      rollback: async (ref) => {
+        git.events.push(`rollback:${ref ?? ''}`)
+        return { ok: true }
+      }
+    }
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.singleReact,
+      toolContext
+    })
+    expect(result.status).toBe('error')
+    expect(result.error).toContain('not a git repo')
+    expect(result.rolledBack).toBe(false)
+    expect(git.events.some((e) => e.startsWith('rollback'))).toBe(false)
+    expect(llm.calls).toHaveLength(0)
+  })
+
+  it('rollback 使用 snapshot ref,不会 reset 到 HEAD', async () => {
+    const { registry } = makeTools()
+    const git = fakeGit()
+    await runAgent(baseReq, {
+      llm: throwingLlm(),
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.singleReact,
+      toolContext
+    })
+    expect(git.events).toContain('rollback:snap1')
+    expect(git.events.some((e) => e === 'rollback:HEAD' || e === 'rollback:')).toBe(false)
+  })
+
+  it('signal 传入 llm.chat', async () => {
+    const controller = new AbortController()
+    const llm = fakeLlm([{ text: '完成', toolCalls: [] }])
+    const { registry } = makeTools()
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.singleReact,
+      toolContext,
+      signal: controller.signal
+    })
+    expect(llm.calls.length).toBeGreaterThan(0)
+    expect(llm.calls.every((c) => c.signal === controller.signal)).toBe(true)
+  })
 })

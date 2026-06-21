@@ -108,7 +108,14 @@ export const runAgent = async (
 
   const maxSteps = deps.maxSteps ?? DEFAULT_MAX_STEPS
   const snapshot = await deps.git.snapshot(`agent: ${req.goal}`)
+  if (!snapshot.ok || !snapshot.ref) {
+    const message = snapshot.error ?? 'git snapshot 失败:无有效回滚点,agent 已中止'
+    emit({ type: 'error', message })
+    return { status: 'error', steps, finalText: '', error: message, rolledBack: false }
+  }
   const snapRef = snapshot.ref
+
+  const chatOpts = { signal: deps.signal }
 
   try {
     ensureLive()
@@ -121,7 +128,8 @@ export const runAgent = async (
           ...(req.messages ?? []),
           { role: 'user', content: `为达成以下目标制定简短分步计划(编号列表):\n${req.goal}` }
         ],
-        tools: []
+        tools: [],
+        ...chatOpts
       })
       emit({ type: 'plan', plan: planFromText(planResp.text) })
     }
@@ -137,7 +145,8 @@ export const runAgent = async (
       const resp = await deps.llm.chat({
         system: req.system,
         messages: convo,
-        tools: toolSchemas
+        tools: toolSchemas,
+        ...chatOpts
       })
       if (resp.text) emit({ type: 'thought', text: resp.text })
 
@@ -195,7 +204,8 @@ export const runAgent = async (
       const criticResp = await deps.llm.chat({
         system: CRITIC_SYSTEM,
         messages: [{ role: 'user', content: `目标:${req.goal}\n请审查刚才的修改。` }],
-        tools: []
+        tools: [],
+        ...chatOpts
       })
       emit({ type: 'critic', report: { kind: 'llm', text: criticResp.text } })
     }
