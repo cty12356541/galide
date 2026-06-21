@@ -88,6 +88,8 @@ type UiState = {
  selectedSceneId: string | null
  scriptDiagnostics: ParseError[]
  scriptDirty: boolean
+ /** P2a:预览面板开关(F5/菜单/dispatcher 统一切换,原为 EditorCore 本地态) */
+ previewOpen: boolean
 
  // P4:多 tab + 卡片撤销(按文件有界历史栈)
  openFiles: string[]
@@ -130,7 +132,9 @@ type UiState = {
   toggleAiPanel: () => void
   setAiDockedLocation: (loc: DockSide) => void
   setFloatingPanels: (panels: readonly FloatingId[]) => void
-  setSelectedSceneId: (id: string | null) => void
+ setSelectedSceneId: (id: string | null) => void
+ /** P2a:切换预览面板开合(无参=toggle,有参=强制) */
+  setPreviewOpen: (open?: boolean) => void
   /** 读盘后灌入(parse 在此完成),dirty=false */
   loadScriptText: (text: string) => void
   /** 源串编辑(原始编辑器):reparse,dirty=true */
@@ -220,6 +224,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   selectedSceneId: null,
  scriptDiagnostics: [],
  scriptDirty: false,
+ previewOpen: false,
  openFiles: [],
  fileCache: {},
  scriptPast: [],
@@ -390,7 +395,9 @@ setProject: (projectPath, manifest) =>
     ),
   removeFloatingPanel: (panel) =>
     set((s) => ({ floatingPanels: s.floatingPanels.filter((p) => p !== panel) })),
-  setSelectedSceneId: (id) => set({ selectedSceneId: id }),
+ setSelectedSceneId: (id) => set({ selectedSceneId: id }),
+  setPreviewOpen: (open) =>
+    set((s) => ({ previewOpen: open !== undefined ? open : !s.previewOpen })),
   loadScriptText: (text) =>
     // 读盘载入(全新内容)→ 重置撤销栈(不可 undo 过载入点)
     set({ ...parseToDoc(text), scriptDirty: false, scriptPast: [], scriptFuture: [] }),
