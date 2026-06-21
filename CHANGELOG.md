@@ -2,6 +2,29 @@
 
 Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.com/) 规范。
 
+## [0.5.0] - 2026-06-21
+
+### 新增 — AI Agent 自动化平台
+
+- **Agent 循环(main 中心)** — `agent-loop` 显式状态机 + 依赖注入(FakeLlm/FakeTool 可测);挂在独立 agent 队列,经 `ai:agent:*` IPC 驱动
+- **可切换自主模式** — `agentAutonomy`: copilot / hybrid / autonomous;`autonomy-gate` risk×mode 真值表,循环主体不随模式分支
+- **可切换拓扑** — `agentTopology`: singleReact / litePlanExecute(默认) / planExecuteCritic;Planner 结构化计划 + 确定性可达性 Critic
+- **Context Engine** — 角色表 + 场景索引 + 选中场景 + git diff,带 token 预算
+- **Tool Registry** — schema 校验 + risk/domain;只读/安全写剧本工具;多模态(generate_sprite/voice);`dispatch_command` 暴露 CommandId
+- **安全闸** — 任务前 git snapshot、失败 reset 回滚、destructive 工具 `ai:agent:confirm` 往返
+- **image-proxy** — SD / DALL-E / ComfyUI(mock HTTP 可测);CharacterCard.sdPrompt 独立于 spriteSet.path
+- **tts-proxy** — Edge TTS 真实实现(可注入 synthesize);读取 VoicePreferences
+- **Agent 模式 UI** — AiPanel 对话/Agent 双 tab;步骤流 + autonomy/topology 切换器
+
+### IPC 协议
+
+- `ai:agent:start` / `cancel` / `step` / `status` / `confirmRequest` / `confirm`
+- `agent:dispatchCommand` / `agent:dispatchResult` — main→renderer 命令投递
+
+### 测试
+
+- 45 个测试文件 / 360 个测试全过(agent-loop / gate / topology / image-proxy / tts-proxy / command-dispatcher 等)
+
 ## [0.4.0] - 2026-06-17
 
 ### 新增
