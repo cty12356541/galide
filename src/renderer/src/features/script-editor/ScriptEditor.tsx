@@ -49,6 +49,8 @@ export const ScriptEditor = (): JSX.Element => {
   const scriptSource = useUiStore((s) => s.scriptSource)
   const scriptDirty = useUiStore((s) => s.scriptDirty)
   const scriptDiagnostics = useUiStore((s) => s.scriptDiagnostics)
+  const scriptEditorScrollTarget = useUiStore((s) => s.scriptEditorScrollTarget)
+  const setScriptEditorScrollTarget = useUiStore((s) => s.setScriptEditorScrollTarget)
   const editScriptSource = useUiStore((s) => s.editScriptSource)
   const markScriptSaved = useUiStore((s) => s.markScriptSaved)
   const script = useScript()
@@ -120,6 +122,23 @@ export const ScriptEditor = (): JSX.Element => {
       })
     }
   }, [scriptSource])
+
+  // 诊断点击跳转 → 滚动到目标行/列
+  useEffect(() => {
+    const view = viewRef.current
+    const target = scriptEditorScrollTarget
+    if (!view || !target) return
+    const doc = view.state.doc
+    const lineNum = Math.min(Math.max(1, target.line), doc.lines)
+    const line = doc.line(lineNum)
+    const col = Math.min(Math.max(0, target.column - 1), line.length)
+    const pos = line.from + col
+    view.dispatch({
+      selection: { anchor: pos },
+      effects: EditorView.scrollIntoView(pos, { y: 'center' })
+    })
+    setScriptEditorScrollTarget(null)
+  }, [scriptEditorScrollTarget, scriptSource, setScriptEditorScrollTarget])
 
   const handleSave = async (): Promise<void> => {
     const view = viewRef.current
