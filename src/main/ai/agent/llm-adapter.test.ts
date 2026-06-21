@@ -1,0 +1,124 @@
+/**
+ * llm-adapter 单测 — provider 原生 tool_calls/tool_use 归一为内部 ToolCall
+ *
+ * fixture 驱动:用录制的 OpenAI/Claude 响应 JSON 断言归一化。完全不触网。
+ */
+import { describe, it, expect } from 'vitest'
+import {
+  normalizeOpenAiResponse,
+  normalizeClaudeResponse,
+  toolsToOpenAiFormat,
+  toolsToClaudeFormat
+} from './llm-adapter.js'
+import type { ToolJsonSchema } from './tool-registry.js'
+
+// ---- 录制的 OpenAI 响应(finish_reason: tool_calls) ----
+const openAiToolResponse = {
+  choices: [
+    {
+      message: {
+        role: 'assistant',
+        content: null,
+        tool_calls: [
+          {
+            id: 'call_abc',
+            type: 'function',
+            function: { name: 'create_scene', arguments: '{"fileName":"chapter1.gal","sceneId":"rooftop"}' }
+          }
+        ]
+      },
+      finish_reason: 'tool_calls'
+    }
+  ],
+  usage: { prompt_tokens: 120, completion_tokens: 18, total_tokens: 138 }
+}
+
+const openAiTextResponse = {
+  choices: [{ message: { role: 'assistant', content: '好的,我来帮你。' }, finish_reason: 'stop' }],
+  usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 }
+}
+
+// ---- 录制的 Claude 响应(含 tool_use) ----
+const claudeToolResponse = {
+  id: 'msg_1',
+  content: [
+    { type: 'text', text: '我先看看场景。' },
+    {
+      type: 'tool_use',
+      id: 'toolu_xyz',
+      name: 'list_scenes',
+      input: { fileName: 'chapter1.gal' }
+    }
+  ],
+  stop_reason: 'tool_use',
+  usage: { input_tokens: 200, output_tokens: 25 }
+}
+
+describe('normalizeOpenAiResponse', () => {
+  it('提取 tool_calls 为内部 ToolCall(args 解析为对象)', () => {
+    const r = normalizeOpenAiResponse(openAiToolResponse)
+    expect(r.toolCalls).toHaveLength(1)
+    expect(r.toolCalls[0]?.id).toBe('call_abc')
+    expect(r.toolCalls[0]?.name).toBe('create_scene')
+    expect(r.toolCalls[0]?.args).toEqual({ fileName: 'chapter1.gal', sceneId: 'rooftop' })
+    expect(r.usage?.promptTokens).toBe(120)
+  })
+
+  it('纯文本响应 → text 有值,toolCalls 空', () => {
+    const r = normalizeOpenAiResponse(openAiTextResponse)
+    expect(r.text).toContain('好的')
+    expect(r.toolCalls).toHaveLength(0)
+  })
+
+  it('非法 arguments JSON → args 退化为空对象(交给 schema 兜底)', () => {
+    const broken = {
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [{ id: 'c', type: 'function', function: { name: 'x', arguments: '{not json' } }]
+          }
+        }
+      ]
+    }
+    const r = normalizeOpenAiResponse(broken)
+    expect(r.toolCalls[0]?.args).toEqual({})
+  })
+})
+
+describe('normalizeClaudeResponse', () => {
+  it('提取 text + tool_use', () => {
+    const r = normalizeClaudeResponse(claudeToolResponse)
+    expect(r.text).toContain('我先看看场景')
+    expect(r.toolCalls).toHaveLength(1)
+    expect(r.toolCalls[0]?.id).toBe('toolu_xyz')
+    expect(r.toolCalls[0]?.name).toBe('list_scenes')
+    expect(r.toolCalls[0]?.args).toEqual({ fileName: 'chapter1.gal' })
+    expect(r.usage?.promptTokens).toBe(200)
+    expect(r.usage?.completionTokens).toBe(25)
+  })
+})
+
+const sampleTools: ToolJsonSchema[] = [
+  {
+    name: 'create_scene',
+    description: '创建场景',
+    parameters: { type: 'object', properties: { sceneId: { type: 'string' } }, required: ['sceneId'] }
+  }
+]
+
+describe('工具格式转换', () => {
+  it('toolsToOpenAiFormat 包成 {type:function, function:{...}}', () => {
+    const out = toolsToOpenAiFormat(sampleTools)
+    expect(out[0]).toMatchObject({
+      type: 'function',
+      function: { name: 'create_scene', description: '创建场景' }
+    })
+  })
+
+  it('toolsToClaudeFormat 用 input_schema', () => {
+    const out = toolsToClaudeFormat(sampleTools)
+    expect(out[0]).toMatchObject({ name: 'create_scene', description: '创建场景' })
+    expect(out[0]?.input_schema).toBeTypeOf('object')
+  })
+})
