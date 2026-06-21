@@ -83,6 +83,36 @@ describe('supplement-11-files: OutlinePanel', () => {
     render(<OutlinePanel />)
     expect(screen.getByText('小雪')).toBeTruthy()
   })
+
+  it('shows scenes from scriptAst when present', async () => {
+    useUiStore.setState({
+      projectName: '测试项目',
+      manifest: {
+        version: '0.1.0',
+        name: '测试项目',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        characters: [],
+        assets: {
+          characters: 'assets/characters',
+          backgrounds: 'assets/backgrounds',
+          bgm: 'assets/bgm'
+        }
+      }
+    })
+    useUiStore.getState().loadScriptText(`## 开场
+小雪: "你好"
+
+## 相遇
+阳: "走吧"
+`)
+    const { OutlinePanel } = await import('../features/outline/OutlinePanel')
+    render(<OutlinePanel />)
+    expect(screen.getByTestId('outline-scene-开场')).toBeTruthy()
+    expect(screen.getByTestId('outline-scene-相遇')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('outline-scene-相遇'))
+    expect(useUiStore.getState().selectedSceneId).toBe('相遇')
+  })
 })
 describe('supplement-11-files: useAppearanceEffect', () => {
   it('toggles dark class on document.documentElement', async () => {
@@ -142,12 +172,13 @@ describe('supplement-11-files: GitPanel', () => {
  * 功能即岛 v2:e2e mount(主岛壳 / ActivityBar / dock 菜单)
  */
 describe('supplement-11-files: 功能即岛 v2 主岛壳', () => {
-  it('ActivityBar mount 不 throw 且含 5 主岛 + 3 占位', async () => {
+  it('ActivityBar mount 不 throw 且含 5 主岛 + 设置', async () => {
     const { ActivityBar } = await import('../components/workspace/ActivityBar')
     render(<ActivityBar />)
-    for (const id of ['project', 'git', 'outline', 'character', 'ai', 'search', 'debug', 'settings']) {
+    for (const id of ['project', 'git', 'outline', 'character', 'ai', 'settings']) {
       expect(screen.getByTestId(`activity-${id}`)).toBeTruthy()
     }
+    expect(screen.queryByTestId('activity-search')).toBeNull()
   })
 
   it('点击 ActivityBar 主岛 → showToolWindow(置该侧可见)', async () => {
