@@ -7,12 +7,12 @@
  */
 
 import { parseExpression } from './expression.js'
+import type { Expression } from './expression.js'
 import type {
   AstNode,
   ChoiceNode,
   DialogueNode,
   GotoNode,
-  IfBranch,
   IfNode,
   MarkerNode,
   ParseError,
@@ -82,9 +82,9 @@ const parseExprToken = (
   column: number,
   errors: ParseError[],
   label: string
-): ReturnType<typeof parseExpression> extends { ok: true; expr: infer E } ? E | undefined : never => {
+): Expression | undefined => {
   const r = parseExpression(source)
-  if (!r.ok) {
+  if (r.ok === false) {
     errors.push({
       message: `${label}表达式无效: ${r.error.message}`,
       line,
@@ -97,7 +97,7 @@ const parseExprToken = (
 }
 
 const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
-  const { pending, errors, root } = ctx
+  const { pending, errors } = ctx
   const first = line[0]
   if (!first) return
 

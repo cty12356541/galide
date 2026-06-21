@@ -6,7 +6,7 @@
  * 消除「同一行在不同上下文被识别为不同类型」的漂移。
  */
 
-import type { Token, TokenType } from './types.js'
+import type { Token } from './types.js'
 import {
   BACKGROUND_RE,
   BGM_RE,

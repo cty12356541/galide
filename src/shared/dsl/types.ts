@@ -16,6 +16,8 @@
 
 import type { Expression } from './expression.js'
 
+export type { Expression } from './expression.js'
+
 export type ScriptNode = BaseNode & {
   type: 'script'
   children: AstNode[]

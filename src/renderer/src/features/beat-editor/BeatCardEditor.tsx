@@ -24,7 +24,9 @@ import {
   ChevronUp,
   ChevronDown,
   AppWindow,
-  AlertCircle
+  AlertCircle,
+  Variable,
+  GitMerge
 } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { Button } from '../../components/ui/button'
@@ -37,10 +39,14 @@ import type {
   ChoiceNode,
   DialogueNode,
   GotoNode,
+  IfNode,
   MarkerNode,
   SceneNode,
-  ScriptNode
+  ScriptNode,
+  SetNode,
+  SetOp
 } from '../../../../shared/dsl/types'
+import { parseExpression, serializeExpression } from '../../../../shared/dsl/expression'
 import { cn } from '../../lib/utils'
 
 type Position = 'left' | 'right' | 'center'
@@ -49,6 +55,8 @@ type Position = 'left' | 'right' | 'center'
 type Beat =
   | { kind: 'dialogue'; node: DialogueNode; index: number }
   | { kind: 'decision'; nodes: ChoiceNode[]; startIndex: number }
+  | { kind: 'set'; node: SetNode; index: number }
+  | { kind: 'conditional'; node: IfNode; index: number }
   | { kind: 'goto'; node: GotoNode; index: number }
   | { kind: 'marker'; node: MarkerNode; index: number }
 
@@ -69,6 +77,8 @@ const groupBeats = (children: AstNode[]): Beat[] => {
       continue
     }
     if (node.type === 'dialogue') beats.push({ kind: 'dialogue', node, index: i })
+    else if (node.type === 'set') beats.push({ kind: 'set', node, index: i })
+    else if (node.type === 'if') beats.push({ kind: 'conditional', node, index: i })
     else if (node.type === 'goto') beats.push({ kind: 'goto', node, index: i })
     else if (node.type === 'marker') beats.push({ kind: 'marker', node, index: i })
     i++
@@ -146,12 +156,23 @@ export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JS
   const updateOption = (
     groupStart: number,
     optionIdx: number,
-    patch: Partial<{ text: string; target: string }>
+    patch: Partial<{ text: string; target: string; conditionText: string }>
   ): void => {
     commit((ast) => {
       mutateSceneChildren(ast, (children) => {
         const n = children[groupStart + optionIdx]
-        if (n?.type === 'choice' && n.options[0]) Object.assign(n.options[0], patch)
+        if (n?.type === 'choice' && n.options[0]) {
+          const { conditionText, ...rest } = patch
+          Object.assign(n.options[0], rest)
+          if (conditionText !== undefined) {
+            if (!conditionText.trim()) {
+              delete n.options[0].condition
+            } else {
+              const parsed = parseExpression(conditionText)
+              if (parsed.ok) n.options[0].condition = parsed.expr
+            }
+          }
+        }
       })
     })
   }
@@ -208,6 +229,25 @@ export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JS
           node = { type: 'dialogue', character: '角色', lines: [''], line: 0, column: 1 } as DialogueNode
         } else if (kind === 'decision') {
           node = { type: 'choice', line: 0, column: 1, options: [{ text: '新选项', target: '' }] }
+        } else if (kind === 'set') {
+          node = {
+            type: 'set',
+            name: 'affinity',
+            op: 'set',
+            value: { kind: 'literal', value: 0 },
+            line: 0,
+            column: 1
+          } as SetNode
+        } else if (kind === 'conditional') {
+          node = {
+            type: 'if',
+            line: 0,
+            column: 1,
+            branches: [
+              { kind: 'if', condition: { kind: 'literal', value: true }, children: [] },
+              { kind: 'else', children: [] }
+            ]
+          } as IfNode
         } else if (kind === 'goto') {
           node = { type: 'goto', target: '', line: 0, column: 1 } as GotoNode
         } else {
@@ -426,6 +466,19 @@ export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JS
                         placeholder="目标场景"
                         onChange={(e) => updateOption(beat.startIndex, oi, { target: e.target.value })}
                       />
+                      <input
+                        className={cn(inputCls, 'w-36 text-[11px]')}
+                        value={
+                          choice.options[0]?.condition
+                            ? serializeExpression(choice.options[0].condition)
+                            : ''
+                        }
+                        placeholder="条件(可空)"
+                        title="[当: expr]"
+                        onChange={(e) =>
+                          updateOption(beat.startIndex, oi, { conditionText: e.target.value })
+                        }
+                      />
                       <button
                         type="button"
                         onClick={() => removeOption(beat.startIndex, oi)}
@@ -444,6 +497,119 @@ export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JS
                     <Plus className="w-3 h-3" />
                     添加选项
                   </button>
+                </div>
+              )
+            }
+            if (beat.kind === 'set') {
+              return (
+                <div
+                  key={beat.index}
+                  className="rounded-xl border border-warning/40 bg-warning-soft/20 p-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <Variable className="w-3.5 h-3.5 text-warning flex-shrink-0" />
+                    <span className="text-xs font-medium text-text">设变量</span>
+                    <BeatActions
+                      onUp={() => moveBeat(beat.index, 1, -1)}
+                      onDown={() => moveBeat(beat.index, 1, 1)}
+                      onDelete={() => removeBeat(beat.index, 1)}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      className={cn(inputCls, 'w-28')}
+                      value={beat.node.name}
+                      placeholder="变量名"
+                      onChange={(e) =>
+                        commit((ast) => {
+                          mutateSceneChildren(ast, (children) => {
+                            const n = children[beat.index]
+                            if (n?.type === 'set') n.name = e.target.value
+                          })
+                        })
+                      }
+                    />
+                    <select
+                      className={cn(inputCls, 'w-20')}
+                      value={beat.node.op}
+                      onChange={(e) =>
+                        commit((ast) => {
+                          mutateSceneChildren(ast, (children) => {
+                            const n = children[beat.index]
+                            if (n?.type === 'set') n.op = e.target.value as SetOp
+                          })
+                        })
+                      }
+                    >
+                      <option value="set">=</option>
+                      <option value="add">+=</option>
+                      <option value="sub">-=</option>
+                    </select>
+                    <input
+                      className={cn(inputCls, 'flex-1 text-[12px]')}
+                      value={serializeExpression(beat.node.value)}
+                      placeholder="值/表达式"
+                      onChange={(e) => {
+                        const parsed = parseExpression(e.target.value)
+                        if (!parsed.ok) return
+                        commit((ast) => {
+                          mutateSceneChildren(ast, (children) => {
+                            const n = children[beat.index]
+                            if (n?.type === 'set') n.value = parsed.expr
+                          })
+                        })
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            }
+            if (beat.kind === 'conditional') {
+              return (
+                <div
+                  key={beat.index}
+                  className="rounded-xl border border-accent/40 bg-accent-soft/20 p-3 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <GitMerge className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+                    <span className="text-xs font-medium text-text">
+                      条件块 · {beat.node.branches.length} 分支
+                    </span>
+                    <BeatActions
+                      onUp={() => moveBeat(beat.index, 1, -1)}
+                      onDown={() => moveBeat(beat.index, 1, 1)}
+                      onDelete={() => removeBeat(beat.index, 1)}
+                    />
+                  </div>
+                  {beat.node.branches.map((branch, bi) => (
+                    <div key={bi} className="flex items-center gap-1.5 text-[12px]">
+                      <span className="text-text-muted w-14 flex-shrink-0">
+                        {branch.kind === 'if' ? '若' : branch.kind === 'elif' ? '否则若' : '否则'}
+                      </span>
+                      {branch.kind !== 'else' ? (
+                        <input
+                          className={cn(inputCls, 'flex-1')}
+                          value={
+                            branch.condition ? serializeExpression(branch.condition) : ''
+                          }
+                          placeholder="条件表达式"
+                          onChange={(e) => {
+                            const parsed = parseExpression(e.target.value)
+                            if (!parsed.ok) return
+                            commit((ast) => {
+                              mutateSceneChildren(ast, (children) => {
+                                const n = children[beat.index]
+                                if (n?.type === 'if') n.branches[bi]!.condition = parsed.expr
+                              })
+                            })
+                          }}
+                        />
+                      ) : (
+                        <span className="text-text-muted flex-1">(默认分支)</span>
+                      )}
+                      <span className="text-text-muted">{branch.children.length} beat</span>
+                    </div>
+                  ))}
                 </div>
               )
             }
@@ -513,6 +679,8 @@ export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JS
         <span className="text-[11px] text-text-muted mr-1">添加</span>
         <AddBtn label="对白" icon={MessageSquare} onClick={() => addBeat('dialogue')} />
         <AddBtn label="决策" icon={GitBranch} onClick={() => addBeat('decision')} />
+        <AddBtn label="设变量" icon={Variable} onClick={() => addBeat('set')} />
+        <AddBtn label="条件" icon={GitMerge} onClick={() => addBeat('conditional')} />
         <AddBtn label="跳转" icon={CornerDownRight} onClick={() => addBeat('goto')} />
         <AddBtn label="标记" icon={Anchor} onClick={() => addBeat('marker')} />
       </div>

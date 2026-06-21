@@ -11,10 +11,36 @@ design_principles:
 line_types:
   - "元数据行: # 章节, ## 场景, 背景:, BGM:"
   - "对白行: 角色名: \"内容\""
-  - "选项行: * \"选项文本\" -> 目标节点"
+  - "选项行: * \"选项文本\" -> 目标节点 [当: 条件表达式]"
+  - "设变量行: 设: name = value | 设: name += n | 设: name -= n"
+  - "条件块: [若: expr] ... [否则若: expr] ... [否则] ... [若终]"
   - "控制行: === 节点名 ===, [跳转:节点名]"
   - "立绘行: [角色:名字 | 立绘:asset.png | 位置:左]"
   - "注释行: // 注释内容"
+
+variable_conditional_syntax:
+  set:
+    forms:
+      - "设: affinity = 10"
+      - "设: affinity += 5"
+      - "设: flag = true"
+      - "设: name = \"hero\""
+    ast: "SetNode { name, op: set|add|sub, value: Expression }"
+  conditional_block:
+    forms:
+      - "[若: affinity >= 10]"
+      - "[否则若: affinity >= 5]"
+      - "[否则]"
+      - "[若终]"
+    ast: "IfNode { branches: IfBranch[] }"
+  conditional_choice:
+    form: "* \"秘密路线\" -> 结局A [当: affinity >= 10]"
+    ast: "ChoiceOption.condition?: Expression"
+  expression:
+    literals: "numbers, booleans (true/false), quoted strings"
+    operators: "==, !=, <, <=, >, >=, and, or, not, parentheses"
+    variables: "identifier refs (e.g. affinity, flag_met)"
+    evaluator: "shared/dsl/expression.ts — no eval()"
 
 parser_requirements:
   - "词法分析器(Lexer)输出 Token[]，包含 type + value + line + column"
@@ -26,6 +52,8 @@ ast_node_types:
   - "ScriptNode: { type: 'script', children: Node[] }"
   - "SceneNode: { type: 'scene', id: string, background?: string, bgm?: string, children: Node[] }"
   - "DialogueNode: { type: 'dialogue', character: string, sprite?: string, position?: string, lines: string[] }"
-  - "ChoiceNode: { type: 'choice', options: { text: string, target: string }[] }"
+  - "ChoiceNode: { type: 'choice', options: { text: string, target: string, condition?: Expression }[] }"
+  - "SetNode: { type: 'set', name: string, op: set|add|sub, value: Expression }"
+  - "IfNode: { type: 'if', branches: IfBranch[] }"
   - "GotoNode: { type: 'goto', target: string }"
 

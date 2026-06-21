@@ -90,15 +90,11 @@ describe('runtime-vm variables', () => {
     if (!parsed.ok) return
     const graph = buildVmGraph(parsed.value)
     let state = createVmState(graph, 's1')
-    // advance through set steps
-    state = advanceVm(graph, state).ok && !advanceVm(graph, state).finished ? advanceVm(graph, state).ok ? (advanceVm(graph, state) as { ok: true; state: VmState }).state : state : state
-    // simpler: loop advance until dialogue
     for (let i = 0; i < 10; i++) {
       const step = getCurrentStep(graph, state)
       if (step?.type === 'set') {
-        state = applySetStep(state, step)
         const r = advanceVm(graph, state)
-        if (r.ok && !r.finished) state = r.state
+        if (r.ok) state = r.state
         continue
       }
       if (step?.type === 'if') {
@@ -107,8 +103,8 @@ describe('runtime-vm variables', () => {
         return
       }
       const r = advanceVm(graph, state)
-      if (!r.ok || r.finished) break
-      state = r.state
+      if (!r.ok || (r.ok && r.finished)) break
+      if (r.ok) state = r.state
     }
   })
 })

@@ -2,6 +2,14 @@
 
 Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.com/) 规范。
 
+## [0.6.0] - 2026-06-22
+
+### 新增 — 变量 + 条件分支 DSL 全链路
+
+- **DSL** — `设:` 变量赋值/增减; `[若:]` / `[否则若:]` / `[否则]` / `[若终]` 条件块; 选项 `[当: expr]` 门控; `Expression` AST + 安全求值器(`shared/dsl/expression.ts`); parser/serializer/visitor 往返测试
+- **预览 VM** — `runtime-vm.ts` 运行时求值条件、应用 set 步骤、过滤门控选项、解析 if 分支; Web 导出内联同一求值/VM 函数( parity 测试)
+- **编辑器** — BeatCardEditor 设变量卡 / 条件块卡 / 选项条件字段; FlowView 条件边虚线 + 条件标签
+
 ## [0.5.0] - 2026-06-21
 
 ### 新增 — 预览保真度 Preview Fidelity (Phases 1–3)

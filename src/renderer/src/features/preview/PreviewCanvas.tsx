@@ -160,6 +160,13 @@ export const PreviewCanvas = (): JSX.Element => {
     audioRef.current?.setVolume(volume)
   }, [volume])
 
+  // Auto-advance invisible set steps
+  useEffect(() => {
+    if (currentStep?.type !== 'set' || !vmGraph || !vmState) return
+    const result = advanceVm(vmGraph, vmState)
+    if (result.ok) setVmState(result.state)
+  }, [currentStep, vmGraph, vmState])
+
   const advance = useCallback((): void => {
     if (!vmGraph || !vmState) return
     const step = getCurrentStep(vmGraph, vmState)

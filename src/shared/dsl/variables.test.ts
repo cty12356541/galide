@@ -8,8 +8,7 @@ import type { IfNode, SceneNode, ScriptNode, SetNode } from './types'
 
 const parseOk = (src: string): ScriptNode => {
   const r = parse(src)
-  expect(r.ok).toBe(true)
-  if (!r.ok) throw new Error(JSON.stringify(r.error))
+  if (!r.ok) throw new Error('parse failed')
   return r.value
 }
 

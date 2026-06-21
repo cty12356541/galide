@@ -120,13 +120,13 @@ describe('runtime-vm', () => {
     ])
     const graph = buildVmGraph(ast)
     let state = createVmState(graph, 'A')
-    const cross = executeGotoStep(graph, state, { type: 'goto', target: 'B' })
+    const cross = executeGotoStep(graph, state, { target: 'B' })
     expect(cross.ok).toBe(true)
     if (!cross.ok) return
     expect(getCurrentStep(graph, cross.state)).toMatchObject({ text: 'in B' })
 
     state = createVmState(graph, 'A')
-    const local = executeGotoStep(graph, state, { type: 'goto', target: 'local' })
+    const local = executeGotoStep(graph, state, { target: 'local' })
     expect(local.ok).toBe(true)
     if (!local.ok) return
     expect(getCurrentStep(graph, local.state)).toMatchObject({ type: 'marker', id: 'local' })

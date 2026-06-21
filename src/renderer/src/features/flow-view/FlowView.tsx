@@ -23,6 +23,7 @@ import type {
   SceneNode,
   ScriptNode
 } from '../../../../shared/dsl/types'
+import { serializeExpression } from '../../../../shared/dsl/expression'
 import { FlowNode, FlowMarkerNode, type SceneFlowNode, type MarkerFlowNode } from './FlowNode'
 
 // 读 CSS 变量(避免内联 style 写死颜色 token,light/dark 自动切换)
@@ -85,13 +86,22 @@ const buildFlow = (ast: ScriptNode): FlowResult => {
     if (!sourceScene) continue
     for (const opt of choice.options) {
       if (opt.target && sceneIds.has(opt.target)) {
+        const hasCondition = opt.condition !== undefined
+        const condLabel = hasCondition ? serializeExpression(opt.condition!) : ''
         edges.push({
           id: `${sourceScene.id}-${opt.target}-${opt.text}`,
           source: sourceScene.id,
           target: opt.target,
-          label: opt.text,
-          style: { stroke: cssVar('--flow-edge'), strokeWidth: 1.5 },
-          labelStyle: { fill: cssVar('--text-muted'), fontSize: 11 },
+          label: hasCondition ? `${opt.text} ⟦${condLabel}⟧` : opt.text,
+          style: {
+            stroke: hasCondition ? cssVar('--accent') : cssVar('--flow-edge'),
+            strokeWidth: hasCondition ? 2 : 1.5,
+            ...(hasCondition ? { strokeDasharray: '6 3' } : {})
+          },
+          labelStyle: {
+            fill: hasCondition ? cssVar('--accent') : cssVar('--text-muted'),
+            fontSize: 11
+          },
           labelBgStyle: { fill: cssVar('--surface') }
         })
       }

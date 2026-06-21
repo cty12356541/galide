@@ -36,9 +36,14 @@ import {
   CHAPTER_RE,
   CHOICE_RE,
   COMMENT_RE,
+  ELIF_RE,
+  ELSE_RE,
   GOTO_RE,
+  IF_END_RE,
+  IF_START_RE,
   MARKER_RE,
   SCENE_RE,
+  SET_RE,
   SPRITE_RE,
   DIALOGUE_RE
 } from './line-rules.js'
@@ -52,6 +57,7 @@ export const GAL_TOKEN = {
   Property: 'property',
   Sprite: 'sprite',
   Goto: 'goto',
+  Control: 'control',
   Choice: 'choice',
   String: 'string',
   Operator: 'operator',
@@ -124,6 +130,21 @@ export const galParser: StreamParser<GalStreamState> = {
     }
     if (state.atLineStart && stream.match(GOTO_RE)) {
       return GAL_TOKEN.Goto
+    }
+    if (state.atLineStart && stream.match(IF_START_RE)) {
+      return GAL_TOKEN.Control
+    }
+    if (state.atLineStart && stream.match(ELIF_RE)) {
+      return GAL_TOKEN.Control
+    }
+    if (state.atLineStart && stream.match(ELSE_RE)) {
+      return GAL_TOKEN.Control
+    }
+    if (state.atLineStart && stream.match(IF_END_RE)) {
+      return GAL_TOKEN.Control
+    }
+    if (state.atLineStart && stream.match(SET_RE)) {
+      return GAL_TOKEN.Variable
     }
 
     // 属性行: 背景:/BGM:
