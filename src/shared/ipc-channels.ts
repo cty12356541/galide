@@ -110,6 +110,11 @@ export const IPC = {
     focusMain: 'workspace:focusMain',
     /** 功能即岛 v2:从主窗口收回浮出窗口(按 panelId 关闭) */
     closePanel: 'workspace:closePanel',
+  },
+  preview: {
+    saveSlot: 'preview:saveSlot',
+    loadSlot: 'preview:loadSlot',
+    listSlots: 'preview:listSlots'
   }
 } as const
 
@@ -129,3 +134,4 @@ export type IpcChannel =
   | (typeof IPC)['dialog'][keyof (typeof IPC)['dialog']]
   | (typeof IPC)['asset'][keyof (typeof IPC)['asset']]
   | (typeof IPC)['workspace'][keyof (typeof IPC)['workspace']]
+  | (typeof IPC)['preview'][keyof (typeof IPC)['preview']]

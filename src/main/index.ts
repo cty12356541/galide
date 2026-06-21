@@ -16,6 +16,7 @@ import { registerStoreHandlers } from './ipc/store-handlers.js'
 import { registerPreferencesHandlers } from './ipc/preferences-handlers.js'
 import { registerDialogHandlers } from './ipc/dialog-handlers.js'
 import { registerWorkspaceHandlers } from './ipc/workspace-handlers.js'
+import { registerPreviewHandlers } from './ipc/preview-handlers.js'
 
 const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
@@ -97,6 +98,7 @@ app.whenReady().then(async () => {
   tryRegister('preferences', registerPreferencesHandlers)
   tryRegister('dialog', registerDialogHandlers)
   tryRegister('workspace', registerWorkspaceHandlers)
+  tryRegister('preview', registerPreviewHandlers)
 
   createWindow()
 

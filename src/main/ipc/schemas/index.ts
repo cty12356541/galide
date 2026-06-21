@@ -371,3 +371,23 @@ export const AgentStartSchema = z.object({
   model: z.string().optional(),
   baseUrl: z.string().optional()
 })
+
+// =================== Preview save/load ===================
+
+export const VmStateSchema = z.object({
+  sceneId: z.string(),
+  stepIndex: z.number().int().min(0),
+  variables: z.record(z.string(), z.unknown()),
+  branchQueue: z.array(z.unknown()).optional()
+})
+
+export const PreviewSaveSlotSchema = z.object({
+  projectPath: z.string().min(1),
+  slot: z.number().int().min(1).max(3),
+  state: VmStateSchema
+})
+
+export const PreviewLoadSlotSchema = z.object({
+  projectPath: z.string().min(1),
+  slot: z.number().int().min(1).max(3)
+})

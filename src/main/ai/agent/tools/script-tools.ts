@@ -226,7 +226,7 @@ const SetOpSchema = z.enum(['set', 'add', 'sub'])
 
 const parseExprOrFail = (text: string): { ok: true; expr: Expression } | { ok: false; message: string } => {
   const parsed = parseExpression(text)
-  if (!parsed.ok) return { ok: false, message: parsed.error.message }
+  if (parsed.ok === false) return { ok: false, message: parsed.error.message }
   if (parsed.rest.trim().length > 0) return { ok: false, message: `表达式尾部有多余内容: ${parsed.rest}` }
   return { ok: true, expr: parsed.expr }
 }
@@ -255,7 +255,7 @@ const setVariable = defineTool({
       }
     }
     const exprR = parseExprOrFail(args.value)
-    if (!exprR.ok) {
+    if (exprR.ok === false) {
       return {
         ok: false,
         content: `值表达式无效: ${exprR.message}`,
@@ -306,7 +306,7 @@ const addConditionalBlock = defineTool({
       }
     }
     const condR = parseExprOrFail(args.condition)
-    if (!condR.ok) {
+    if (condR.ok === false) {
       return {
         ok: false,
         content: `条件表达式无效: ${condR.message}`,
@@ -330,7 +330,7 @@ const addConditionalBlock = defineTool({
     if (args.elifConditions) {
       for (const elifText of args.elifConditions) {
         const elifR = parseExprOrFail(elifText)
-        if (!elifR.ok) {
+        if (elifR.ok === false) {
           return {
             ok: false,
             content: `否则若条件无效: ${elifR.message}`,
@@ -375,7 +375,7 @@ const addGatedChoice = defineTool({
       }
     }
     const condR = parseExprOrFail(args.condition)
-    if (!condR.ok) {
+    if (condR.ok === false) {
       return {
         ok: false,
         content: `条件表达式无效: ${condR.message}`,

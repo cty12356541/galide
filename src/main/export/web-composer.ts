@@ -7,15 +7,16 @@
  */
 
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import type { Composer, ExportContext, MultiFileOutput } from './composer.js'
 import type { ScriptNode, SceneNode } from '../../shared/dsl/types.js'
 import { buildVmGraph, buildPlayerRuntimeFunctions } from '../../shared/preview/runtime-vm.js'
+import { buildPlayerSaveFunctions } from '../../shared/preview/vm-save.js'
 
 /** 安全 JSON 内联:转义 `<` 防 `</script>` 注入 */
 const safeJson = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c')
 
-const buildHtmlShell = (graphJson: string, vmFunctions: string): string => `<!DOCTYPE html>
+const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: string, projectId: string): string => `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -40,17 +41,82 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string): string => `<!DO
     .beat-marker { background: rgba(180, 83, 9, 0.6); border: 1px solid rgba(251, 191, 36, 0.4); }
     .beat-goto { background: rgba(91, 33, 182, 0.6); border: 1px solid rgba(167, 139, 250, 0.4); }
     .unsupported { position: absolute; top: 12px; left: 12px; right: 12px; background: rgba(127,29,29,0.8); padding: 8px; border-radius: 4px; font-size: 12px; z-index: 3; }
+    .save-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 4; }
+    .save-btn { background: rgba(0,0,0,0.6); border: 1px solid rgba(167,139,250,0.4); color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+    .save-btn:hover { background: rgba(167,139,250,0.3); }
+    .save-toast { position: absolute; top: 44px; right: 12px; background: rgba(6,78,59,0.85); padding: 6px 10px; border-radius: 4px; font-size: 11px; z-index: 4; }
   </style>
 </head>
 <body>
-  <div id="app"><div id="stage"><div id="bg"></div><div id="sprites"></div></div></div>
+  <div id="app"><div id="stage"><div id="bg"></div><div id="sprites"></div>
+    <div class="save-bar" id="save-bar"></div>
+  </div></div>
   <script>
     const VM_GRAPH = ${graphJson};
+    const PROJECT_ID = ${safeJson(projectId)};
     ${vmFunctions}
+    ${saveFunctions}
 
     let vmState = { sceneId: VM_GRAPH.sceneOrder[0] || Object.keys(VM_GRAPH.scenes)[0] || '', stepIndex: 0, variables: {} };
     let currentSpriteKey = null;
     let errorBanner = null;
+    let saveToast = null;
+
+    const showSaveToast = (msg) => {
+      const stage = document.getElementById('stage');
+      if (!saveToast) {
+        saveToast = document.createElement('div');
+        saveToast.className = 'save-toast';
+        stage.appendChild(saveToast);
+      }
+      saveToast.textContent = msg;
+      setTimeout(() => { if (saveToast) saveToast.remove(); saveToast = null; }, 2000);
+    };
+
+    const saveToSlot = (slot) => {
+      const key = buildWebSaveKey(PROJECT_ID, slot);
+      const file = serializeVmSave(vmState, slot);
+      try {
+        localStorage.setItem(key, JSON.stringify(file));
+        showSaveToast('已保存到槽 ' + slot);
+      } catch (e) {
+        showError('保存失败: ' + (e && e.message ? e.message : String(e)));
+      }
+    };
+
+    const loadFromSlot = (slot) => {
+      const key = buildWebSaveKey(PROJECT_ID, slot);
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) { showSaveToast('槽 ' + slot + ' 为空'); return; }
+        const parsed = JSON.parse(raw);
+        const restored = deserializeVmSave(parsed);
+        if (!restored) { showError('存档版本不兼容'); return; }
+        vmState = restored;
+        currentSpriteKey = null;
+        render();
+        showSaveToast('已从槽 ' + slot + ' 加载');
+      } catch (e) {
+        showError('加载失败: ' + (e && e.message ? e.message : String(e)));
+      }
+    };
+
+    const initSaveBar = () => {
+      const bar = document.getElementById('save-bar');
+      if (!bar) return;
+      for (let slot = 1; slot <= 3; slot++) {
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'save-btn';
+        saveBtn.textContent = '存' + slot;
+        saveBtn.onclick = () => saveToSlot(slot);
+        bar.appendChild(saveBtn);
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'save-btn';
+        loadBtn.textContent = '读' + slot;
+        loadBtn.onclick = () => loadFromSlot(slot);
+        bar.appendChild(loadBtn);
+      }
+    };
 
     const assetUrl = (rel) => rel ? ('assets/' + rel.replace(/^assets\\//, '')) : null;
 
@@ -177,6 +243,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string): string => `<!DO
       }
     };
 
+    initSaveBar();
     render();
   </script>
 </body>
@@ -216,6 +283,8 @@ export class WebComposer implements Composer<WebAst, MultiFileOutput> {
     const graph = buildVmGraph(merged)
     const graphJson = safeJson(graph)
     const vmFunctions = buildPlayerRuntimeFunctions()
+    const saveFunctions = buildPlayerSaveFunctions()
+    const projectId = basename(ctx.request.projectPath) || 'galide-player'
 
     const assetsOutDir = join(ctx.outputDir, 'assets')
     await fs.mkdir(assetsOutDir, { recursive: true })
@@ -226,7 +295,7 @@ export class WebComposer implements Composer<WebAst, MultiFileOutput> {
       console.warn(`[galide export] assets 目录复制失败: ${assetsSrcDir}`, err)
     }
 
-    const html = buildHtmlShell(graphJson, vmFunctions)
+    const html = buildHtmlShell(graphJson, vmFunctions, saveFunctions, projectId)
     return { html }
   }
 

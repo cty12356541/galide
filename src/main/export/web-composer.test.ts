@@ -26,6 +26,7 @@ import {
   advanceVm,
   buildPlayerRuntimeFunctions
 } from '../../shared/preview/runtime-vm.js'
+import { buildWebSaveKey } from '../../shared/preview/vm-save.js'
 
 const base = (line: number): BaseNode => ({ line, column: 1 })
 
@@ -229,5 +230,16 @@ describe('WebComposer (Batch 3)', () => {
       state: ReturnType<typeof createVmState>
     ) => ReturnType<typeof getCurrentStep>
     expect(browserGet(graph, state)).toEqual(tsStep)
+  })
+
+  it('embeds localStorage save key format (web player parity)', async () => {
+    const ast = makeAst([makeScene('s1', [makeDialogue('A', 'hi')])])
+    const ctx = makeCtx([{ file: 'a.gal', ast }])
+    const composer = new WebComposer()
+    const target = await composer.transform(ctx)
+    expect(target.html).toContain('buildWebSaveKey')
+    expect(target.html).toContain('serializeVmSave')
+    expect(target.html).toContain('localStorage.setItem')
+    expect(buildWebSaveKey('my-game', 1)).toBe('galide-save-my-game-slot-1')
   })
 })

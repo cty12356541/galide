@@ -4,6 +4,12 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [0.6.0] - 2026-06-22
 
+### 新增 — 嵌套条件编辑 + Agent 变量工具 + 预览存档
+
+- **BeatCardEditor** — 条件块分支内完整嵌套 beat 编辑(expand/collapse、缩进层级);`group-beats` / `beat-locator` 纯函数单测
+- **Agent 工具** — `set_variable` / `add_conditional_block` / `add_gated_choice` / `read_variables`;`scan-variables` AST 扫描;memfs 往返测试
+- **预览存档** — `.galide/saves/slot-{n}.json` 三槽 save/load(PreviewCanvas chrome);Web 导出 localStorage 同形 VmState;`vm-save` round-trip 测试
+
 ### 新增 — 变量 + 条件分支 DSL 全链路
 
 - **DSL** — `设:` 变量赋值/增减; `[若:]` / `[否则若:]` / `[否则]` / `[若终]` 条件块; 选项 `[当: expr]` 门控; `Expression` AST + 安全求值器(`shared/dsl/expression.ts`); parser/serializer/visitor 往返测试
@@ -73,7 +79,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 测试
 
-- 59 个测试文件 / 426 个测试全过(workspace-presets / applyWorkspacePreset 快照 / use-script-save debounce+flush 等)
+- 67 个测试文件 / 487 个测试全过(nested beat / agent variable tools / vm-save parity 等)
 
 ## [0.4.0] - 2026-06-17
 

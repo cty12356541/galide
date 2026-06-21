@@ -403,6 +403,27 @@ workspace: {
       ipcRenderer.invoke(IPC.workspace.closePanel, args),
     /** PR3-B: 浮出窗口请求聚焦主窗口 */
     focusMain: (): Promise<{ ok: boolean }> => ipcRenderer.invoke(IPC.workspace.focusMain)
+  },
+  preview: {
+    saveSlot: (req: {
+      projectPath: string
+      slot: number
+      state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[] }
+    }): Promise<{ ok: true; timestamp: string } | { ok: false; error: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.preview.saveSlot, req),
+    loadSlot: (req: {
+      projectPath: string
+      slot: number
+    }): Promise<
+      | { ok: true; state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[] }; timestamp: string }
+      | { ok: false; error: string; code?: string }
+    > => ipcRenderer.invoke(IPC.preview.loadSlot, req),
+    listSlots: (
+      projectPath: string
+    ): Promise<
+      | { ok: true; slots: { slot: number; timestamp: string | null; occupied: boolean }[] }
+      | { ok: false; error: string }
+    > => ipcRenderer.invoke(IPC.preview.listSlots, projectPath)
   }
 }
 

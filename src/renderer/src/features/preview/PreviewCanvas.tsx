@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Play, Square, Box, Volume2, VolumeX } from 'lucide-react'
+import { Play, Square, Box, Volume2, VolumeX, Save, FolderOpen } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore } from '../../lib/store'
 import { useAsset } from '../../lib/ipc/use-asset'
@@ -21,6 +21,8 @@ import type { PreviewState } from './PreviewRuntime'
 import { motion } from 'framer-motion'
 import { createPreviewRuntime, type PreviewRuntime } from './PreviewRuntime'
 import { createPreviewAudioController } from './preview-audio'
+import { usePreviewSave } from '../../lib/ipc/use-preview-save'
+import { PREVIEW_SAVE_SLOT_COUNT } from '../../../../shared/preview/vm-save'
 
 const collectScenes = (ast: ScriptNode): SceneNode[] =>
   collectNodes(ast, (n): n is SceneNode => n.type === 'scene')
@@ -41,6 +43,9 @@ export const PreviewCanvas = (): JSX.Element => {
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const projectPath = useUiStore((s) => s.projectPath)
   const { resolveAsync } = useAsset()
+  const { saveSlot, loadSlot } = usePreviewSave(projectPath)
+
+  const [saveNote, setSaveNote] = useState<string | null>(null)
 
   const [vmState, setVmState] = useState<VmState | null>(null)
   const [runtimeState, setRuntimeState] = useState<PreviewState>('idle')
@@ -211,6 +216,36 @@ export const PreviewCanvas = (): JSX.Element => {
     }
   }
 
+  const handleSave = useCallback(
+    async (slot: number): Promise<void> => {
+      if (!vmState) return
+      const r = await saveSlot(slot, vmState)
+      if (r.ok) {
+        setSaveNote(`已保存到槽 ${slot}`)
+        setTimeout(() => setSaveNote(null), 2000)
+      } else {
+        setSaveNote(r.error ?? '保存失败')
+      }
+    },
+    [vmState, saveSlot]
+  )
+
+  const handleLoad = useCallback(
+    async (slot: number): Promise<void> => {
+      const r = await loadSlot(slot)
+      if (r.ok && r.state) {
+        setVmState(r.state)
+        setSelectedSceneId(r.state.sceneId)
+        setUnsupportedNote(null)
+        setSaveNote(`已从槽 ${slot} 加载`)
+        setTimeout(() => setSaveNote(null), 2000)
+      } else {
+        setSaveNote(r.error ?? '加载失败')
+      }
+    },
+    [loadSlot, setSelectedSceneId]
+  )
+
   const renderStepOverlay = (): JSX.Element | null => {
     if (!currentStep) {
       return (
@@ -328,6 +363,28 @@ export const PreviewCanvas = (): JSX.Element => {
               {sceneId ?? '—'}
             </div>
             <div className="absolute top-3 right-3 flex items-center gap-1 z-10">
+              <div className="flex items-center gap-0.5 mr-1">
+                {Array.from({ length: PREVIEW_SAVE_SLOT_COUNT }, (_, i) => i + 1).map((slot) => (
+                  <div key={slot} className="flex items-center">
+                    <button
+                      onClick={() => void handleSave(slot)}
+                      className="p-1 bg-surface/80 backdrop-blur rounded-l-md hover:bg-surface text-text-muted hover:text-text border border-border border-r-0"
+                      title={`保存到槽 ${slot}`}
+                      data-testid={`preview-save-${slot}`}
+                    >
+                      <Save className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => void handleLoad(slot)}
+                      className="p-1 bg-surface/80 backdrop-blur rounded-r-md hover:bg-surface text-text-muted hover:text-text border border-border mr-0.5"
+                      title={`从槽 ${slot} 加载`}
+                      data-testid={`preview-load-${slot}`}
+                    >
+                      <FolderOpen className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
               <button
                 onClick={() => setMuted((m) => !m)}
                 className="p-1.5 bg-surface/80 backdrop-blur rounded-md hover:bg-surface text-text-muted hover:text-text border border-border"
@@ -360,6 +417,11 @@ export const PreviewCanvas = (): JSX.Element => {
                 )}
               </button>
             </div>
+            {saveNote && (
+              <div className="absolute top-12 right-3 px-2 py-1 bg-emerald-900/70 text-emerald-100 text-[11px] rounded z-10">
+                {saveNote}
+              </div>
+            )}
             {unsupportedNote && (
               <div className="absolute top-12 left-3 right-3 px-2 py-1 bg-red-900/70 text-red-100 text-[11px] rounded z-10">
                 {unsupportedNote}
