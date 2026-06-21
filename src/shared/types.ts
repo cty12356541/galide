@@ -13,6 +13,8 @@ export type CharacterCard = {
   name: string
   description: string
   personality: string
+  /** Stable Diffusion 提示词(与 spriteSet.path 分离) */
+  sdPrompt?: string
   /** 角色立绘集(spec core/naming.yaml: CharacterSprite) */
   spriteSet: CharacterSprite[]
   voiceConfig?: VoiceConfig

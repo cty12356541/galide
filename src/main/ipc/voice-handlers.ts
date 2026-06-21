@@ -2,7 +2,10 @@ import { ipcMain } from 'electron'
 import { IPC } from '../../shared/ipc-channels.js'
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
-import { ttsProxy } from '../voice/tts-proxy.js'
+import { createTtsProxy } from '../voice/tts-proxy.js'
+import { getPreference } from '../preferences/preferences-store.js'
+
+const tts = createTtsProxy()
 
 export const registerVoiceHandlers = (): void => {
   ipcMain.handle(
@@ -12,7 +15,8 @@ export const registerVoiceHandlers = (): void => {
         const dir = join(projectPath, 'assets', 'voice')
         await fs.mkdir(dir, { recursive: true })
         const path = join(dir, `${lineId}.mp3`)
-        const result = await ttsProxy.generate(text, characterId, path)
+        const voicePrefs = getPreference('voice')
+        const result = await tts.generate(text, characterId, path, voicePrefs)
         if (result.ok === false) {
           return { ok: false as const, code: result.code, error: result.message }
         }
@@ -29,11 +33,12 @@ export const registerVoiceHandlers = (): void => {
 
   ipcMain.handle(IPC.voice.preview, async (_e, text: string, provider: string, voiceId: string) => {
     try {
-      const result = await ttsProxy.preview(text, provider, voiceId)
+      const voicePrefs = getPreference('voice')
+      const result = await tts.preview(text, provider, voiceId, voicePrefs)
       if (result.ok === false) {
         return { ok: false as const, code: result.code, error: result.message }
       }
-      return { ok: true as const, url: '' }
+      return { ok: true as const, url: result.path }
     } catch (err) {
       return {
         ok: false as const,
@@ -59,8 +64,6 @@ export const registerVoiceHandlers = (): void => {
           }))
       }
     } catch (err) {
-      // P1-6 修复: voice dir 不存在是常见情况(项目刚建),但 readdir 失败也可能因 IO 错误
-      // 区分两类错误:ENOENT → 空 list 静默;其他 → 留 warn
       const isNotFound =
         err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT'
       if (!isNotFound) {

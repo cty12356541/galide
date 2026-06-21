@@ -33,6 +33,23 @@ describe('parseManifest', () => {
     expect(r.ok).toBe(true)
   })
 
+  it('accepts optional sdPrompt on CharacterCard (separate from spriteSet.path)', () => {
+    const r = parseManifest(
+      JSON.stringify({
+        ...validManifest,
+        characters: [
+          {
+            ...validManifest.characters[0],
+            sdPrompt: '1girl, anime, school uniform',
+            spriteSet: [{ state: 'default', path: 'assets/characters/c1_default.png' }]
+          }
+        ]
+      })
+    )
+    expect(r.ok).toBe(true)
+    if (r.ok === true) expect(r.value.characters[0]?.sdPrompt).toBe('1girl, anime, school uniform')
+  })
+
   it('accepts manifest without git field (optional)', () => {
     const m = { ...validManifest }
     delete (m as Partial<typeof validManifest>).git

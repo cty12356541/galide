@@ -22,6 +22,7 @@ const CharacterCardSchema = z.object({
   name: z.string(),
   description: z.string(),
   personality: z.string(),
+  sdPrompt: z.string().optional(),
   spriteSet: z.array(CharacterSpriteSchema),
   voiceConfig: z
     .object({
