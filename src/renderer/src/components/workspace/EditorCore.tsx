@@ -11,19 +11,20 @@
  * 预览 PreviewCanvas 作为可折叠底栏(默认收起);各视图仍可浮出独立窗。
  * 用 react-resizable-panels(与 CenterSplit 同栈),动态 Panel 带 stable id + order。
  */
-import { useState } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Eye, EyeOff } from 'lucide-react'
 import { SceneRail } from './SceneRail'
 import { BeatCardEditor } from '../../features/beat-editor/BeatCardEditor'
 import { FlowView } from '../../features/flow-view/FlowView'
 import { PreviewCanvas } from '../../features/preview/PreviewCanvas'
+import { useUiStore } from '../../lib/store'
 
 const handleH = 'w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1'
 const handleV = 'h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1'
 
 export const EditorCore = (): JSX.Element => {
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const previewOpen = useUiStore((s) => s.previewOpen)
+  const setPreviewOpen = useUiStore((s) => s.setPreviewOpen)
 
   /** 左一右二核心行:对话卡 | (场景轨 / 决策树 上下) */
   const CenterRow = (): JSX.Element => (
@@ -63,7 +64,7 @@ export const EditorCore = (): JSX.Element => {
       )}
       <button
         type="button"
-        onClick={() => setPreviewOpen((v) => !v)}
+        onClick={() => setPreviewOpen()}
         title={previewOpen ? '收起预览' : '展开预览'}
         aria-label={previewOpen ? '收起预览' : '展开预览'}
         data-testid="ec-preview-toggle"
