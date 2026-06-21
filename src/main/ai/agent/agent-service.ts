@@ -19,6 +19,7 @@ import { createDefaultToolRegistry } from './create-default-registry.js'
 import { getPreference } from '../../preferences/preferences-store.js'
 import { aiProxy } from '../ai-proxy.js'
 import { gitService } from '../../git/git-service.js'
+import { createBroadcastingWriteFile } from '../../ipc/script-broadcast.js'
 import { parse } from '../../../shared/dsl/parser.js'
 import type { AiProvider } from '../types.js'
 import type { ToolDispatch } from './types.js'
@@ -206,12 +207,15 @@ const drain = async (): Promise<void> => {
         projectPath: item.req.projectPath,
         fs: {
           readFile: (p: string) => fs.readFile(p, 'utf-8'),
-          writeFile: (p: string, c: string) => fs.writeFile(p, c, 'utf-8'),
+          writeFile: createBroadcastingWriteFile(item.req.projectPath, (p, c) =>
+            fs.writeFile(p, c, 'utf-8')
+          ),
           readdir: (p: string) => fs.readdir(p)
         },
         dispatch: createDispatch(item.sender)
       }
 
+      const baseUrl = item.req.baseUrl ?? aiConfig.baseUrl
       const result = await runAgent(
         {
           goal: item.req.goal,
@@ -219,7 +223,7 @@ const drain = async (): Promise<void> => {
           messages: []
         },
         {
-          llm: createLlmAdapter(provider, item.req.model ?? aiConfig.model),
+          llm: createLlmAdapter(provider, item.req.model ?? aiConfig.model, baseUrl),
           tools: createDefaultToolRegistry(),
           git: createAgentGit(item.req.projectPath),
           gate: createAutonomyGate(agentPrefs.autonomy),
