@@ -1,10 +1,11 @@
 /**
- * tts-proxy — mock Edge TTS,断言 voiceId 映射与产物落盘
+ * tts-proxy — mock Edge TTS / ElevenLabs,断言 voiceId 映射与产物落盘
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { createFsFromVolume, Volume } from 'memfs'
 import { createTtsProxy, resolveVoiceId } from './tts-proxy.js'
 
 const voicePrefs = {
@@ -64,5 +65,82 @@ describe('tts-proxy — mock 合成', () => {
     const r = await proxy.generate('hi', 'x', join(tmpDir, 'b.mp3'), voicePrefs)
     expect(r.ok).toBe(false)
     if (r.ok === false) expect(r.code).toBe('GENERATION_FAILED')
+  })
+})
+
+describe('tts-proxy — ElevenLabs', () => {
+  const elevenPrefs = {
+    defaultProvider: 'elevenlabs' as const,
+    defaultVoiceId: 'voice-default-123',
+    batchConcurrency: 4
+  }
+
+  it('generate 发送正确 body/headers 并写入 mp3(memfs)', async () => {
+    const vol = Volume.fromJSON({ '/voice': null })
+    const mfs = createFsFromVolume(vol)
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe('https://api.elevenlabs.io/v1/text-to-speech/custom-voice-id')
+      expect(init?.headers).toEqual(
+        expect.objectContaining({
+          'xi-api-key': 'el-key',
+          'Content-Type': 'application/json',
+          Accept: 'audio/mpeg'
+        })
+      )
+      const body = JSON.parse(String(init?.body)) as { text: string; model_id: string }
+      expect(body.text).toBe('你好世界')
+      expect(body.model_id).toBe('eleven_multilingual_v2')
+      return {
+        ok: true,
+        arrayBuffer: async () => {
+          const buf = Buffer.from('el-audio')
+          return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+        }
+      }
+    })
+    const proxy = createTtsProxy({
+      fetchFn: fetchMock as unknown as typeof fetch,
+      getApiKey: () => 'el-key',
+      writeFile: (p, d) => mfs.promises.writeFile(p, d) as Promise<void>
+    })
+    const out = '/voice/line1.mp3'
+    const r = await proxy.generate('你好世界', 'char-1', out, elevenPrefs, { voiceId: 'custom-voice-id' })
+    expect(r.ok).toBe(true)
+    if (r.ok === true) expect(r.path).toBe(out)
+    expect(Buffer.from(mfs.readFileSync(out) as Buffer).equals(Buffer.from('el-audio'))).toBe(true)
+  })
+
+  it('无 API Key → NO_API_KEY', async () => {
+    const proxy = createTtsProxy({
+      fetchFn: vi.fn() as typeof fetch,
+      getApiKey: () => undefined
+    })
+    const r = await proxy.generate('hi', 'x', '/out.mp3', elevenPrefs)
+    expect(r.ok).toBe(false)
+    if (r.ok === false) expect(r.code).toBe('NO_API_KEY')
+  })
+
+  it('ElevenLabs HTTP 错误 → PROVIDER_ERROR', async () => {
+    const fetchFn = vi.fn(async () => ({ ok: false, status: 401 })) as unknown as typeof fetch
+    const proxy = createTtsProxy({ fetchFn, getApiKey: () => 'el-key' })
+    const r = await proxy.generate('hi', 'x', '/out.mp3', elevenPrefs)
+    expect(r.ok).toBe(false)
+    if (r.ok === false) {
+      expect(r.code).toBe('PROVIDER_ERROR')
+      expect(r.message).toContain('401')
+    }
+  })
+
+  it('voiceId 回退 VoicePreferences.defaultVoiceId', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toContain('voice-default-123')
+      return { ok: true, arrayBuffer: async () => Buffer.from('x').buffer }
+    })
+    const proxy = createTtsProxy({
+      fetchFn: fetchMock as unknown as typeof fetch,
+      getApiKey: () => 'el-key',
+      writeFile: async () => {}
+    })
+    await proxy.generate('hi', 'unknown-char', '/out.mp3', elevenPrefs)
   })
 })
