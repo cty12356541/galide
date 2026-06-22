@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Volume2, Play, Trash2, RefreshCw, Mic } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
@@ -6,19 +7,14 @@ import { PanelHeader } from '../../components/ui/panel-header'
 import { EmptyState } from '../../components/ui/empty-state'
 import { useUiStore } from '../../lib/store'
 import { useVoice } from '../../lib/ipc/use-voice'
+import { usePreference } from '../../lib/ipc/use-preferences'
 import { useErrorStore } from '../../lib/store'
 import { toast } from '../../components/ui/toast'
 import { cn } from '../../lib/utils'
+import { isTtsUnavailable, ttsUnavailableReason } from './tts-availability'
+import type { VoicePreferences } from '@shared/preferences'
 
-/**
- * TTS stub 状态标记 — P0-10 修复(2026-06-15)
- *
- * 老 button-clickability.test.ts (P2 #7) 断言 VoicePanel 在 TTS 还没实装
- * 阶段,生成按钮应 disabled 并显示 tooltip。ttsStubAvailable=false 是占位
- * 标识,告诉测试 / 未来的 AI 知道 TTS 服务还没真接通。in-flight 之后可以
- * 改成读 preferences.ttsProvider 真实值,本 PR 仅恢复标识以让老测试通过。
- */
-const ttsStubAvailable = false
+const ELEVENLABS_KEY_PROVIDER = 'elevenlabs' as const
 
 type VoiceItem = {
   id: string
@@ -34,14 +30,21 @@ type VoiceItem = {
  * - core/naming.yaml: "语音 / TTS"
  * - .style-spec/layers/main-process/conventions.yaml: "AI 任务入队,UI 显示排队状态"
  *
- * 当前状态: 列出 assets/voice 下的 .mp3,允许试听 / 删除 / 基于选中对白重生成。
- * 由于 tts-proxy 仍是 NOT_IMPLEMENTED 占位,UI 仍然能完整呈现"已生成的资产"
- * 列表语义,生成时也会如实反馈占位错误(不静默吞)。
+ * 当前状态: 列出 assets/voice 下的 .mp3,允许试听 / 删除 / 基于对白重生成(需条目含 text)。
  */
 export const VoicePanel = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
   const voice = useVoice()
   const pushError = useErrorStore((s) => s.push)
+  const voicePrefQuery = usePreference('voice')
+  const voicePrefs = voicePrefQuery.data as VoicePreferences | undefined
+  const keyQuery = useQuery({
+    queryKey: ['api-key', ELEVENLABS_KEY_PROVIDER],
+    queryFn: () => window.galide.ai.keyHas(ELEVENLABS_KEY_PROVIDER)
+  })
+  const hasElevenLabsKey = keyQuery.data === true
+  const ttsBlocked = isTtsUnavailable(voicePrefs?.defaultProvider, hasElevenLabsKey)
+  const ttsBlockReason = ttsUnavailableReason(voicePrefs?.defaultProvider, hasElevenLabsKey)
   const [items, setItems] = useState<VoiceItem[]>([])
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState<string | null>(null)
@@ -100,6 +103,14 @@ export const VoicePanel = (): JSX.Element => {
 
   const handleRegenerate = async (item: VoiceItem): Promise<void> => {
     if (!projectPath) return
+    if (!item.text.trim()) {
+      pushError({
+        code: 'VOICE_NO_TEXT',
+        message: '该语音条目缺少对白文本,无法重新生成',
+        source: 'voice:generate'
+      })
+      return
+    }
     setGenerating(item.id)
     try {
       const r = await voice.generate(projectPath, item.id, item.text, item.characterId)
@@ -173,8 +184,14 @@ export const VoicePanel = (): JSX.Element => {
                     variant="ghost"
                     size="icon"
                     onClick={() => void handleRegenerate(it)}
-                    title={ttsStubAvailable ? '重新生成' : 'TTS 尚未实装,无法重新生成'}
-                    disabled={!ttsStubAvailable}
+                    title={
+                      ttsBlocked
+                        ? ttsBlockReason
+                        : !it.text.trim()
+                          ? '缺少对白文本,无法重新生成'
+                          : '重新生成'
+                    }
+                    disabled={ttsBlocked || !it.text.trim()}
                     className="h-6 w-6 opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent"
                   >
                     <RefreshCw className="w-3 h-3" />
@@ -192,9 +209,9 @@ export const VoicePanel = (): JSX.Element => {
               </div>
             ))
           )}
-          {items.length > 0 && (
+          {items.length > 0 && ttsBlocked && (
             <div className="flex items-center gap-1 px-2 py-1 text-[10px] text-warning-strong">
-              <span>重新生成取决于 TTS 提供商是否实现</span>
+              <span>{ttsBlockReason}</span>
             </div>
           )}
         </div>

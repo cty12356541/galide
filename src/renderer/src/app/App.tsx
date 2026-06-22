@@ -28,10 +28,12 @@ import { NewProjectDialog } from '../features/project/NewProjectDialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useResolvedShortcutsSync } from '../lib/hooks/use-keyboard-shortcuts'
 import { useScriptSync } from '../lib/hooks/use-script-sync'
+import { useProjectScriptAst } from '../lib/hooks/use-project-script-ast'
 import { useWorkspacePersistence } from '../lib/hooks/use-workspace-persistence'
 import { useAgentDispatch } from '../lib/ipc/use-agent-dispatch'
 import { useCommandHandlers } from '../lib/ipc/use-command-handlers'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import {
   isToolWindowId,
   isSubIslandId,
@@ -50,6 +52,7 @@ export const App = (): JSX.Element => {
   useKeyboardShortcuts()
   useResolvedShortcutsSync()
   useScriptSync()
+  useProjectScriptAst()
   useWorkspacePersistence()
   useAgentDispatch()
   useCommandHandlers()
@@ -82,7 +85,9 @@ export const App = (): JSX.Element => {
       <ProjectTabs />
       <main className="flex-1 min-h-0 flex overflow-hidden bg-canvas p-3 gap-3">
         <ActivityBar />
-        {projectPath ? <CenterSplit /> : <WelcomeScreen />}
+        <ErrorBoundary>
+          {projectPath ? <CenterSplit /> : <WelcomeScreen />}
+        </ErrorBoundary>
       </main>
       <StatusBar />
       {commandPaletteOpen && <CommandPalette />}

@@ -10,6 +10,7 @@ import { parseExpression } from './expression.js'
 import type { Expression } from './expression.js'
 import type {
   AstNode,
+  ChapterNode,
   ChoiceNode,
   DialogueNode,
   GotoNode,
@@ -105,6 +106,15 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
     case 'chapter': {
       pending.currentScene = null
       pending.currentDialogue = null
+      pending.pendingSprite = undefined
+      pending.pendingPosition = undefined
+      const chapter: ChapterNode = {
+        type: 'chapter',
+        title: first.value,
+        line: first.line,
+        column: first.column
+      }
+      pushNode(ctx, chapter)
       return
     }
     case 'scene': {
@@ -238,6 +248,14 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
         return
       }
       pushNode(ctx, frame.node)
+      if (frame.node.branches.every((b) => b.children.length === 0)) {
+        errors.push({
+          message: '[若:] 条件块为空',
+          line: frame.node.line,
+          column: frame.node.column,
+          severity: 'warning'
+        })
+      }
       return
     }
     case 'dialogue': {
@@ -305,6 +323,15 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
       return
     }
     case 'comment': {
+      const commentToken = line.find((t) => t.type === 'comment')
+      if (commentToken) {
+        pushNode(ctx, {
+          type: 'comment',
+          text: commentToken.value,
+          line: commentToken.line,
+          column: commentToken.column
+        })
+      }
       return
     }
     default:

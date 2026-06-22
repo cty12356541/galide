@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Image as ImageIcon, Music, FolderOpen, Loader2 } from 'lucide-react'
+import { Image as ImageIcon, Music, FolderOpen, Loader2, Plus, Trash2 } from 'lucide-react'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { Button } from '../../components/ui/button'
 import { PanelHeader } from '../../components/ui/panel-header'
@@ -22,6 +22,7 @@ import { EmptyState } from '../../components/ui/empty-state'
 import { useUiStore } from '../../lib/store'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { cn } from '../../lib/utils'
+import { toast } from '../../components/ui/toast'
 
 type AssetKind = 'characters' | 'backgrounds' | 'bgm'
 
@@ -79,6 +80,33 @@ export const AssetListPanel = (): JSX.Element => {
     void refresh()
   }, [refresh])
 
+  const handleImport = async (): Promise<void> => {
+    if (!projectPath) return
+    const g = getGalide()
+    if (!g?.asset?.import) return
+    const r = await g.asset.import(projectPath, activeKind)
+    if (r.canceled) return
+    if (!r.ok) {
+      toast({ message: r.error ?? '导入失败', variant: 'error' })
+      return
+    }
+    toast({ message: `已导入 ${fileNameOf(r.relPath ?? '')}`, variant: 'success' })
+    await refresh()
+  }
+
+  const handleDelete = async (relPath: string): Promise<void> => {
+    if (!projectPath) return
+    if (!window.confirm(`删除 ${fileNameOf(relPath)}?`)) return
+    const g = getGalide()
+    if (!g?.asset?.delete) return
+    const r = await g.asset.delete(projectPath, relPath)
+    if (!r.ok) {
+      toast({ message: r.error ?? '删除失败', variant: 'error' })
+      return
+    }
+    await refresh()
+  }
+
   return (
     <div className="h-full flex flex-col bg-surface border-r border-border">
       <PanelHeader
@@ -87,6 +115,9 @@ export const AssetListPanel = (): JSX.Element => {
         size="md"
         actions={
           <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="导入" onClick={() => void handleImport()}>
+              <Plus className="w-3.5 h-3.5" />
+            </Button>
             {KIND_TABS.map((t) => (
               <Button
                 key={t.id}
@@ -120,13 +151,22 @@ export const AssetListPanel = (): JSX.Element => {
             entries.map((e) => (
               <div
                 key={e.relPath}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-bg-elevated"
+                className="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-bg-elevated"
               >
                 <ImageIcon className="w-3 h-3 text-text-muted shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] truncate">{fileNameOf(e.relPath)}</div>
                   <div className="text-[10px] text-text-muted">{formatSize(e.size)}</div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                  title="删除"
+                  onClick={() => void handleDelete(e.relPath)}
+                >
+                  <Trash2 className="w-3 h-3 text-danger" />
+                </Button>
               </div>
             ))
           )}

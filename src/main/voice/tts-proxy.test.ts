@@ -11,7 +11,8 @@ import { createTtsProxy, resolveVoiceId } from './tts-proxy.js'
 const voicePrefs = {
   defaultProvider: 'edge' as const,
   defaultVoiceId: 'zh-CN-XiaoxiaoNeural',
-  batchConcurrency: 4
+  batchConcurrency: 4,
+  previewEnabled: false
 }
 
 describe('tts-proxy — voiceId 映射', () => {
@@ -90,7 +91,8 @@ describe('tts-proxy — ElevenLabs', () => {
   const elevenPrefs = {
     defaultProvider: 'elevenlabs' as const,
     defaultVoiceId: 'voice-default-123',
-    batchConcurrency: 4
+    batchConcurrency: 4,
+    previewEnabled: false
   }
 
   it('generate 发送正确 body/headers 并写入 mp3(memfs)', async () => {

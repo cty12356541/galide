@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse } from '../../shared/dsl/parser.js'
-import { RenpyComposer } from './renpy-composer.js'
+import { RenpyComposer, buildImageLines } from './renpy-composer.js'
 import type {
   ScriptNode,
   SceneNode,
@@ -102,7 +102,7 @@ describe('RenpyComposer', () => {
     if (out.kind !== 'multi') return
     const script = out.files.find((f) => f.path === 'game/script.rpy')?.content ?? ''
     expect(script).toContain('label 教室:')
-    expect(script).toContain('"小雪" "你好"')
+    expect(script).toContain('char_小雪 "你好"')
   })
 
   it('emits background and BGM', async () => {
@@ -178,7 +178,7 @@ describe('RenpyComposer', () => {
     expect(script).toContain('if affinity >= 10:')
     expect(script).toContain('elif affinity >= 5:')
     expect(script).toContain('else:')
-    expect(script).toContain('"小雪" "高好感"')
+    expect(script).toContain('char_小雪 "高好感"')
   })
 
   it('emits menu with conditional choice', async () => {
@@ -255,7 +255,7 @@ BGM: assets/bgm/gentle_piano.mp3
     if (out.kind !== 'multi') return
     const script = out.files.find((f) => f.path === 'game/script.rpy')?.content ?? ''
     expect(script).toContain('label 教室_午后:')
-    expect(script).toContain('"小雪" "今天的樱花,真漂亮呢。"')
+    expect(script).toContain('char_小雪 "今天的樱花,真漂亮呢。"')
     expect(script).toContain('menu:')
     expect(script).toContain('jump 樱花树下')
     expect(script).toContain('"秘密路线" if affinity >= 10:')
@@ -283,5 +283,38 @@ BGM: assets/bgm/gentle_piano.mp3
     const composer = new RenpyComposer()
     const target = await composer.transform(ctx)
     expect(() => composer.emit(target, ctx)).not.toThrow()
+  })
+
+  it('buildImageLines 从 manifest spriteSet 生成 image 声明', () => {
+    const lines = buildImageLines([
+      {
+        id: 'koyuki',
+        name: '小雪',
+        spriteSet: [{ state: '默认', path: 'assets/characters/koyuki.png' }]
+      }
+    ])
+    expect(lines.join('\n')).toContain('image char_小雪')
+    expect(lines.join('\n')).toContain('assets/characters/koyuki.png')
+  })
+
+  it('对白含 sprite 时 emit show 而非注释', async () => {
+    const dialogue: DialogueNode = {
+      ...base(1),
+      type: 'dialogue',
+      character: '小雪',
+      sprite: '默认',
+      position: 'left',
+      lines: ['你好']
+    }
+    const ast = makeAst([makeScene('s1', [dialogue])])
+    const ctx = makeCtx([{ file: 'main.gal', ast }])
+    const composer = new RenpyComposer()
+    const target = await composer.transform(ctx)
+    const out = composer.emit(target, ctx)
+    if (out.kind !== 'multi') return
+    const script = out.files.find((f) => f.path === 'game/script.rpy')?.content ?? ''
+    expect(script).toContain('show char_小雪')
+    expect(script).toContain(' at left')
+    expect(out.files.some((f) => f.path === 'game/images.rpy')).toBe(true)
   })
 })

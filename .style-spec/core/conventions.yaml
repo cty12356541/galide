@@ -39,6 +39,10 @@ git_integration:
     - "status: 显示当前工作区状态"
   no_cli: "不使用 git 命令行，全部通过 simple-git API"
 
+shared_modules:
+  merge_scripts: "shared/dsl/merge-scripts.ts — 多 .gal 合并为 export/preview 用 AST"
+  voice_sidecar: "shared/voice/voice-sidecar.ts — TTS mp3 旁路 .meta.json,与 manifest 解耦"
+
 repository_credentials:
   # 远程仓库 push 认证 — 本块仅记设计约定,不含任何凭据/账号/指纹。
   # 个人 GitHub 账号、SSH 指纹、密钥路径等运维元数据不进设计规约仓库;

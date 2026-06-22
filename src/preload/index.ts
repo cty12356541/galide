@@ -22,6 +22,7 @@ type CharacterInput = {
   name: string
   description: string
   personality: string
+  sdPrompt?: string
   spriteSet: { state: string; path: string }[]
 }
 
@@ -67,6 +68,15 @@ const api = {
       ipcRenderer.invoke(IPC.script.parse, source),
     list: (projectPath: string): Promise<string[]> =>
       ipcRenderer.invoke(IPC.script.list, projectPath),
+    parseProject: (
+      projectPath: string
+    ): Promise<{ ok: true; mergedAst: ScriptNode } | { ok: false; code: string; error: string }> =>
+      ipcRenderer.invoke(IPC.script.parseProject, projectPath),
+    searchProject: (
+      projectPath: string,
+      query: string
+    ): Promise<{ ok: true; hits: { file: string; line: number; column: number; snippet: string }[] }> =>
+      ipcRenderer.invoke(IPC.script.searchProject, projectPath, query),
     onChanged: (
       callback: (e: { projectPath: string; fileName: string; source: string }) => void
     ): (() => void) => {
@@ -88,7 +98,20 @@ const api = {
     log: (projectPath: string): Promise<GitCommit[]> =>
       ipcRenderer.invoke(IPC.git.log, projectPath),
     diff: (projectPath: string, filePath: string): Promise<string> =>
-      ipcRenderer.invoke(IPC.git.diff, projectPath, filePath)
+      ipcRenderer.invoke(IPC.git.diff, projectPath, filePath),
+    push: (projectPath: string): Promise<{ ok: boolean; error?: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.git.push, projectPath),
+    pull: (projectPath: string): Promise<{ ok: boolean; error?: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.git.pull, projectPath),
+    getRemotes: (
+      projectPath: string
+    ): Promise<{ ok: boolean; remotes?: { name: string; url: string }[]; error?: string }> =>
+      ipcRenderer.invoke(IPC.git.getRemotes, projectPath),
+    setRemote: (
+      projectPath: string,
+      url: string
+    ): Promise<{ ok: boolean; error?: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.git.setRemote, projectPath, url)
   },
   export: {
     start: (req: { projectPath: string; target: string; outputPath: string }): Promise<{ ok: boolean; error?: string; code?: string; jobId?: string; paths?: readonly string[] }> =>
@@ -318,7 +341,29 @@ const api = {
       isDataUrl?: boolean
       code?: string
       error?: string
-    }> => ipcRenderer.invoke(IPC.asset.resolve, args.projectPath, args.relPath)
+    }> => ipcRenderer.invoke(IPC.asset.resolve, args.projectPath, args.relPath),
+    import: (
+      projectPath: string,
+      kind: 'characters' | 'backgrounds' | 'bgm'
+    ): Promise<{ ok: boolean; relPath?: string; error?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke(IPC.asset.import, projectPath, kind),
+    delete: (
+      projectPath: string,
+      relPath: string
+    ): Promise<{ ok: boolean; error?: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.asset.delete, projectPath, relPath)
+  },
+  image: {
+    generate: (req: {
+      projectPath: string
+      characterId: string
+      state: string
+      prompt: string
+      provider?: 'sd' | 'dalle' | 'comfyui'
+      seed?: number
+      baseUrl?: string
+    }): Promise<{ ok: boolean; path?: string; seed?: number; code?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC.image.generate, req)
   },
 workspace: {
     /** 浮出 panel 到独立 BrowserWindow(编辑器大陆/主岛/可脱离子岛) */

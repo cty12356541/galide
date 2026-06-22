@@ -1,7 +1,7 @@
 /**
  * analysis-tools — 决策树可达性 / 死路检测(纯函数 walkScript)
  */
-import { join } from 'node:path'
+import { galScriptAbs } from '../../../../shared/project-layout.js'
 import * as z from 'zod/v4'
 import { parse } from '../../../../shared/dsl/parser.js'
 import { analyzeReachability } from '../decision-tree.js'
@@ -21,7 +21,7 @@ const analyzeReachabilityTool = defineTool({
   handler: async (args, ctx): Promise<ToolHandlerResult> => {
     let src = ''
     try {
-      src = await ctx.fs.readFile(join(ctx.projectPath, args.fileName))
+      src = await ctx.fs.readFile(galScriptAbs(ctx.projectPath, args.fileName))
     } catch (e) {
       return {
         ok: false,

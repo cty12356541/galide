@@ -7,12 +7,19 @@
  *
  * 规约: core/patterns.yaml:56-60 (Result<T, E> 而非抛异常)
  */
-import { join } from 'node:path'
 import type { Result } from '../../shared/dsl/types.js'
+import {
+  GAL_FILE_NAME_RE,
+  galScriptAbs,
+  galScriptRel,
+  isGalScriptFileName,
+  scriptsDirAbs
+} from '../../shared/project-layout.js'
 import type { GitPreferences } from '../../shared/preferences.js'
 
 export type ScriptError =
   | { code: 'INVALID_FILENAME'; message: string }
+  | { code: 'READ_FAILED'; message: string }
   | { code: 'WRITE_FAILED'; message: string }
   | { code: 'COMMIT_FAILED'; message: string }
 
@@ -38,18 +45,16 @@ export type ScriptGit = {
  *
  * 防御性:防止 path 穿越 (e.g. '../etc/passwd.gal') 或写到 scripts/ 外。
  */
-const FILE_NAME_RE = /^[A-Za-z0-9_-]+\.gal$/
-
 export const validateFileName = (raw: unknown): Result<string, ScriptError> => {
   if (typeof raw !== 'string' || raw.length === 0) {
     return { ok: false, error: { code: 'INVALID_FILENAME', message: 'fileName must be non-empty' } }
   }
-  if (!FILE_NAME_RE.test(raw)) {
+  if (!GAL_FILE_NAME_RE.test(raw)) {
     return {
       ok: false,
       error: {
         code: 'INVALID_FILENAME',
-        message: `fileName "${raw}" must match ${FILE_NAME_RE} (flat .gal file, no path traversal)`
+        message: `fileName "${raw}" must match ${GAL_FILE_NAME_RE} (flat .gal file, no path traversal)`
       }
     }
   }
@@ -71,10 +76,10 @@ export const readScript = async (
   const v = validateFileName(fileName)
   if (v.ok !== true) return v
   try {
-    const content = await deps.fs.readFile(join(projectPath, 'scripts', fileName))
+    const content = await deps.fs.readFile(galScriptAbs(projectPath, fileName))
     return { ok: true, value: content }
   } catch (e) {
-    return errOf({ code: 'WRITE_FAILED', message: eMessage(e) })
+    return errOf({ code: 'READ_FAILED', message: eMessage(e) })
   }
 }
 
@@ -93,12 +98,12 @@ export const writeScript = async (
   const v = validateFileName(fileName)
   if (v.ok !== true) return v
   try {
-    await deps.fs.writeFile(join(projectPath, 'scripts', fileName), content)
+    await deps.fs.writeFile(galScriptAbs(projectPath, fileName), content)
   } catch (e) {
     return errOf({ code: 'WRITE_FAILED', message: eMessage(e) })
   }
   if (deps.gitPrefs.autoCommitOnSave) {
-    const relPath = join('scripts', fileName)
+    const relPath = galScriptRel(fileName)
     const r = await deps.git.addAndCommit(projectPath, [relPath], `update: ${fileName}`)
     if (r.ok !== true) {
       return errOf({ code: 'COMMIT_FAILED', message: `${r.error.code}: ${r.error.message}` })
@@ -115,13 +120,13 @@ export const listScripts = async (
   projectPath: string,
   deps: ScriptListDeps
 ): Promise<Result<string[], ScriptError>> => {
-  const dir = join(projectPath, 'scripts')
+  const dir = scriptsDirAbs(projectPath)
   try {
     const files = await deps.fs.readDir(dir)
-    return { ok: true, value: files.filter((f) => FILE_NAME_RE.test(f)) }
+    return { ok: true, value: files.filter((f) => isGalScriptFileName(f)) }
   } catch (e) {
     if (eHasCode(e, 'ENOENT')) return { ok: true, value: [] }
-    return errOf({ code: 'WRITE_FAILED', message: eMessage(e) })
+    return errOf({ code: 'READ_FAILED', message: eMessage(e) })
   }
 }
 

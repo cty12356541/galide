@@ -103,7 +103,7 @@ describe('readScript', () => {
     expect(touched).toBe(false)
   })
 
-  it('returns WRITE_FAILED when read throws', async () => {
+  it('returns READ_FAILED when read throws', async () => {
     const fs = makeFs({
       readFile: async () => {
         throw Object.assign(new Error('boom'), { code: 'EACCES' })
@@ -111,7 +111,7 @@ describe('readScript', () => {
     })
     const r = await readScript('/proj', 'a.gal', { fs })
     expect(r.ok).toBe(false)
-    if (r.ok !== true) expect(r.error.code).toBe('WRITE_FAILED')
+    if (r.ok !== true) expect(r.error.code).toBe('READ_FAILED')
   })
 })
 
@@ -222,7 +222,7 @@ describe('listScripts', () => {
     expect(r).toEqual({ ok: true, value: [] })
   })
 
-  it('returns WRITE_FAILED for non-ENOENT errors', async () => {
+  it('returns READ_FAILED for non-ENOENT errors', async () => {
     const fs = makeFs({
       readDir: async () => {
         throw Object.assign(new Error('perm denied'), { code: 'EACCES' })
@@ -230,6 +230,6 @@ describe('listScripts', () => {
     })
     const r = await listScripts('/proj', { fs })
     expect(r.ok).toBe(false)
-    if (r.ok !== true) expect(r.error.code).toBe('WRITE_FAILED')
+    if (r.ok !== true) expect(r.error.code).toBe('READ_FAILED')
   })
 })

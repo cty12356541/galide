@@ -11,7 +11,7 @@ describe('useUiStore — v2 dock 模型', () => {
       workspacePreset: 'writing',
       dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
       visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-      activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
+      activeSubIsland: { project: 'assets', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
       floatingPanels: []
     })
   })
@@ -21,7 +21,7 @@ describe('useUiStore — v2 dock 模型', () => {
     expect(s.dockSide.ai).toBe('right')
     expect(s.visiblePerSide.left).toBe('project')
     expect(s.visiblePerSide.right).toBe('ai')
-    expect(s.activeSubIsland.project).toBe('scripts')
+    expect(s.activeSubIsland.project).toBe('assets')
   })
 
   it('showToolWindow 把主岛置入其 dockSide 侧', () => {
@@ -93,6 +93,14 @@ describe('useUiStore — v2 dock 模型', () => {
     expect(useUiStore.getState().projectPath).toBeNull()
     expect(useUiStore.getState().projectName).toBeNull()
     expect(useUiStore.getState().manifest).toBeNull()
+  })
+
+  it('setProjectMergedAst 写入 projectParseError', () => {
+    const errMsg = '以下剧本解析失败,已中止导出:\n  a.gal:1:1 err'
+    useUiStore.getState().setProjectMergedAst(null, errMsg)
+    expect(useUiStore.getState().projectParseError).toBe(errMsg)
+    useUiStore.getState().setProjectMergedAst({ type: 'script', line: 1, column: 1, children: [], errors: [] }, null)
+    expect(useUiStore.getState().projectParseError).toBeNull()
   })
 })
 

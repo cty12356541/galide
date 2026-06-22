@@ -15,6 +15,8 @@ export const IPC = {
   },
   script: {
     parse: 'script:parse',
+    parseProject: 'script:parseProject',
+    searchProject: 'script:searchProject',
     read: 'script:read',
     write: 'script:write',
     list: 'script:list',
@@ -26,7 +28,11 @@ export const IPC = {
     status: 'git:status',
     commit: 'git:commit',
     log: 'git:log',
-    diff: 'git:diff'
+    diff: 'git:diff',
+    push: 'git:push',
+    pull: 'git:pull',
+    getRemotes: 'git:getRemotes',
+    setRemote: 'git:setRemote'
   },
   export: {
     start: 'export:start',
@@ -99,7 +105,12 @@ export const IPC = {
   },
   asset: {
     list: 'asset:list',
-    resolve: 'asset:resolve'
+    resolve: 'asset:resolve',
+    import: 'asset:import',
+    delete: 'asset:delete'
+  },
+  image: {
+    generate: 'image:generate'
   },
   workspace: {
     /** PR2: 在独立 BrowserWindow 中浮出 panel(走 main 端 createWindow) */
@@ -133,5 +144,6 @@ export type IpcChannel =
   | (typeof IPC)['store'][keyof (typeof IPC)['store']]
   | (typeof IPC)['dialog'][keyof (typeof IPC)['dialog']]
   | (typeof IPC)['asset'][keyof (typeof IPC)['asset']]
+  | (typeof IPC)['image'][keyof (typeof IPC)['image']]
   | (typeof IPC)['workspace'][keyof (typeof IPC)['workspace']]
   | (typeof IPC)['preview'][keyof (typeof IPC)['preview']]

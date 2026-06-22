@@ -14,9 +14,9 @@
  *  - 类型严格遵守 preload 端 window.galide.asset.list 的返回签名。
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { IPC } from '../../shared/ipc-channels.js'
 
 type AssetKind = 'characters' | 'backgrounds' | 'bgm'
@@ -108,6 +108,54 @@ export const registerAssetHandlers = (): void => {
     IPC.asset.resolve,
     async (_e, projectPath: string, relPath: string) => {
       return resolveAsset(projectPath, relPath)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.asset.import,
+    async (
+      _e,
+      projectPath: string,
+      kind: AssetKind
+    ): Promise<{ ok: boolean; relPath?: string; error?: string; canceled?: boolean }> => {
+      try {
+        if (!projectPath) return { ok: false, error: 'projectPath 不能为空' }
+        const filters =
+          kind === 'bgm'
+            ? [{ name: 'Audio', extensions: ['mp3', 'ogg', 'wav', 'm4a'] }]
+            : [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+        const picked = await dialog.showOpenDialog({ properties: ['openFile'], filters })
+        if (picked.canceled || !picked.filePaths[0]) {
+          return { ok: false, canceled: true }
+        }
+        const src = picked.filePaths[0]
+        const name = basename(src)
+        const destDir = join(projectPath, 'assets', kind)
+        await fs.mkdir(destDir, { recursive: true })
+        const dest = join(destDir, name)
+        await fs.copyFile(src, dest)
+        return { ok: true, relPath: `assets/${kind}/${name}` }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    IPC.asset.delete,
+    async (
+      _e,
+      projectPath: string,
+      relPath: string
+    ): Promise<{ ok: boolean; error?: string; code?: string }> => {
+      const r = _safeResolve(projectPath, relPath)
+      if (r.ok !== true) return { ok: false, error: r.error, code: r.code }
+      try {
+        await fs.unlink(r.abs)
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
     }
   )
 }

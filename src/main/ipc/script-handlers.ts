@@ -13,7 +13,25 @@ import {
   type ScriptFs,
   type ScriptGit
 } from './script-service.js'
+import { scriptsDirAbs } from '../../shared/project-layout.js'
+import { mergeScriptAsts } from '../../shared/dsl/merge-scripts.js'
+import {
+  assertExportableScripts,
+  parseProjectScripts
+} from '../export/parse-project-scripts.js'
+import { ExportError } from '../export/composer.js'
 import { broadcastScriptChanged } from './script-broadcast.js'
+import {
+  ipcSchemaFailure,
+  parseIpcArgs,
+  ScriptListSchema,
+  ScriptParseProjectSchema,
+  ScriptParseSchema,
+  ScriptReadSchema,
+  ScriptSearchProjectSchema,
+  ScriptWriteSchema
+} from './schemas/index.js'
+import { searchProjectScripts } from '../../shared/dsl/search-project-scripts.js'
 
 /**
  * P1 修复:
@@ -34,9 +52,16 @@ export const registerScriptHandlers = (): void => {
   ipcMain.handle(
     IPC.script.read,
     async (_e, projectPath: string, fileName: string): Promise<string> => {
-      const r = await readScript(projectPath, fileName, { fs: fsAdapter })
-      if (r.ok !== true) throw new Error(r.error.message)
-      return r.value
+      try {
+        const args = parseIpcArgs('script:read', ScriptReadSchema, { projectPath, fileName })
+        const r = await readScript(args.projectPath, args.fileName, { fs: fsAdapter })
+        if (r.ok !== true) throw new Error(r.error.message)
+        return r.value
+      } catch (err) {
+        const fail = ipcSchemaFailure(err)
+        if (fail.code === 'SCHEMA_FAILED') throw new Error(fail.error)
+        throw err
+      }
     }
   )
 
@@ -48,33 +73,100 @@ export const registerScriptHandlers = (): void => {
       fileName: string,
       content: string
     ): Promise<{ ok: boolean; error?: string; code?: string }> => {
-      const r = await writeScript(projectPath, fileName, content, {
-        fs: fsAdapter,
-        git: gitAdapter,
-        gitPrefs: getPreference('git')
-      })
-      if (r.ok !== true) return { ok: false, error: r.error.message, code: r.error.code }
-      broadcastScriptChanged(
-        { projectPath, fileName, source: content },
-        { excludeSenderId: e.sender.id }
-      )
-      return { ok: true }
+      try {
+        const args = parseIpcArgs('script:write', ScriptWriteSchema, { projectPath, fileName, content })
+        const r = await writeScript(args.projectPath, args.fileName, args.content, {
+          fs: fsAdapter,
+          git: gitAdapter,
+          gitPrefs: getPreference('git')
+        })
+        if (r.ok !== true) return { ok: false, error: r.error.message, code: r.error.code }
+        broadcastScriptChanged(
+          { projectPath: args.projectPath, fileName: args.fileName, source: args.content },
+          { excludeSenderId: e.sender.id }
+        )
+        return { ok: true }
+      } catch (err) {
+        const fail = ipcSchemaFailure(err)
+        if (fail.code === 'SCHEMA_FAILED') return fail
+        throw err
+      }
     }
   )
 
   ipcMain.handle(
     IPC.script.parse,
     async (_e, source: string): Promise<Result<ScriptNode, ParseError[]>> => {
-      return parse(source)
+      try {
+        const args = parseIpcArgs('script:parse', ScriptParseSchema, { source })
+        return parse(args.source)
+      } catch (err) {
+        const fail = ipcSchemaFailure(err)
+        if (fail.code === 'SCHEMA_FAILED') throw new Error(fail.error)
+        throw err
+      }
     }
   )
 
   ipcMain.handle(IPC.script.list, async (_e, projectPath: string): Promise<string[]> => {
-    const r = await listScripts(projectPath, { fs: fsAdapter })
-    if (r.ok !== true) {
-      console.warn(`[galide script] 列出 ${join(projectPath, 'scripts')} 失败: ${r.error.message}`)
-      return []
+    try {
+      const args = parseIpcArgs('script:list', ScriptListSchema, { projectPath })
+      const r = await listScripts(args.projectPath, { fs: fsAdapter })
+      if (r.ok !== true) {
+        console.warn(`[galide script] 列出 ${join(args.projectPath, 'scripts')} 失败: ${r.error.message}`)
+        return []
+      }
+      return r.value
+    } catch (err) {
+      const fail = ipcSchemaFailure(err)
+      if (fail.code === 'SCHEMA_FAILED') {
+        console.warn(`[galide script] list schema failed: ${fail.error}`)
+        return []
+      }
+      throw err
     }
-    return r.value
+  })
+
+  ipcMain.handle(IPC.script.parseProject, async (_e, projectPath: string) => {
+    try {
+      const args = parseIpcArgs('script:parseProject', ScriptParseProjectSchema, { projectPath })
+      const scriptsDir = scriptsDirAbs(args.projectPath)
+      const { asts, failures } = await parseProjectScripts(scriptsDir, {
+        readdir: (p) => fs.readdir(p),
+        readFile: (p) => fs.readFile(p, 'utf-8')
+      })
+      const galFileCount = asts.length + failures.length
+      try {
+        assertExportableScripts(asts, failures, galFileCount)
+      } catch (e) {
+        if (e instanceof ExportError) {
+          return { ok: false, code: e.code, error: e.message }
+        }
+        throw e
+      }
+      return { ok: true, mergedAst: mergeScriptAsts(asts) }
+    } catch (err) {
+      const fail = ipcSchemaFailure(err)
+      if (fail.code === 'SCHEMA_FAILED') return fail
+      throw err
+    }
+  })
+
+  ipcMain.handle(IPC.script.searchProject, async (_e, projectPath: string, query: string) => {
+    try {
+      const args = parseIpcArgs('script:searchProject', ScriptSearchProjectSchema, {
+        projectPath,
+        query
+      })
+      const hits = await searchProjectScripts(scriptsDirAbs(args.projectPath), args.query, {
+        readdir: (p) => fs.readdir(p),
+        readFile: (p) => fs.readFile(p, 'utf-8')
+      })
+      return { ok: true as const, hits }
+    } catch (err) {
+      const fail = ipcSchemaFailure(err)
+      if (fail.code === 'SCHEMA_FAILED') return fail
+      throw err
+    }
   })
 }

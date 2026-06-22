@@ -34,7 +34,8 @@ const DEFAULTS: PreferencesShape = {
   voice: {
     defaultProvider: 'edge',
     defaultVoiceId: 'zh-CN-XiaoxiaoNeural',
-    batchConcurrency: 4
+    batchConcurrency: 4,
+    previewEnabled: false
   },
   agent: {
     autonomy: 'hybrid',

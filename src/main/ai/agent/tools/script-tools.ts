@@ -6,8 +6,12 @@
  *
  * 规约:core/conventions.yaml「.gal 是 canonical」「资产相对路径」;DSL 遍历走 visitor。
  */
-import { join } from 'node:path'
 import * as z from 'zod/v4'
+import {
+  galScriptAbs,
+  isGalScriptFileName,
+  scriptsDirAbs
+} from '../../../../shared/project-layout.js'
 import { parse, collectSceneSummaries } from '../../../../shared/dsl/parser.js'
 import { serialize } from '../../../../shared/dsl/serializer.js'
 import { findById, collectNodes } from '../../../../shared/dsl/visitor.js'
@@ -29,7 +33,7 @@ const readAst = async (
 ): Promise<{ ast: ScriptNode } | { error: ToolHandlerResult }> => {
   let src = ''
   try {
-    src = await ctx.fs.readFile(join(ctx.projectPath, fileName))
+    src = await ctx.fs.readFile(galScriptAbs(ctx.projectPath, fileName))
   } catch (e) {
     return {
       error: {
@@ -54,7 +58,7 @@ const readAst = async (
 }
 
 const writeAst = async (ctx: ToolContext, fileName: string, ast: ScriptNode): Promise<void> => {
-  await ctx.fs.writeFile(join(ctx.projectPath, fileName), serialize(ast))
+  await ctx.fs.writeFile(galScriptAbs(ctx.projectPath, fileName), serialize(ast))
 }
 
 // ----------------------------------------------------------------------------
@@ -73,7 +77,9 @@ const listScenes = defineTool({
       files = [args.fileName]
     } else {
       try {
-        files = (await ctx.fs.readdir(ctx.projectPath)).filter((f) => f.endsWith('.gal')).sort()
+        files = (await ctx.fs.readdir(scriptsDirAbs(ctx.projectPath)))
+          .filter((f) => isGalScriptFileName(f))
+          .sort()
       } catch {
         files = []
       }
@@ -102,7 +108,7 @@ const readScript = defineTool({
   schema: z.object({ fileName: FileNameSchema }),
   handler: async (args, ctx): Promise<ToolHandlerResult> => {
     try {
-      const src = await ctx.fs.readFile(join(ctx.projectPath, args.fileName))
+      const src = await ctx.fs.readFile(galScriptAbs(ctx.projectPath, args.fileName))
       const truncated = src.length > MAX_READ_CHARS
       return {
         ok: true,

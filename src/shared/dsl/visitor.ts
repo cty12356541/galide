@@ -13,6 +13,7 @@
 import type {
   AstNode,
   ChoiceNode,
+  ChapterNode,
   CommentNode,
   DialogueNode,
   GotoNode,
@@ -34,6 +35,7 @@ export interface ScriptVisitor<T> {
   visitGoto?(node: GotoNode): T
   visitMarker?(node: MarkerNode): T
   visitComment?(node: CommentNode): T
+  visitChapter?(node: ChapterNode): T
 }
 
 const isParentNode = (n: AstNode): n is ScriptNode | SceneNode | IfNode =>
@@ -83,6 +85,9 @@ export function walkScript<T>(ast: ScriptNode, visitor: ScriptVisitor<T>): T[] {
       case 'comment':
         value = visitor.visitComment?.(n)
         break
+      case 'chapter':
+        value = visitor.visitChapter?.(n)
+        break
     }
     if (value !== undefined) results.push(value)
     if (isParentNode(n)) {
@@ -131,7 +136,8 @@ export const countByType = (root: AstRoot): Record<NodeType, number> => {
     if: 0,
     goto: 0,
     marker: 0,
-    comment: 0
+    comment: 0,
+    chapter: 0
   }
   const visit = (n: AstNode): void => {
     counts[n.type] += 1

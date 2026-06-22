@@ -4,25 +4,24 @@
 import { dirname, join } from 'node:path'
 import { promises as fs } from 'node:fs'
 import * as z from 'zod/v4'
+import { generateSpriteService } from '../../../image/generate-sprite-service.js'
+import { readGalproj } from '../../../manifest/project-manifest.js'
 import { defineTool, type RegisteredTool } from '../tool-registry.js'
 import type { ToolContext, ToolHandlerResult } from '../types.js'
-import { imageProxy } from '../../image/image-proxy.js'
 import { createTtsProxy } from '../../../voice/tts-proxy.js'
+import {
+  serializeVoiceSidecar,
+  voiceSidecarAbsPath
+} from '../../../../shared/voice/voice-sidecar.js'
 import { getPreference } from '../../../preferences/preferences-store.js'
 
 const readManifestCharacter = async (
   ctx: ToolContext,
   characterId: string
 ): Promise<{ sdPrompt?: string; voiceConfig?: { voiceId?: string } } | null> => {
-  try {
-    const raw = await ctx.fs.readFile(join(ctx.projectPath, '.galproj'))
-    const parsed = JSON.parse(raw) as {
-      characters?: Array<{ id: string; sdPrompt?: string; voiceConfig?: { voiceId?: string } }>
-    }
-    return parsed.characters?.find((c) => c.id === characterId) ?? null
-  } catch {
-    return null
-  }
+  const r = await readGalproj(ctx.projectPath, (p) => ctx.fs.readFile(p))
+  if (r.ok !== true) return null
+  return r.value.characters?.find((c) => c.id === characterId) ?? null
 }
 
 const generateSprite = defineTool({
@@ -39,32 +38,26 @@ const generateSprite = defineTool({
     baseUrl: z.string().optional()
   }),
   handler: async (args, ctx): Promise<ToolHandlerResult> => {
-    const char = await readManifestCharacter(ctx, args.characterId)
-    const prompt = args.prompt ?? char?.sdPrompt
-    if (!prompt) {
-      return {
-        ok: false,
-        content: `角色 ${args.characterId} 无 sdPrompt,请提供 prompt 参数`,
-        error: { code: 'NO_PROMPT', message: 'missing sdPrompt and prompt' }
-      }
-    }
-    const gen = await imageProxy.generate({
+    const result = await generateSpriteService({
+      projectPath: ctx.projectPath,
+      characterId: args.characterId,
+      state: args.state,
+      prompt: args.prompt,
       provider: args.provider,
-      prompt,
       seed: args.seed,
       baseUrl: args.baseUrl
     })
-    if (gen.ok === false) {
-      return { ok: false, content: gen.message, error: { code: gen.code, message: gen.message } }
+    if (result.ok === false) {
+      return {
+        ok: false,
+        content: result.error,
+        error: { code: result.code, message: result.error }
+      }
     }
-    const relPath = `assets/characters/${args.characterId}_${args.state}.png`
-    const absPath = join(ctx.projectPath, relPath)
-    await fs.mkdir(dirname(absPath), { recursive: true })
-    await fs.writeFile(absPath, Buffer.from(gen.imageBase64, 'base64'))
     return {
       ok: true,
-      content: `已生成立绘 ${relPath}(seed=${gen.seed})`,
-      data: { path: relPath, seed: gen.seed }
+      content: `已生成立绘 ${result.path}(seed=${result.seed ?? 'n/a'})`,
+      data: { path: result.path, seed: result.seed }
     }
   }
 })
@@ -90,6 +83,11 @@ const generateVoice = defineTool({
     if (r.ok === false) {
       return { ok: false, content: r.message, error: { code: r.code, message: r.message } }
     }
+    await fs.writeFile(
+      voiceSidecarAbsPath(ctx.projectPath, args.lineId),
+      serializeVoiceSidecar({ text: args.text, characterId: args.characterId }),
+      'utf-8'
+    )
     return { ok: true, content: `已生成语音 ${relPath}`, data: { path: relPath } }
   }
 })

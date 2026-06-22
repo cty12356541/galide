@@ -9,9 +9,9 @@
 import { promises as fs } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { Composer, ExportContext, MultiFileOutput } from './composer.js'
-import type { ScriptNode, SceneNode } from '../../shared/dsl/types.js'
 import { buildVmGraph, buildPlayerRuntimeFunctions } from '../../shared/preview/runtime-vm.js'
 import { buildPlayerSaveFunctions } from '../../shared/preview/vm-save.js'
+import { mergeScriptAsts } from '../../shared/dsl/merge-scripts.js'
 
 /** 安全 JSON 内联:转义 `<` 防 `</script>` 注入 */
 const safeJson = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c')
@@ -249,27 +249,6 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
 </body>
 </html>`
 
-const mergeAsts = (asts: ExportContext['asts']): ScriptNode => {
-  const merged: ScriptNode = { type: 'script', line: 1, column: 1, children: [], errors: [] }
-  for (const entry of asts) {
-    for (const child of entry.ast.children) {
-      if (child.type === 'scene') {
-        const existing = merged.children.findIndex(
-          (c) => c.type === 'scene' && (c as SceneNode).id === (child as SceneNode).id
-        )
-        if (existing >= 0) {
-          merged.children[existing] = child
-        } else {
-          merged.children.push(child)
-        }
-      } else {
-        merged.children.push(child)
-      }
-    }
-  }
-  return merged
-}
-
 export interface WebAst {
   readonly html: string
 }
@@ -279,7 +258,7 @@ export class WebComposer implements Composer<WebAst, MultiFileOutput> {
   readonly defaultFilename = 'index.html'
 
   async transform(ctx: ExportContext): Promise<WebAst> {
-    const merged = mergeAsts(ctx.asts)
+    const merged = mergeScriptAsts(ctx.asts)
     const graph = buildVmGraph(merged)
     const graphJson = safeJson(graph)
     const vmFunctions = buildPlayerRuntimeFunctions()

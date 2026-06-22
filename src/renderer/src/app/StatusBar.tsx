@@ -1,12 +1,12 @@
 /**
  * StatusBar — 6 区块状态栏 (v0.4.1 重设计)
  *
- * 6 区块分两组(左 4 + 右 2),Divider 用 border-strong 加重:
- *   [git branch] | [err N] | [msg N] | [100%]
+ * 5 区块分两组(左 3 + 右 2),Divider 用 border-strong 加重:
+ *   [git branch] | [err N] | [msg N]
  *                <-- flex-1 -->
  *                          [● AI 状态] | [写作 eye/eyeoff]
  */
-import { GitBranch, AlertCircle, Bell, Maximize2, Eye, EyeOff, X } from 'lucide-react'
+import { GitBranch, AlertCircle, Bell, Eye, EyeOff, X } from 'lucide-react'
 import { useUiStore, useErrorStore } from '../lib/store'
 import { useGitStatus } from '../lib/ipc/use-git-status'
 import { cn } from '../lib/utils'
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popove
 
 export const StatusBar = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
+  const projectParseError = useUiStore((s) => s.projectParseError)
   const workspacePreset = useUiStore((s) => s.workspacePreset)
   const aiPanelOpen = useUiStore((s) => s.visiblePerSide[s.dockSide.ai] === 'ai')
   const toggleAiPanel = useUiStore((s) => s.toggleAiPanel)
@@ -40,6 +41,17 @@ export const StatusBar = (): JSX.Element => {
         testId="status-git-branch"
       />
       <Divider />
+      {projectParseError ? (
+        <span
+          title={projectParseError}
+          data-testid="status-parse-error"
+          className="h-7 px-2.5 rounded-md flex items-center gap-1.5 bg-warning-soft text-warning-strong max-w-[200px]"
+        >
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">解析失败</span>
+        </span>
+      ) : null}
+      {projectParseError ? <Divider /> : null}
       <Popover>
         <PopoverTrigger asChild>
           <button
@@ -91,9 +103,6 @@ export const StatusBar = (): JSX.Element => {
         label={infoCount > 0 ? `${infoCount} 消息` : '0 消息'}
         tooltip="消息"
       />
-      <Divider />
-      <Block icon={<Maximize2 className="w-3.5 h-3.5" />} label="100%" tooltip="UI 缩放" />
-
       <div className="flex-1" />
 
       <Block

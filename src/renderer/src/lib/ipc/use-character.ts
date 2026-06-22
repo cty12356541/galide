@@ -6,6 +6,7 @@ type CharacterInput = {
   name: string
   description: string
   personality: string
+  sdPrompt?: string
   spriteSet: { state: string; path: string }[]
 }
 

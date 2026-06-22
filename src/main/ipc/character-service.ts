@@ -6,16 +6,17 @@
  *
  * 规约: core/patterns.yaml:56-60 (Result<T, E>)
  */
-import { join } from 'node:path'
 import type { ProjectManifest } from '../../shared/types.js'
 import type { Result } from '../../shared/dsl/types.js'
 import type { GitPreferences } from '../../shared/preferences.js'
+import { readGalproj, writeGalproj } from '../manifest/project-manifest.js'
 
 export type CharacterInput = {
   id: string
   name: string
   description: string
   personality: string
+  sdPrompt?: string
   spriteSet: { state: string; path: string }[]
 }
 
@@ -37,18 +38,13 @@ export type CharacterGit = {
   ) => Promise<Result<true, { code: string; message: string }>>
 }
 
-const manifestPath = (projectPath: string): string => join(projectPath, '.galproj')
-
 const readManifest = async (
   projectPath: string,
   fs: CharacterFs
 ): Promise<Result<ProjectManifest, CharacterError>> => {
-  try {
-    const raw = await fs.readFile(manifestPath(projectPath))
-    return { ok: true, value: JSON.parse(raw) as ProjectManifest }
-  } catch (e) {
-    return { ok: false, error: { code: 'READ_FAILED', message: eMessage(e) } }
-  }
+  const r = await readGalproj(projectPath, (p) => fs.readFile(p))
+  if (r.ok !== true) return { ok: false, error: r.error }
+  return r
 }
 
 const writeManifest = async (
@@ -56,12 +52,9 @@ const writeManifest = async (
   manifest: ProjectManifest,
   fs: CharacterFs
 ): Promise<Result<void, CharacterError>> => {
-  try {
-    await fs.writeFile(manifestPath(projectPath), JSON.stringify(manifest, null, 2))
-    return { ok: true, value: undefined }
-  } catch (e) {
-    return { ok: false, error: { code: 'WRITE_FAILED', message: eMessage(e) } }
-  }
+  const r = await writeGalproj(projectPath, manifest, (p, c) => fs.writeFile(p, c))
+  if (r.ok !== true) return { ok: false, error: r.error }
+  return r
 }
 
 export type CharacterDeps = {
@@ -152,5 +145,3 @@ export const listCharacters = async (
   if (read.ok !== true) return { ok: false, error: read.error.message, code: read.error.code }
   return { ok: true, value: { characters: read.value.characters } }
 }
-
-const eMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e))

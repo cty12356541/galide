@@ -30,3 +30,11 @@ export_pipeline:
   - "transform: gal AST → TargetAST"
   - "emit: TargetAST → Target files"
 
+runtime_contracts:
+  ink:
+    showCharacter: "EXTERNAL showCharacter(name, state, position) — Unity/Ink runtime 需绑定"
+  renpy:
+    show: "image 声明 + show 语句,见 renpy-composer buildImageLines"
+  web:
+    sprites: "runtime-vm + HTML player 内联 JS"
+

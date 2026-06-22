@@ -21,7 +21,7 @@ const chapter1 = `## intro
 `
 
 const makeCtx = (): { ctx: ToolContext; fs: ToolFs; read: (f: string) => string } => {
-  const vol = Volume.fromJSON({ '/proj/chapter1.gal': chapter1 })
+  const vol = Volume.fromJSON({ '/proj/scripts/chapter1.gal': chapter1 })
   const mfs = createFsFromVolume(vol)
   const fs: ToolFs = {
     readFile: (p) => mfs.promises.readFile(p, 'utf-8') as Promise<string>,
@@ -31,7 +31,7 @@ const makeCtx = (): { ctx: ToolContext; fs: ToolFs; read: (f: string) => string 
   return {
     ctx: { projectPath: '/proj', fs },
     fs,
-    read: (f) => mfs.readFileSync(`/proj/${f}`, 'utf-8') as string
+    read: (f) => mfs.readFileSync(`/proj/scripts/${f}`, 'utf-8') as string
   }
 }
 
@@ -201,7 +201,7 @@ describe('script-tools — 变量/条件', () => {
   })
 
   it('read_variables 扫描变量与条件', async () => {
-    const vol = Volume.fromJSON({ '/proj/chapter1.gal': varGal })
+    const vol = Volume.fromJSON({ '/proj/scripts/chapter1.gal': varGal })
     const mfs = createFsFromVolume(vol)
     const fs: ToolFs = {
       readFile: (p) => mfs.promises.readFile(p, 'utf-8') as Promise<string>,

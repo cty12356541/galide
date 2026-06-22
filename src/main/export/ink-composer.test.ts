@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { parse } from '../../shared/dsl/parser.js'
-import { InkComposer, sanitizeInkKnot } from './ink-composer.js'
+import { InkComposer, sanitizeInkKnot, buildInkSpriteDeclLines } from './ink-composer.js'
 import type {
   ScriptNode,
   SceneNode,
@@ -116,6 +116,35 @@ describe('InkComposer', () => {
     const ink = composer.emit(target, ctx)
     expect(ink).toContain('=== 教室 ===')
     expect(ink).toContain('小雪: 你好')
+    expect(ink).toContain('EXTERNAL showCharacter')
+  })
+
+  it('emits showCharacter for dialogue with sprite', async () => {
+    const dialogue: DialogueNode = {
+      ...base(1),
+      type: 'dialogue',
+      character: '小雪',
+      sprite: '默认',
+      position: 'left',
+      lines: ['你好']
+    }
+    const ast = makeAst([makeScene('教室', [dialogue])])
+    const ctx = makeCtx([{ file: 'main.gal', ast }])
+    const composer = new InkComposer()
+    const target = await composer.transform(ctx)
+    const ink = composer.emit(target, ctx)
+    expect(ink).toContain('~ showCharacter("小雪", "默认", "left")')
+  })
+
+  it('buildInkSpriteDeclLines lists manifest sprites', () => {
+    const lines = buildInkSpriteDeclLines([
+      {
+        id: 'koyuki',
+        name: '小雪',
+        spriteSet: [{ state: '默认', path: 'assets/characters/koyuki.png' }]
+      }
+    ])
+    expect(lines.some((l) => l.includes('IMAGE:') && l.includes('koyuki.png'))).toBe(true)
   })
 
   it('emits background and BGM as comments', async () => {

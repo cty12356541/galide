@@ -21,10 +21,11 @@ describe('LeftToolWindow 占位主岛', () => {
     resetStores()
   })
 
-  it('search 占位渲染标题与描述,且无浮出按钮', () => {
+  it('search 占位渲染 ScriptSearchPanel', () => {
+    useUiStore.setState({ projectPath: '/fake/project' })
     render(<LeftToolWindow placeholderId="search" />)
-    expect(screen.getByTestId('placeholder-tool-window-搜索')).toBeTruthy()
-    expect(screen.getByText(/跨文件全文搜索/)).toBeTruthy()
+    expect(screen.getByTestId('script-search-panel')).toBeTruthy()
+    expect(screen.getByPlaceholderText(/搜索 scripts/)).toBeTruthy()
     expect(screen.queryByTestId('left-float')).toBeNull()
   })
 
@@ -36,8 +37,8 @@ describe('LeftToolWindow 占位主岛', () => {
 
   it('settings 占位渲染', () => {
     render(<LeftToolWindow placeholderId="settings" />)
-    expect(screen.getByTestId('placeholder-tool-window-设置')).toBeTruthy()
     expect(screen.getByText(/IDE 偏好配置/)).toBeTruthy()
+    expect(screen.getByText('打开偏好设置')).toBeTruthy()
   })
 
   it('关闭按钮收起左槽', () => {

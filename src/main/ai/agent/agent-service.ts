@@ -6,8 +6,8 @@
  */
 import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
 import type { WebContents } from 'electron'
+import { galScriptAbs, isGalScriptFileName, scriptsDirAbs } from '../../../shared/project-layout.js'
 import { IPC } from '../../../shared/ipc-channels.js'
 import { runAgent, type AgentStep, type ConfirmRequest } from './agent-loop.js'
 import { createAgentGit } from './agent-git.js'
@@ -94,10 +94,11 @@ const readGalScript = async (
   activeScriptFile?: string | null
 ): Promise<string | null> => {
   try {
-    const files = (await fs.readdir(projectPath)).filter((f) => f.endsWith('.gal'))
+    const files = (await fs.readdir(scriptsDirAbs(projectPath)))
+      .filter((f) => isGalScriptFileName(f))
     const target = resolveActiveGalFile(activeScriptFile, files)
     if (!target) return null
-    return await fs.readFile(join(projectPath, target), 'utf-8')
+    return await fs.readFile(galScriptAbs(projectPath, target), 'utf-8')
   } catch {
     return null
   }

@@ -51,7 +51,7 @@ describe('script-broadcast', () => {
       broadcasts.push(payload)
     })
     const wrapped = createBroadcastingWriteFile('/proj', writeFile, broadcast)
-    await wrapped('/proj/chapter1.gal', '## intro\n')
+    await wrapped('/proj/scripts/chapter1.gal', '## intro\n')
     expect(writes).toHaveLength(1)
     expect(broadcasts).toEqual([
       { projectPath: '/proj', fileName: 'chapter1.gal', source: '## intro\n' }

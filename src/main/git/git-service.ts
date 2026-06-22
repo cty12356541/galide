@@ -10,6 +10,7 @@ import { simpleGit, type SimpleGit, type StatusResult, type LogResult } from 'si
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
 import type { Result } from '../../shared/dsl/types.js'
+import type { ProjectManifest } from '../../shared/types.js'
 
 export type GitError = {
   code:
@@ -20,6 +21,10 @@ export type GitError = {
     | 'LOG_FAILED'
     | 'DIFF_FAILED'
     | 'RESET_FAILED'
+    | 'PUSH_FAILED'
+    | 'PULL_FAILED'
+    | 'NO_REMOTE'
+    | 'REMOTE_FAILED'
     | 'NOT_FOUND'
   message: string
 }
@@ -216,6 +221,105 @@ export const resetHard = async (
   }
 }
 
+export type GitRemote = {
+  name: string
+  url: string
+}
+
+const hasOriginRemote = async (git: SimpleGit): Promise<boolean> => {
+  const remotes = await git.getRemotes(true)
+  return remotes.some((r) => r.name === 'origin')
+}
+
+export const getRemotes = async (
+  projectPath: string
+): Promise<Result<GitRemote[], GitError>> => {
+  try {
+    if (!(await isRepo(projectPath))) {
+      return okOf([])
+    }
+    const git = getGit(projectPath)
+    const remotes = await git.getRemotes(true)
+    return okOf(
+      remotes.map((r) => ({
+        name: r.name,
+        url: r.refs.fetch || r.refs.push || ''
+      }))
+    )
+  } catch (e) {
+    return errOf('REMOTE_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
+const galprojPath = (projectPath: string): string => join(projectPath, '.galproj')
+
+const writeGalprojRemoteUrl = async (
+  projectPath: string,
+  url: string
+): Promise<Result<true, GitError>> => {
+  try {
+    const raw = await fs.readFile(galprojPath(projectPath), 'utf-8')
+    const manifest = JSON.parse(raw) as ProjectManifest
+    manifest.git = { ...(manifest.git ?? { initialized: true }), remoteUrl: url }
+    await fs.writeFile(galprojPath(projectPath), JSON.stringify(manifest, null, 2))
+    return okOf(true)
+  } catch (e) {
+    return errOf('REMOTE_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
+export const setRemote = async (
+  projectPath: string,
+  url: string
+): Promise<Result<true, GitError>> => {
+  try {
+    if (!(await isRepo(projectPath))) {
+      return errOf('NOT_INITIALIZED', '项目尚未 git init')
+    }
+    const git = getGit(projectPath)
+    const remotes = await git.getRemotes(true)
+    if (remotes.some((r) => r.name === 'origin')) {
+      await git.remote(['set-url', 'origin', url])
+    } else {
+      await git.addRemote('origin', url)
+    }
+    const w = await writeGalprojRemoteUrl(projectPath, url)
+    if (w.ok !== true) return w
+    return okOf(true)
+  } catch (e) {
+    return errOf('REMOTE_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
+export const push = async (projectPath: string): Promise<Result<true, GitError>> => {
+  try {
+    if (!(await isRepo(projectPath))) {
+      return errOf('NOT_INITIALIZED', '项目尚未 git init')
+    }
+    const git = getGit(projectPath)
+    if (!(await hasOriginRemote(git))) {
+      return errOf('NO_REMOTE', '未配置远程仓库 origin,请先在 Git 面板设置远程 URL')
+    }
+    await git.push()
+    return okOf(true)
+  } catch (e) {
+    return errOf('PUSH_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
+export const pull = async (projectPath: string): Promise<Result<true, GitError>> => {
+  try {
+    if (!(await isRepo(projectPath))) {
+      return errOf('NOT_INITIALIZED', '项目尚未 git init')
+    }
+    const git = getGit(projectPath)
+    await git.pull()
+    return okOf(true)
+  } catch (e) {
+    return errOf('PULL_FAILED', e instanceof Error ? e.message : String(e))
+  }
+}
+
 export const gitService = {
   init,
   createInitialCommit,
@@ -224,5 +328,9 @@ export const gitService = {
   log,
   diff,
   snapshot,
-  resetHard
+  resetHard,
+  getRemotes,
+  setRemote,
+  push,
+  pull
 }

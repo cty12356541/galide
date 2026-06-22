@@ -44,6 +44,15 @@ export const parseIpcArgs = <T>(
   return r.data
 }
 
+/** handler 顶层 catch:把 IpcSchemaError 转成 SCHEMA_FAILED 响应 */
+export const ipcSchemaFailure = (
+  err: unknown
+): { ok: false; error: string; code: 'SCHEMA_FAILED' } => ({
+  ok: false,
+  error: err instanceof Error ? err.message : String(err),
+  code: 'SCHEMA_FAILED'
+})
+
 // =================== 偏好 ===================
 // 镜像 src/shared/preferences.ts 的类型,保持单一事实源后这里可以重构
 
@@ -65,7 +74,8 @@ export const AppearancePreferencesSchema = z.object({
 export const VoicePreferencesSchema = z.object({
   defaultProvider: z.enum(['edge', 'elevenlabs', 'local']),
   defaultVoiceId: z.string(),
-  batchConcurrency: z.number().int().min(1).max(32)
+  batchConcurrency: z.number().int().min(1).max(32),
+  previewEnabled: z.boolean()
 })
 
 export const AgentPreferencesSchema = z.object({
@@ -296,7 +306,39 @@ export const GitStatusSchema = z.object({
   projectPath: z.string().min(1)
 })
 
-// =================== Asset ===================
+export const GitPushPullSchema = z.object({
+  projectPath: z.string().min(1)
+})
+
+export const GitSetRemoteSchema = z.object({
+  projectPath: z.string().min(1),
+  url: z.string().min(1)
+})
+
+export const GitGetRemotesSchema = z.object({
+  projectPath: z.string().min(1)
+})
+
+// =================== Image / Script ===================
+
+export const ImageGenerateSchema = z.object({
+  projectPath: z.string().min(1),
+  characterId: z.string().min(1),
+  state: z.string().min(1),
+  prompt: z.string().min(1),
+  provider: z.enum(['sd', 'dalle', 'comfyui']).optional(),
+  seed: z.number().int().optional(),
+  baseUrl: z.string().optional()
+})
+
+export const ScriptParseProjectSchema = z.object({
+  projectPath: z.string().min(1)
+})
+
+export const ScriptSearchProjectSchema = z.object({
+  projectPath: z.string().min(1),
+  query: z.string()
+})
 
 export const AssetResolveSchema = z.object({
   projectPath: z.string().min(1),

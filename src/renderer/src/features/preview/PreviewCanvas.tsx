@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Play, Square, Box, Volume2, VolumeX, Save, FolderOpen } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
-import { useUiStore } from '../../lib/store'
+import { useUiStore, useErrorStore } from '../../lib/store'
 import { useAsset } from '../../lib/ipc/use-asset'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type { SceneNode, ScriptNode } from '../../../../shared/dsl/types'
@@ -19,10 +19,15 @@ import {
 } from '../../../../shared/preview/runtime-vm'
 import type { PreviewState } from './PreviewRuntime'
 import { motion } from 'framer-motion'
-import { createPreviewRuntime, type PreviewRuntime } from './PreviewRuntime'
+import type { PreviewRuntime } from './PreviewRuntime'
 import { createPreviewAudioController } from './preview-audio'
+import { createPreviewVoiceController } from './preview-voice'
 import { usePreviewSave } from '../../lib/ipc/use-preview-save'
 import { PREVIEW_SAVE_SLOT_COUNT } from '../../../../shared/preview/vm-save'
+import { ProjectParseErrorBanner } from '../../components/ui/project-parse-error-banner'
+import { usePreference } from '../../lib/ipc/use-preferences'
+import { useVoice } from '../../lib/ipc/use-voice'
+import { usePreviewRuntime } from './use-preview-runtime'
 
 const collectScenes = (ast: ScriptNode): SceneNode[] =>
   collectNodes(ast, (n): n is SceneNode => n.type === 'scene')
@@ -39,11 +44,19 @@ const resolveAssetUrl = async (
 
 export const PreviewCanvas = (): JSX.Element => {
   const scriptAst = useUiStore((s) => s.scriptAst)
+  const projectMergedAst = useUiStore((s) => s.projectMergedAst)
+  const projectParseError = useUiStore((s) => s.projectParseError)
+  const manifest = useUiStore((s) => s.manifest)
+  const viewAst = projectMergedAst ?? scriptAst
   const selectedSceneId = useUiStore((s) => s.selectedSceneId)
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const projectPath = useUiStore((s) => s.projectPath)
   const { resolveAsync } = useAsset()
   const { saveSlot, loadSlot } = usePreviewSave(projectPath)
+  const voicePrefsQuery = usePreference('voice')
+  const voiceApi = useVoice()
+  const pushError = useErrorStore((s) => s.push)
+  const previewTtsEnabled = voicePrefsQuery.data?.previewEnabled === true
 
   const [saveNote, setSaveNote] = useState<string | null>(null)
 
@@ -56,16 +69,17 @@ export const PreviewCanvas = (): JSX.Element => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const runtimeRef = useRef<PreviewRuntime | null>(null)
   const audioRef = useRef<ReturnType<typeof createPreviewAudioController> | null>(null)
+  const voiceRef = useRef<ReturnType<typeof createPreviewVoiceController> | null>(null)
   const sceneRef = useRef<SceneNode | null>(null)
 
   const vmGraph = useMemo<VmGraph | null>(
-    () => (scriptAst ? buildVmGraph(scriptAst) : null),
-    [scriptAst]
+    () => (viewAst ? buildVmGraph(viewAst) : null),
+    [viewAst]
   )
 
   const scenes = useMemo(
-    () => (scriptAst ? collectScenes(scriptAst) : []),
-    [scriptAst]
+    () => (viewAst ? collectScenes(viewAst) : []),
+    [viewAst]
   )
 
   const scene = useMemo<SceneNode | null>(() => {
@@ -94,36 +108,20 @@ export const PreviewCanvas = (): JSX.Element => {
     setUnsupportedNote(null)
   }, [vmGraph, scene?.id])
 
-  // mount-only: PixiJS runtime + audio controller
-  useEffect(() => {
-    if (sceneEmpty) return
-    if (!canvasRef.current) return
-
-    const runtime = createPreviewRuntime()
-    runtimeRef.current = runtime
-    void runtime.mount(canvasRef.current).then(() => {
-      if (runtimeRef.current === runtime && sceneRef.current) {
-        void runtime.updateScene(sceneRef.current)
-      }
-    })
-    const off = runtime.subscribeState(setRuntimeState)
-
-    audioRef.current = createPreviewAudioController({
-      createContext: () => new AudioContext(),
-      loadAudio: async (url: string) => {
-        const res = await fetch(url)
-        return res.arrayBuffer()
-      }
-    })
-
-    return () => {
-      off()
-      runtime.unmount()
-      runtimeRef.current = null
-      audioRef.current?.dispose()
-      audioRef.current = null
-    }
-  }, [sceneEmpty])
+  usePreviewRuntime({
+    canvasRef,
+    runtimeRef,
+    audioRef,
+    voiceRef,
+    sceneRef,
+    sceneEmpty,
+    projectPath,
+    resolveAsync,
+    voiceApi,
+    setRuntimeState,
+    onVoiceError: (message) =>
+      pushError({ code: 'PREVIEW_TTS_FAILED', message, source: 'preview:tts' })
+  })
 
   // Scene visual + BGM update when VM scene changes
   useEffect(() => {
@@ -159,11 +157,29 @@ export const PreviewCanvas = (): JSX.Element => {
 
   useEffect(() => {
     audioRef.current?.setMuted(muted)
+    voiceRef.current?.setMuted(muted)
   }, [muted])
 
   useEffect(() => {
     audioRef.current?.setVolume(volume)
   }, [volume])
+
+  const resolveCharacterId = useCallback(
+    (displayName: string): string => {
+      const chars = manifest?.characters ?? []
+      const hit = chars.find((c) => c.name === displayName || c.id === displayName)
+      return hit?.id ?? displayName
+    },
+    [manifest?.characters]
+  )
+
+  // Preview TTS on dialogue steps
+  useEffect(() => {
+    if (!previewTtsEnabled || currentStep?.type !== 'dialogue' || !vmState || !sceneId) return
+    const lineId = `${sceneId}-${vmState.stepIndex}`
+    const characterId = resolveCharacterId(currentStep.character)
+    void voiceRef.current?.playDialogue(lineId, currentStep.text, characterId)
+  }, [currentStep, previewTtsEnabled, vmState, sceneId, resolveCharacterId])
 
   // Auto-advance invisible set steps
   useEffect(() => {
@@ -335,6 +351,9 @@ export const PreviewCanvas = (): JSX.Element => {
           ) : null
         }
       />
+      {projectParseError ? (
+        <ProjectParseErrorBanner error={projectParseError} testId="preview-parse-error-banner" />
+      ) : null}
       {sceneEmpty ? (
         <div
           className="flex-1 flex flex-col items-center justify-center bg-canvas gap-3 text-text-muted"

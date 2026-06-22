@@ -15,12 +15,14 @@ import { cn } from '../../lib/utils'
 
 export const SceneRail = (): JSX.Element => {
   const scriptAst = useUiStore((s) => s.scriptAst)
+  const projectMergedAst = useUiStore((s) => s.projectMergedAst)
+  const viewAst = projectMergedAst ?? scriptAst
   const selectedSceneId = useUiStore((s) => s.selectedSceneId)
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
 
   const scenes = useMemo(
-    () => (scriptAst ? collectNodes(scriptAst, (n): n is SceneNode => n.type === 'scene') : []),
-    [scriptAst]
+    () => (viewAst ? collectNodes(viewAst, (n): n is SceneNode => n.type === 'scene') : []),
+    [viewAst]
   )
 
   return (

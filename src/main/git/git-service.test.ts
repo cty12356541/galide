@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,6 +23,11 @@ type SimpleGitMock = {
   raw: ReturnType<typeof vi.fn>
   revparse: ReturnType<typeof vi.fn>
   reset: ReturnType<typeof vi.fn>
+  push: ReturnType<typeof vi.fn>
+  pull: ReturnType<typeof vi.fn>
+  getRemotes: ReturnType<typeof vi.fn>
+  addRemote: ReturnType<typeof vi.fn>
+  remote: ReturnType<typeof vi.fn>
 }
 
 const makeGit = (): SimpleGitMock => ({
@@ -34,7 +39,12 @@ const makeGit = (): SimpleGitMock => ({
   diff: vi.fn(),
   raw: vi.fn(),
   revparse: vi.fn(),
-  reset: vi.fn()
+  reset: vi.fn(),
+  push: vi.fn(),
+  pull: vi.fn(),
+  getRemotes: vi.fn(),
+  addRemote: vi.fn(),
+  remote: vi.fn()
 })
 
 // vi.mock 必须在 import service 之前
@@ -209,5 +219,46 @@ describe('git-service', () => {
       expect(r.value[0]?.hash).toBe('abc123')
       expect(r.value[0]?.author).toBe('Tester')
     }
+  })
+
+  it('gitService.getRemotes() returns remote list', async () => {
+    const m = makeGit()
+    m.getRemotes.mockResolvedValue([{ name: 'origin', refs: { fetch: 'https://x.git', push: 'https://x.git' } }])
+    setMock(m)
+    const r = await gitService.getRemotes(tmpDir)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value).toEqual([{ name: 'origin', url: 'https://x.git' }])
+    }
+  })
+
+  it('gitService.setRemote() addRemote when origin missing', async () => {
+    writeFileSync(
+      join(tmpDir, '.galproj'),
+      JSON.stringify({ version: '0.1.0', name: 't', git: { initialized: true } })
+    )
+    const m = makeGit()
+    m.getRemotes.mockResolvedValue([])
+    m.addRemote.mockResolvedValue(undefined)
+    setMock(m)
+    const r = await gitService.setRemote(tmpDir, 'https://github.com/a/b.git')
+    expect(r.ok).toBe(true)
+    expect(m.addRemote).toHaveBeenCalledWith('origin', 'https://github.com/a/b.git')
+    const galproj = JSON.parse(readFileSync(join(tmpDir, '.galproj'), 'utf-8')) as {
+      git?: { remoteUrl?: string }
+    }
+    expect(galproj.git?.remoteUrl).toBe('https://github.com/a/b.git')
+  })
+
+  it('gitService.push() returns NO_REMOTE when origin absent', async () => {
+    const m = makeGit()
+    m.getRemotes.mockResolvedValue([])
+    setMock(m)
+    const r = await gitService.push(tmpDir)
+    expect(r.ok).toBe(false)
+    if (r.ok === false) {
+      expect(r.error.code).toBe('NO_REMOTE')
+    }
+    expect(m.push).not.toHaveBeenCalled()
   })
 })

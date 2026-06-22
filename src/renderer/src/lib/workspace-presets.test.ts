@@ -2,16 +2,23 @@
  * workspace-presets — 预设→字段映射单测(B2)
  */
 import { describe, it, expect } from 'vitest'
-import { WORKSPACE_PRESET_DEFAULTS, captureWorkspaceSnapshot } from './workspace-presets'
+import { WORKSPACE_PRESET_DEFAULTS, captureWorkspaceSnapshot, DEFAULT_CENTER_SPLIT } from './workspace-presets'
+
+describe('DEFAULT_CENTER_SPLIT', () => {
+  it('对齐写作初始截图三槽比例', () => {
+    expect(DEFAULT_CENTER_SPLIT.left + DEFAULT_CENTER_SPLIT.centerWithBoth + DEFAULT_CENTER_SPLIT.right).toBe(100)
+  })
+})
 
 describe('WORKSPACE_PRESET_DEFAULTS', () => {
   it('写作:左 project、右 AI、预览关、对话卡占主区', () => {
     const d = WORKSPACE_PRESET_DEFAULTS.writing
     expect(d.visiblePerSide.left).toBe('project')
     expect(d.visiblePerSide.right).toBe('ai')
-    expect(d.activeSubIsland.project).toBe('scripts')
+    expect(d.activeSubIsland.project).toBe('assets')
     expect(d.previewOpen).toBe(false)
-    expect(d.editorCoreLayout.beat).toBeGreaterThan(d.editorCoreLayout.right)
+    expect(d.editorCoreLayout.beat).toBe(70)
+    expect(d.editorCoreLayout.right).toBe(30)
   })
 
   it('流程:左 outline、AI 隐藏、决策树放大、预览关', () => {

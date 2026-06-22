@@ -8,12 +8,13 @@
  *   - 与 lexer.ts(line-rules.ts)的行格式严格对齐,保证 serialize→parse 往返稳定
  *   - sprite/position 为 sticky 语义:仅当相对上一条对白变化时才发立绘舞台行,
  *     复原 .gal 的「持续到下次改变」写法(与 parser pending 语义对偶)
- *   - 已知边界(parser 不入 AST):chapter 行 / 注释行 在往返中丢失,属可接受取舍
+ *   - 注释行以 CommentNode 往返(// text)
  *
  * 规约依据: .style-spec/layers/dsl/conventions.yaml(line_types)
  */
 import type {
   AstNode,
+  CommentNode,
   DialogueNode,
   GotoNode,
   IfNode,
@@ -125,12 +126,18 @@ const serializeChild = (
       out.push(`=== ${(node as MarkerNode).id} ===`)
       return sprite
     }
-    case 'comment':
+    case 'comment': {
+      out.push(`// ${(node as CommentNode).text}`)
+      return sprite
+    }
+    case 'chapter':
       return sprite
     default:
       return sprite
   }
 }
+
+const chapterLine = (title: string): string => `# ${title}`
 
 /**
  * 序列化整棵 Script AST 为 .gal 文本。
@@ -147,6 +154,9 @@ export const serialize = (ast: ScriptNode): string => {
       if (current.length) blocks.push(current)
       current = []
       sprite = serializeScene(child, sprite, current)
+    } else if (child.type === 'chapter') {
+      if (current.length) blocks.push(current)
+      current = [chapterLine(child.title)]
     } else {
       sprite = serializeChild(child, sprite, current)
     }

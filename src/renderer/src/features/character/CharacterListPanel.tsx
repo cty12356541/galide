@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, User, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { ScrollArea } from '../../components/ui/scroll-area'
@@ -13,6 +13,7 @@ import { CharacterCardEditor } from './CharacterCardEditor'
 import type { CharacterCard } from '../../../../shared/types'
 import { CharacterAvatar } from './CharacterAvatar'
 import { toast } from '../../components/ui/toast'
+import { cn } from '../../lib/utils'
 
 export const CharacterListPanel = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -22,8 +23,18 @@ export const CharacterListPanel = (): JSX.Element => {
   const pushError = useErrorStore((s) => s.push)
   const [editing, setEditing] = useState<CharacterCard | null>(null)
   const [creating, setCreating] = useState(false)
+  const characterEditorTargetId = useUiStore((s) => s.characterEditorTargetId)
+  const selectedCharacterId = useUiStore((s) => s.selectedCharacterId)
+  const clearCharacterEditorTarget = useUiStore((s) => s.clearCharacterEditorTarget)
 
   const characters = manifest?.characters ?? []
+
+  useEffect(() => {
+    if (!characterEditorTargetId) return
+    const target = (manifest?.characters ?? []).find((c) => c.id === characterEditorTargetId)
+    if (target) setEditing(target)
+    clearCharacterEditorTarget()
+  }, [characterEditorTargetId, manifest?.characters, clearCharacterEditorTarget])
 
   const handleSave = async (next: CharacterCard): Promise<void> => {
     if (!projectPath || !manifest) return
@@ -94,7 +105,10 @@ export const CharacterListPanel = (): JSX.Element => {
             characters.map((c) => (
               <div
                 key={c.id}
-                className="group w-full flex items-center gap-1 rounded-lg hover:bg-bg-elevated text-left transition-colors"
+                className={cn(
+                  'group w-full flex items-center gap-1 rounded-lg hover:bg-bg-elevated text-left transition-colors',
+                  c.id === selectedCharacterId && 'bg-accent-soft'
+                )}
               >
                 <button
                   onClick={() => setEditing(c)}

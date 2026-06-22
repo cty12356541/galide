@@ -7,6 +7,8 @@ export type VoicePreferences = {
   defaultProvider: 'edge' | 'elevenlabs' | 'local'
   defaultVoiceId: string
   batchConcurrency: number
+  /** Preview 对白步进时自动 TTS(默认关,避免意外触网) */
+  previewEnabled: boolean
 }
 
 /** AI agent 自主平台偏好(autonomy 模式 + 循环拓扑) */

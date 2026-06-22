@@ -82,6 +82,9 @@ describe('supplement-11-files: OutlinePanel', () => {
     const { OutlinePanel } = await import('../features/outline/OutlinePanel')
     render(<OutlinePanel />)
     expect(screen.getByText('小雪')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('outline-character-char1'))
+    expect(useUiStore.getState().selectedCharacterId).toBe('char1')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('character')
   })
 
   it('shows scenes from scriptAst when present', async () => {

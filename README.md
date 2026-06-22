@@ -92,15 +92,15 @@ pnpm build:linux  # Linux
 
 - MVP v0.1 ✅ IDE 编辑体验(CodeMirror + React Flow + PixiJS 预览)
 - MVP v0.2 ✅ AI 文案与逻辑(OpenAI / Claude / Ollama,流式输出)
-- MVP v0.3 ⏳ AI 视觉/听觉 — Edge TTS 已实现;立绘生成经 image-proxy(SD/DALL-E),需本地 SD 或 API Key
-- MVP v0.4 ✅ PyCharm 组件岛布局 + mosaic + floating 窗口
+- MVP v0.3 ✅ AI 视觉/听觉 — Edge TTS + 立绘 image-proxy;UI(VoicePanel/CharacterCard)已接通
+- MVP v0.4 ✅ PyCharm 组件岛布局 + EditorCore 可调整分栏 + floating 窗口
 - MVP v0.5 ✅ AI Agent 自动化平台 — tool-calling 循环 + 可切换自主/拓扑 + 全平台命令工具
 
 ## v0.5 状态(2026-06-21)
 
 ### AI Agent
 
-- **main 中心执行** — agent 循环与工具在 main 进程,直接操作磁盘 `.gal` + git;写盘后 `script:changed` 广播
+- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;写盘后 `script:changed` 广播
 - **Tool Registry** — list_scenes / read_script / add_dialogue / analyze_reachability / generate_sprite / dispatch_command 等
 - **Agent 面板** — 步骤流、计划预览、destructive 确认、autonomy + topology 偏好
 
@@ -111,31 +111,39 @@ pnpm build:linux  # Linux
 - **BGM** — 场景 BGM 播放 + crossfade;预览 chrome 音量/静音(不含语音/TTS)
 - **共享 VM** — `runtime-vm` 驱动编辑器预览与 Web 导出播放器;choice/goto 目标解析为场景或 marker
 - **变量/条件** — `设: affinity = 10`、`[若: affinity >= 10]` 条件块、选项 `[当: expr]` 门控; 预览 VM + Web 导出共享求值
-- **Ren'Py 导出** — `RenPyComposer` 生成 `game/script.rpy` + `game/characters.rpy`; 表达式/条件/菜单门控映射为 Ren'Py Python 子集
+- **Ren'Py 导出** — `script.rpy` + `characters.rpy` + `images.rpy`;`show` 立绘 + 表达式/条件/菜单
 
 ### 多模态
 
-- **语音** — Edge TTS(免费,默认) + ElevenLabs REST(VoicePreferences / voiceConfig.voiceId;Key 走 key-store)
-- **立绘** — image-proxy 支持 SD WebUI / DALL-E / ComfyUI(完整 workflow 提交+轮询);角色 sdPrompt 与 sprite 路径分离
+- **语音** — Edge TTS(免费,默认) + ElevenLabs REST;VoicePanel 重新生成 + 偏好页试听
+- **立绘** — image-proxy(SD/DALL-E/ComfyUI) + 角色卡「AI 补全」IPC;Agent `generate_sprite` 同步 `.galproj` spriteSet
+
+### 功能改进 (2026-06-22)
+
+- **Agent 路径** — 统一读写 `scripts/*.gal`(与编辑器 IPC 一致)
+- **导出 fail-loud** — 任一剧本 parse 失败阻断导出并显示 file:line
+- **预览 parity** — Preview/Flow/Outline 使用全项目 merged AST(与 Web 导出同源)
+- **资产/Git** — 资产面板导入/删除;GitPanel Push/Pull
 
 ## v0.4 状态(2026-06-17)
 
-## v0.4 状态(2026-06-17)
-
-### 新功能
+### 新功能 (v0.4)
 
 - **PyCharm 组件岛布局** — Menu Bar / Toolbar / Project Tabs / Left Tool Window /
   Center Split / Status Bar(6 区块)
-- **Mosaic 中区可拆** — ScriptEditor / FlowView / PreviewCanvas 三个 panel 拖拽组合,
-  布局通过 electron-store 持久化(独立 `galide-mosaic` namespace,800ms debounce)
+- **EditorCore 中区** — 卡片/源码编辑 + SceneRail + FlowView + 可折叠 Preview
+  (`react-resizable-panels` 分栏比例持久化)
 - **浮出独立 BrowserWindow** — 任何 panel(script / flow / preview / left-tool / ai)
   都能浮出为独立 OS 窗口,主窗口对应槽位自动隐藏
   - 关闭浮出窗口自动恢复主窗口布局
   - 浮出窗口加"返回主窗口"按钮快速聚焦
   - 浮出上限 3 个,防误操作
-- **脏数据 UI 警告** — mosaic 持久化文件被破坏时,sanitize 检测并 toast 提示
+- **布局持久化** — workspace preset + EditorCore 分栏经 localStorage 持久化
 
 ### 架构升级
+
+> **注(2026-06-19):** UI 状态模型已迁移至「功能即岛 v2」(`dockSide` / `visiblePerSide` /
+> `activeSubIsland` / `floatingPanels`)。下文 v0.4 的 `leftPanelOpen` 等字段已废弃,详见 `store.ts`。
 
 - 删 `workspaceLayout` 嵌套对象(治本,代码腐化主因)
 - 简化 `useUiStore` 5 个标量字段:`workspacePreset` / `leftPanelOpen` /
@@ -155,6 +163,6 @@ pnpm build:linux  # Linux
 ```bash
 pnpm typecheck    # 0 error
 pnpm lint         # 0 error
-pnpm test         # 59 文件 / 426 测试
+pnpm test         # 80+ 文件 / 530+ 测试
 pnpm build        # 成功
 ```

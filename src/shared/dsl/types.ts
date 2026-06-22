@@ -85,6 +85,11 @@ export type MarkerNode = BaseNode & {
 
 export type CommentNode = BaseNode & { type: 'comment'; text: string }
 
+export type ChapterNode = BaseNode & {
+  type: 'chapter'
+  title: string
+}
+
 export type AstNode =
   | ScriptNode
   | SceneNode
@@ -95,6 +100,7 @@ export type AstNode =
   | GotoNode
   | MarkerNode
   | CommentNode
+  | ChapterNode
 
 export type BaseNode = {
   line: number

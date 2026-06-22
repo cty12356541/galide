@@ -8,9 +8,10 @@
  * 可测性:磁盘 / git 通过依赖注入(ContextFs / ContextGit),测试用 memfs + mock git。
  * 规约:core/conventions.yaml「决策树在 .gal」「资产相对路径」;DI 见 testing-conventions。
  */
-import { join } from 'node:path'
+import { galScriptAbs, isGalScriptFileName, scriptsDirAbs } from '../../../shared/project-layout.js'
 import { parse, collectSceneSummaries, type SceneSummary } from '../../../shared/dsl/parser.js'
 import type { Result } from '../../../shared/dsl/types.js'
+import { readGalproj } from '../../manifest/project-manifest.js'
 
 export interface ContextFs {
   readFile: (path: string) => Promise<string>
@@ -57,31 +58,29 @@ const DEFAULT_BUDGET = 4000
 export const estimateTokens = (s: string): number => Math.ceil(s.length / 4)
 
 const readCharacters = async (projectPath: string, fs: ContextFs): Promise<ContextCharacter[]> => {
-  try {
-    const raw = await fs.readFile(join(projectPath, '.galproj'))
-    const parsed = JSON.parse(raw) as { characters?: ContextCharacter[] }
-    return (parsed.characters ?? []).map((c) => ({
-      id: c.id,
-      name: c.name,
-      description: c.description,
-      personality: c.personality
-    }))
-  } catch {
-    return []
-  }
+  const r = await readGalproj(projectPath, (p) => fs.readFile(p))
+  if (r.ok !== true) return []
+  return (r.value.characters ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    personality: c.personality
+  }))
 }
 
 const readScenes = async (projectPath: string, fs: ContextFs): Promise<SceneSummary[]> => {
   let files: string[] = []
   try {
-    files = (await fs.readdir(projectPath)).filter((f) => f.endsWith('.gal')).sort()
+    files = (await fs.readdir(scriptsDirAbs(projectPath)))
+      .filter((f) => isGalScriptFileName(f))
+      .sort()
   } catch {
     return []
   }
   const scenes: SceneSummary[] = []
   for (const file of files) {
     try {
-      const src = await fs.readFile(join(projectPath, file))
+      const src = await fs.readFile(galScriptAbs(projectPath, file))
       const result = parse(src)
       if (result.ok) scenes.push(...collectSceneSummaries(result.value, file))
     } catch {
@@ -97,10 +96,13 @@ const assembleText = (
   sections: readonly Section[],
   budget: number
 ): { text: string; truncated: boolean } => {
-  const full = sections.map((s) => `## ${s.title}\n${s.body}`).join('\n\n')
-  if (estimateTokens(full) <= budget) return { text: full, truncated: false }
-  // 整体超预算:从尾部(低优先级)截断到预算内
-  return { text: full.slice(0, budget * 4), truncated: true }
+  const blocks = sections.map((s) => `## ${s.title}\n${s.body}`)
+  if (blocks.length === 0) return { text: '', truncated: false }
+  const kept = [...blocks]
+  while (kept.length > 0 && estimateTokens(kept.join('\n\n')) > budget) {
+    kept.pop()
+  }
+  return { text: kept.join('\n\n'), truncated: kept.length < blocks.length }
 }
 
 export const buildContext = async (

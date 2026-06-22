@@ -17,9 +17,7 @@ import { create } from 'zustand'
 import type { ProjectManifest } from '../../../shared/types'
 import type { PreferencesSection } from '../../../shared/preferences'
 import type { RecentProject, ErrorEntry, SelectedNode } from './types'
-import { parse } from '../../../shared/dsl/parser'
-import { serialize } from '../../../shared/dsl/serializer'
-import type { ScriptNode, ParseError } from '../../../shared/dsl/types'
+import type { ScriptNode } from '../../../shared/dsl/types'
 import type {
   EditorDocId,
   ToolWindowId,
@@ -37,23 +35,18 @@ import {
   type EditorCoreLayout,
   type LayoutsByPreset
 } from './workspace-presets'
+import {
+  createScriptSlice,
+  type ScriptSliceActions,
+  type ScriptSliceState
+} from './script-store'
 
 export type { WorkspacePresetId, EditorCoreLayout, LayoutsByPreset }
+export type { ScriptSliceState, ScriptSliceActions } from './script-store'
 
 type Theme = 'light' | 'dark'
 
 export type EditorSurface = 'cards' | 'source'
-
-/** P4:卡片撤销历史栈上限(按文件有界) */
-const MAX_HISTORY = 50
-
-/** P4:多 tab — 非活跃打开文件的缓存(仅存源串+脏态+撤销栈,激活时再 reparse) */
-type FileCacheEntry = {
-  source: string
-  dirty: boolean
-  past: string[]
-  future: string[]
-}
 
 /** 每侧可见内容 */
 type VisiblePerSide = {
@@ -65,12 +58,12 @@ type VisiblePerSide = {
 /** 浮出 id(主岛 / 子岛 / 编辑器大陆) */
 type FloatingId = ToolWindowId | SubIslandId | EditorDocId
 
-type UiState = {
+type UiState = ScriptSliceState &
+  ScriptSliceActions & {
   // project
   projectPath: string | null
   projectName: string | null
   manifest: ProjectManifest | null
-  activeScriptFile: string | null
 
   // workspace(功能即岛 v2:dock 模型)
   workspacePreset: WorkspacePresetId
@@ -82,24 +75,16 @@ type UiState = {
   visiblePerSide: VisiblePerSide
   activeSubIsland: Record<ToolWindowId, SubIslandId>
   floatingPanels: readonly FloatingId[]
- // 编辑核心区(方案 B):单一 AST 真相源 + 场景选中态
- scriptSource: string
- scriptAst: ScriptNode | null
- selectedSceneId: string | null
- scriptDiagnostics: ParseError[]
- scriptDirty: boolean
+ /** 全项目 merge 后的 AST(预览/Flow/Outline 只读视图) */
+ projectMergedAst: ScriptNode | null
+ projectParseError: string | null
+ selectedCharacterId: string | null
+ /** 大纲跳转角色卡:CharacterListPanel 消费后清空 */
+ characterEditorTargetId: string | null
  /** P2a:预览面板开关(F5/菜单/dispatcher 统一切换,原为 EditorCore 本地态) */
  previewOpen: boolean
  /** B2:EditorCore react-resizable-panels 分栏比例 */
  editorCoreLayout: EditorCoreLayout
- /** 诊断点击跳转:ScriptEditor 消费后清空 */
- scriptEditorScrollTarget: { line: number; column: number } | null
-
- // P4:多 tab + 卡片撤销(按文件有界历史栈)
- openFiles: string[]
- fileCache: Record<string, FileCacheEntry>
- scriptPast: string[]
- scriptFuture: string[]
 
   // UI state
   theme: Theme
@@ -120,7 +105,6 @@ type UiState = {
 
   // actions
   setProject: (projectPath: string, manifest: ProjectManifest) => void
-  setActiveScript: (fileName: string | null) => void
   /** B2:应用预设(快照 outgoing + 恢复 target) */
   applyWorkspacePreset: (preset: WorkspacePresetId) => void
   /** @deprecated 请用 applyWorkspacePreset */
@@ -138,30 +122,14 @@ type UiState = {
   toggleAiPanel: () => void
   setAiDockedLocation: (loc: DockSide) => void
   setFloatingPanels: (panels: readonly FloatingId[]) => void
- setSelectedSceneId: (id: string | null) => void
+ setSelectedCharacterId: (id: string | null) => void
+ openCharacterFromOutline: (id: string) => void
+ clearCharacterEditorTarget: () => void
+ setProjectMergedAst: (ast: ScriptNode | null, error?: string | null) => void
  /** P2a:切换预览面板开合(无参=toggle,有参=强制) */
   setPreviewOpen: (open?: boolean) => void
-  setScriptEditorScrollTarget: (target: { line: number; column: number } | null) => void
-  /** 读盘后灌入(parse 在此完成),dirty=false */
-  loadScriptText: (text: string) => void
-  /** 源串编辑(原始编辑器):reparse,dirty=true */
-  editScriptSource: (next: string) => void
-  /** AST mutator 编辑(卡片):clone+mutate+serialize,dirty=true */
-  editScriptAst: (mutator: (ast: ScriptNode) => void) => void
- /** 存盘成功后清 dirty */
- markScriptSaved: () => void
- /** P4:卡片撤销 — 还原上一笔编辑(基于源串快照栈) */
- undo: () => void
- /** P4:卡片重做 */
- redo: () => void
- /** P4:关闭已打开文件 tab(切换到邻居,不丢其余文件脏态) */
- closeScriptFile: (fileName: string) => void
  addFloatingPanel: (panel: FloatingId) => void
   removeFloatingPanel: (panel: FloatingId) => void
-  /** C1:切换编辑面前先 flush 卡片待存(由 EditorSurfaceTabs 调用) */
-  flushPendingScriptSave: () => Promise<void>
-  /** C1:注册 flush 实现(由 useScriptSave 挂载) */
-  registerScriptSaveFlush: (fn: (() => Promise<void>) | null) => void
   setRecentProjects: (recent: RecentProject[]) => void
   setTheme: (theme: Theme) => void
   setSelectedNode: (node: SelectedNode) => void
@@ -195,7 +163,7 @@ const DEFAULT_DOCK_SIDE: Record<ToolWindowId, DockSide> = {
 }
 
 const DEFAULT_ACTIVE_SUB: Record<ToolWindowId, SubIslandId> = {
-  project: 'scripts',
+  project: 'assets',
   git: 'git',
   outline: 'outline',
   character: 'profiles',
@@ -208,25 +176,11 @@ const DEFAULT_VISIBLE: VisiblePerSide = {
   bottom: null
 }
 
-/** 把文本 parse 为 {source, ast, diagnostics}(供 loadScriptText / editScriptSource 共用) */
-const parseToDoc = (
-  text: string
-): { scriptSource: string; scriptAst: ScriptNode | null; scriptDiagnostics: ParseError[] } => {
- const result = parse(text)
-  if (result.ok !== true) {
-    return { scriptSource: text, scriptAst: null, scriptDiagnostics: result.error }
-  }
-  return { scriptSource: text, scriptAst: result.value, scriptDiagnostics: result.value.errors }
-}
-
-/** C1:useScriptSave 注册的即时 flush(切换 tab 前清 debounce) */
-let scriptSaveFlushImpl: (() => Promise<void>) | null = null
-
 export const useUiStore = create<UiState>((set, get) => ({
+  ...createScriptSlice(set as never, get as never),
   projectPath: null,
   projectName: null,
   manifest: null,
-  activeScriptFile: 'chapter1.gal',
   workspacePreset: 'writing',
   layoutsByPreset: {},
   editorSurface: 'cards',
@@ -234,18 +188,12 @@ export const useUiStore = create<UiState>((set, get) => ({
   visiblePerSide: { ...DEFAULT_VISIBLE },
   activeSubIsland: { ...DEFAULT_ACTIVE_SUB },
   floatingPanels: [],
-  scriptSource: '',
-  scriptAst: null,
-  selectedSceneId: null,
- scriptDiagnostics: [],
- scriptDirty: false,
+  projectMergedAst: null,
+  projectParseError: null,
+  selectedCharacterId: null,
+  characterEditorTargetId: null,
  previewOpen: false,
  editorCoreLayout: { ...DEFAULT_EDITOR_CORE_LAYOUT },
- scriptEditorScrollTarget: null,
- openFiles: [],
- fileCache: {},
- scriptPast: [],
- scriptFuture: [],
   recentProjects: [],
   theme: 'light',
   selectedNode: null,
@@ -265,6 +213,10 @@ setProject: (projectPath, manifest) => {
       projectPath,
       manifest,
       projectName: manifest.name,
+      projectMergedAst: null,
+      projectParseError: null,
+      selectedCharacterId: null,
+      characterEditorTargetId: null,
       openFiles: [],
       fileCache: {},
       scriptPast: [],
@@ -272,66 +224,6 @@ setProject: (projectPath, manifest) => {
     })
     // B2:打开项目时恢复全局上次预设布局
     get().applyWorkspacePreset(get().workspacePreset)
-  },
-  setActiveScript: (fileName) => {
-    // null = 无文件可显(全部关闭):重置脚本态
-    if (fileName === null) {
-      set({
-        activeScriptFile: null,
-        openFiles: [],
-        fileCache: {},
-        scriptSource: '',
-        scriptAst: null,
-        scriptDiagnostics: [],
-        scriptDirty: false,
-        scriptPast: [],
-        scriptFuture: [],
-        selectedSceneId: null
-      })
-      return
-    }
-    const s = get()
-    if (fileName === s.activeScriptFile) {
-      if (!s.openFiles.includes(fileName)) set({ openFiles: [...s.openFiles, fileName] })
-      return
-    }
-    // 快照当前活跃文件(源串+脏态+撤销栈)到缓存,供切回时恢复
-    const fileCache = { ...s.fileCache }
-    if (s.activeScriptFile) {
-      fileCache[s.activeScriptFile] = {
-        source: s.scriptSource,
-        dirty: s.scriptDirty,
-        past: s.scriptPast,
-        future: s.scriptFuture
-      }
-    }
-    const openFiles = s.openFiles.includes(fileName)
-      ? s.openFiles
-      : [...s.openFiles, fileName]
-    const cached = fileCache[fileName]
-    if (cached) {
-      // 已缓存(可能脏)→ 恢复到顶层;保留缓存项使 useScriptSync 跳过读盘
-      set({
-        activeScriptFile: fileName,
-        openFiles,
-        fileCache,
-        ...parseToDoc(cached.source),
-        scriptDirty: cached.dirty,
-        scriptPast: cached.past,
-        scriptFuture: cached.future,
-        selectedSceneId: null
-      })
-    } else {
-      // 未缓存 → useScriptSync 从盘载入(loadScriptText 会重置 history)
-      set({
-        activeScriptFile: fileName,
-        openFiles,
-        fileCache,
-        scriptPast: [],
-        scriptFuture: [],
-        selectedSceneId: null
-      })
-    }
   },
   applyWorkspacePreset: (preset) => {
     const s = get()
@@ -356,14 +248,6 @@ setProject: (projectPath, manifest) => {
     set((s) => ({ editorCoreLayout: { ...s.editorCoreLayout, ...layout } })),
 
   setEditorSurface: (surface) => set({ editorSurface: surface }),
-
-  registerScriptSaveFlush: (fn) => {
-    scriptSaveFlushImpl = fn
-  },
-
-  flushPendingScriptSave: async () => {
-    if (scriptSaveFlushImpl) await scriptSaveFlushImpl()
-  },
 
   setDockSide: (tw, side) =>
     set((s) => {
@@ -444,109 +328,26 @@ setProject: (projectPath, manifest) => {
     ),
   removeFloatingPanel: (panel) =>
     set((s) => ({ floatingPanels: s.floatingPanels.filter((p) => p !== panel) })),
- setSelectedSceneId: (id) => set({ selectedSceneId: id }),
+
+ setSelectedCharacterId: (id) => set({ selectedCharacterId: id }),
+
+ openCharacterFromOutline: (id) =>
+   set((s) => {
+     const side = s.dockSide.character
+     return {
+       selectedCharacterId: id,
+       characterEditorTargetId: id,
+       activeSubIsland: { ...s.activeSubIsland, character: 'profiles' },
+       visiblePerSide: { ...s.visiblePerSide, [side]: 'character' }
+     }
+   }),
+
+ clearCharacterEditorTarget: () => set({ characterEditorTargetId: null }),
+
+ setProjectMergedAst: (ast, error = null) =>
+   set({ projectMergedAst: ast, projectParseError: error }),
   setPreviewOpen: (open) =>
     set((s) => ({ previewOpen: open !== undefined ? open : !s.previewOpen })),
-  setScriptEditorScrollTarget: (target) => set({ scriptEditorScrollTarget: target }),
-  loadScriptText: (text) =>
-    // 读盘载入(全新内容)→ 重置撤销栈(不可 undo 过载入点)
-    set({ ...parseToDoc(text), scriptDirty: false, scriptPast: [], scriptFuture: [] }),
-  editScriptSource: (next) =>
-    // 源串编辑(原始编辑器 / AI 落地):reparse+dirty;清 future(新编辑使重做失效),
-    // 不入 past(原始编辑器走 CodeMirror 自身撤销,避免每键一条历史)
-    set({ ...parseToDoc(next), scriptDirty: true, scriptFuture: [] }),
-  editScriptAst: (mutator) => {
-    const ast = get().scriptAst
-    if (!ast) return
-    const prev = get().scriptSource
-    const clone = structuredClone(ast) as ScriptNode
-    mutator(clone)
-    set({
-      scriptAst: clone,
-      scriptSource: serialize(clone),
-      scriptDiagnostics: clone.errors,
-      scriptDirty: true,
-      // commit 前 push 旧源串;卡片与原始编辑器共享此栈
-      scriptPast: [...get().scriptPast, prev].slice(-MAX_HISTORY),
-      scriptFuture: []
-    })
-  },
-  markScriptSaved: () => set({ scriptDirty: false }),
-  undo: () => {
-    const s = get()
-    if (s.scriptPast.length === 0) return
-    const past = [...s.scriptPast]
-    const prev = past.pop() as string
-    set({
-      ...parseToDoc(prev),
-      scriptDirty: true,
-      scriptPast: past,
-      scriptFuture: [s.scriptSource, ...s.scriptFuture].slice(0, MAX_HISTORY)
-    })
-  },
-  redo: () => {
-    const s = get()
-    if (s.scriptFuture.length === 0) return
-    const future = [...s.scriptFuture]
-    const next = future.shift() as string
-    set({
-      ...parseToDoc(next),
-      scriptDirty: true,
-      scriptPast: [...s.scriptPast, s.scriptSource].slice(-MAX_HISTORY),
-      scriptFuture: future
-    })
-  },
-  closeScriptFile: (fileName) => {
-    const s = get()
-    const openFiles = s.openFiles.filter((f) => f !== fileName)
-    const fileCache = { ...s.fileCache }
-    delete fileCache[fileName]
-    // 关闭非活跃文件:仅从 tab/缓存移除
-    if (s.activeScriptFile !== fileName) {
-      set({ openFiles, fileCache })
-      return
-    }
-    // 关闭活跃文件:切到邻居(不快照被关文件),邻居必在缓存中
-    const idx = s.openFiles.indexOf(fileName)
-    const neighbor = openFiles[idx] ?? openFiles[idx - 1] ?? null
-    if (neighbor === null) {
-      set({
-        openFiles: [],
-        fileCache: {},
-        activeScriptFile: null,
-        scriptSource: '',
-        scriptAst: null,
-        scriptDiagnostics: [],
-        scriptDirty: false,
-        scriptPast: [],
-        scriptFuture: [],
-        selectedSceneId: null
-      })
-      return
-    }
-    const cached = fileCache[neighbor]
-    if (cached) {
-      set({
-        activeScriptFile: neighbor,
-        openFiles,
-        fileCache,
-        ...parseToDoc(cached.source),
-        scriptDirty: cached.dirty,
-        scriptPast: cached.past,
-        scriptFuture: cached.future,
-        selectedSceneId: null
-      })
-    } else {
-      set({
-        activeScriptFile: neighbor,
-        openFiles,
-        fileCache,
-        scriptPast: [],
-        scriptFuture: [],
-        selectedSceneId: null
-      })
-    }
-  },
   setRecentProjects: (recent) => set({ recentProjects: recent }),
   setTheme: (theme) => {
     set({ theme })
@@ -593,6 +394,8 @@ setProject: (projectPath, manifest) => {
      selectedNode: null,
      scriptSource: '',
      scriptAst: null,
+     projectMergedAst: null,
+     projectParseError: null,
      scriptDiagnostics: [],
      scriptDirty: false,
      openFiles: [],
@@ -604,6 +407,9 @@ setProject: (projectPath, manifest) => {
   setShortcutRecording: (recording) => set({ shortcutRecording: recording }),
   setResolvedShortcuts: (shortcuts) => set({ resolvedShortcuts: shortcuts })
 }))
+
+/** 剧本编辑态 hook 别名(与 useUiStore 同一 zustand 实例,script-store slice) */
+export const useScriptStore = useUiStore
 
 type ErrorPushInput = Omit<ErrorEntry, 'id' | 'timestamp'> & {
   id?: string

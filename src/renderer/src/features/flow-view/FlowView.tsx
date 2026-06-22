@@ -125,15 +125,17 @@ const buildFlow = (ast: ScriptNode): FlowResult => {
 
 export const FlowView = (): JSX.Element => {
   const scriptAst = useUiStore((s) => s.scriptAst)
+  const projectMergedAst = useUiStore((s) => s.projectMergedAst)
+  const viewAst = projectMergedAst ?? scriptAst
   const selectedSceneId = useUiStore((s) => s.selectedSceneId)
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const setSelectedNode = useUiStore((s) => s.setSelectedNode)
   const float = usePanelFloat()
 
   const { nodes, edges } = useMemo<FlowResult>(() => {
-    if (!scriptAst) return { nodes: [], edges: [] }
-    return buildFlow(scriptAst)
-  }, [scriptAst])
+    if (!viewAst) return { nodes: [], edges: [] }
+    return buildFlow(viewAst)
+  }, [viewAst])
 
   // 选中态:同步到 ReactFlow node selected
   const styledNodes = useMemo(

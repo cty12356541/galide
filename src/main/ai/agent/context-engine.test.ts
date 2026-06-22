@@ -37,8 +37,8 @@ const chapter2 = `## rooftop
 const makeFs = (): ContextFs => {
   const vol = Volume.fromJSON({
     '/proj/.galproj': JSON.stringify(manifest),
-    '/proj/chapter1.gal': chapter1,
-    '/proj/chapter2.gal': chapter2
+    '/proj/scripts/chapter1.gal': chapter1,
+    '/proj/scripts/chapter2.gal': chapter2
   })
   const mfs = createFsFromVolume(vol)
   return {

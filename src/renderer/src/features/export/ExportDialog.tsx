@@ -133,11 +133,26 @@ export const ExportDialog = (): JSX.Element => {
     }
     if (!result.ok) {
       setStage('error')
-      // NOT_IMPLEMENTED:stub composer 拒绝,显示针对性提示而非泛化失败
       const notImplemented = result.code === 'NOT_IMPLEMENTED'
-      setMessage(notImplemented ? '该导出目标尚未实现' : (result.error ?? '导出失败'))
+      const parseFailed = result.code === 'PARSE_FAILED'
+      const noScripts = result.code === 'NO_SCRIPTS' || result.code === 'NO_VALID_SCRIPTS'
+      setMessage(
+        notImplemented
+          ? '该导出目标尚未实现'
+          : parseFailed
+            ? '剧本解析失败,请修复诊断后重试'
+            : noScripts
+              ? '没有可导出的剧本文件'
+              : (result.error ?? '导出失败')
+      )
       pushError({
-        code: notImplemented ? 'EXPORT_NOT_IMPLEMENTED' : 'EXPORT_FAILED',
+        code: notImplemented
+          ? 'EXPORT_NOT_IMPLEMENTED'
+          : parseFailed
+            ? 'EXPORT_PARSE_FAILED'
+            : noScripts
+              ? 'EXPORT_NO_SCRIPTS'
+              : 'EXPORT_FAILED',
         message: result.error ?? 'unknown',
         source: 'export:start'
       })

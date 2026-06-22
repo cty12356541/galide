@@ -92,4 +92,20 @@ describe('gal serializer', () => {
     // 两条同角色同立绘对白 → 仅一条立绘舞台行
     expect(text.match(/\[角色:小雪/g)?.length).toBe(1)
   })
+
+  it('# 章节 round-trip 保留在 .gal 中', () => {
+    const src = `# 第一章\n\n## 教室\n主角: "hi"\n`
+    const text = serialize(parseAst(src))
+    expect(text).toContain('# 第一章')
+    expect(serialize(parseAst(text))).toBe(text)
+    const ast = parseAst(text)
+    expect(ast.children.some((n) => n.type === 'chapter' && n.title === '第一章')).toBe(true)
+  })
+
+  it('// 注释 round-trip 保留', () => {
+    const src = `## s1\n// TODO: 之后要分叉\n主角: "hi"\n`
+    const text = serialize(parseAst(src))
+    expect(text).toContain('// TODO: 之后要分叉')
+    expect(serialize(parseAst(text))).toBe(text)
+  })
 })

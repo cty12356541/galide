@@ -8,18 +8,21 @@ import { X, Search, Bug, Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { PlaceholderToolWindow } from './PlaceholderToolWindow'
+import { ScriptSearchPanel } from '../../features/search/ScriptSearchPanel'
+import { Button } from '../ui/button'
 import type { PlaceholderId } from './mosaic/panel-registry'
 
 const PLACEHOLDERS: Record<PlaceholderId, { icon: LucideIcon; title: string; description: string }> = {
-  search: { icon: Search, title: '搜索', description: '跨文件全文搜索(即将支持)' },
+  search: { icon: Search, title: '搜索', description: '跨 scripts/*.gal 全文搜索' },
   debug: { icon: Bug, title: '调试', description: '运行/断点/变量查看(即将支持)' },
-  settings: { icon: Settings, title: '设置', description: 'IDE 偏好配置(即将支持)' }
+  settings: { icon: Settings, title: '设置', description: '打开 IDE 偏好配置' }
 }
 
 export const LeftToolWindow = ({ placeholderId }: { placeholderId: PlaceholderId }): JSX.Element => {
   const meta = PLACEHOLDERS[placeholderId]
   const Icon = meta.icon
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
+  const openPreferences = useUiStore((s) => s.openPreferences)
 
   return (
     <aside
@@ -41,7 +44,24 @@ export const LeftToolWindow = ({ placeholderId }: { placeholderId: PlaceholderId
         </button>
       </header>
       <div className="flex-1 min-h-0 overflow-hidden">
-        <PlaceholderToolWindow icon={meta.icon} title={meta.title} description={meta.description} />
+        {placeholderId === 'search' ? (
+          <ScriptSearchPanel />
+        ) : placeholderId === 'debug' ? (
+          <PlaceholderToolWindow icon={meta.icon} title={meta.title} description={meta.description} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
+            <Icon className="w-8 h-8 text-text-muted opacity-50" />
+            <p className="text-sm text-text-muted max-w-[220px]">{meta.description}</p>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (placeholderId === 'settings') openPreferences()
+              }}
+            >
+              打开偏好设置
+            </Button>
+          </div>
+        )}
       </div>
     </aside>
   )
