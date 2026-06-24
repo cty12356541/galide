@@ -2,7 +2,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { useErrorStore } from '../store'
 import { useAi } from './use-ai'
 
-type Provider = 'openai' | 'claude' | 'ollama'
+type Provider = 'openai' | 'claude'
 
 export type AiTask = {
   id: string

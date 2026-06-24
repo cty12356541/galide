@@ -33,6 +33,8 @@ export interface ContextRequest {
   selectedSceneId?: string | null
   /** token 预算(近似 chars/4),默认 4000 */
   tokenBudget?: number
+  /** 跨会话记忆文本(由 agent-service 加载注入;最低优先级,超预算先截断) */
+  memoryText?: string
 }
 
 export interface ContextCharacter {
@@ -146,6 +148,9 @@ export const buildContext = async (
   }
   if (gitDiff) {
     sections.push({ title: '最近改动 (git diff)', body: gitDiff })
+  }
+  if (req.memoryText) {
+    sections.push({ title: '先前会话(agent 记忆)', body: req.memoryText })
   }
 
   const { text, truncated } = assembleText(sections, budget)

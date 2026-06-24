@@ -1,28 +1,30 @@
 import OpenAI from 'openai'
 import type { AiRequest, AiChunk } from '../types.js'
 import { apiKeyStore } from '../key-store.js'
+import { resolveApiKey, DEFAULT_OPENAI_BASE } from '../key-resolve.js'
 
 /**
  * OpenAI 兼容 provider
  * 默认 baseUrl: https://api.openai.com/v1
- * 可通过 req.baseUrl 覆盖 — 用于 OpenAI 兼容服务(MiniMax / minimaxi.com 等)
+ * 可通过 req.baseUrl 覆盖 — 用于 OpenAI 兼容服务(MiniMax / 本地网络映射端点 vLLM·LM Studio 等)
+ * 本地映射端点通常不校验 key,无 key + 自定义 baseUrl 时用占位符(见 key-resolve)
  */
-const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
-
 export const createOpenAIProvider = (model = 'gpt-4o-mini') => {
   return {
     name: 'openai',
     models: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'MiniMax-M3'],
     async generate(req: AiRequest, onChunk: (c: AiChunk) => void): Promise<void> {
-      const apiKey = apiKeyStore.get('openai')
-      if (!apiKey) {
+      const baseURL = req.baseUrl ?? DEFAULT_OPENAI_BASE
+      let apiKey: string
+      try {
+        apiKey = resolveApiKey(apiKeyStore.get('openai'), req.baseUrl, DEFAULT_OPENAI_BASE)
+      } catch {
         onChunk({
           type: 'error',
-          error: { code: 'NO_API_KEY', message: '未配置 OpenAI API Key,请在设置中配置' }
+          error: { code: 'NO_API_KEY', message: '未配置 OpenAI API Key,请在设置中配置(本地网络映射端点可省略 key,但需设 BaseUrl)' }
         })
         return
       }
-      const baseURL = req.baseUrl ?? DEFAULT_BASE_URL
       // 关键:请求级别的 model 优先(测试连接/AI 面板/任何调用方都尊重 req.model),
       // 工厂默认 model 仅在 req 没传时兜底
       const useModel = req.model ?? model

@@ -100,6 +100,29 @@ const listScenes = defineTool({
   }
 })
 
+const createScriptFile = defineTool({
+  name: 'create_script_file',
+  description: '从零创建一个空 .gal 剧本文件(若已存在则报错,不覆盖)。用于 bootstrap 全新项目结构。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({ fileName: FileNameSchema }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    try {
+      await ctx.fs.readFile(galScriptAbs(ctx.projectPath, args.fileName))
+      return {
+        ok: false,
+        content: `${args.fileName} 已存在,未覆盖`,
+        error: { code: 'DUPLICATE_FILE', message: `file ${args.fileName} already exists` }
+      }
+    } catch {
+      // 不存在 → 继续(预期路径)
+    }
+    await ctx.fs.writeFile(galScriptAbs(ctx.projectPath, args.fileName), '')
+    return { ok: true, content: `已创建空剧本 ${args.fileName}`, data: { fileName: args.fileName } }
+  }
+})
+
 const readScript = defineTool({
   name: 'read_script',
   description: '读取一个 .gal 剧本文件的源文本(过长会截断)。',
@@ -158,6 +181,7 @@ const createScene = defineTool({
   name: 'create_scene',
   description: '在指定 .gal 末尾创建一个新场景(可设背景 / BGM)。',
   risk: 'safeWrite',
+  previewable: true,
   domain: 'disk',
   schema: z.object({
     fileName: FileNameSchema,
@@ -196,6 +220,7 @@ const addDialogue = defineTool({
   name: 'add_dialogue',
   description: '向指定场景追加一条对白(角色 + 文本)。',
   risk: 'safeWrite',
+  previewable: true,
   domain: 'disk',
   schema: z.object({
     fileName: FileNameSchema,
@@ -241,6 +266,7 @@ const setVariable = defineTool({
   name: 'set_variable',
   description: '向指定场景追加一条设变量行(设: name = value | += | -=)。',
   risk: 'safeWrite',
+  previewable: true,
   domain: 'disk',
   schema: z.object({
     fileName: FileNameSchema,
@@ -291,6 +317,7 @@ const addConditionalBlock = defineTool({
   name: 'add_conditional_block',
   description: '向指定场景插入 [若: condition] ... [否则] ... [若终] 条件块;可选分支对白 stub。',
   risk: 'safeWrite',
+  previewable: true,
   domain: 'disk',
   schema: z.object({
     fileName: FileNameSchema,
@@ -361,6 +388,7 @@ const addGatedChoice = defineTool({
   name: 'add_gated_choice',
   description: '向指定场景追加带 [当: condition] 门控的选项行。',
   risk: 'safeWrite',
+  previewable: true,
   domain: 'disk',
   schema: z.object({
     fileName: FileNameSchema,
@@ -396,6 +424,184 @@ const addGatedChoice = defineTool({
     })
     await writeAst(ctx, args.fileName, r.ast)
     return { ok: true, content: `已在场景 "${args.sceneId}" 追加门控选项 "${args.text}"` }
+  }
+})
+
+// ----------------------------------------------------------------------------
+// 编辑 / 删除 / 重排(让 agent 能修订,而不只是追加)
+// ----------------------------------------------------------------------------
+
+/** 在已解析 AST 上按 id 定位场景(避免重复读盘,与既有 add_* 工具同模式) */
+const findScene = (ast: ScriptNode, sceneId: string): SceneNode | null => {
+  const node = findById(ast, sceneId)
+  return node && node.type === 'scene' ? node : null
+}
+
+const sceneNotFound = (sceneId: string): ToolHandlerResult => ({
+  ok: false,
+  content: `场景 "${sceneId}" 不存在`,
+  error: { code: 'SCENE_NOT_FOUND', message: `scene ${sceneId} not found` }
+})
+
+const updateDialogue = defineTool({
+  name: 'update_dialogue',
+  description: '修改指定场景内第 N 条对白(0 基)的角色 / 文本。用于修订已有台词而非新增。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    index: z.number().int().min(0),
+    character: z.string().optional(),
+    text: z.string().min(1)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    const dialogues = scene.children.filter((c): c is DialogueNode => c.type === 'dialogue')
+    const target = dialogues[args.index]
+    if (!target) {
+      return {
+        ok: false,
+        content: `场景 "${args.sceneId}" 没有第 ${args.index} 条对白(共 ${dialogues.length} 条)`,
+        error: { code: 'INDEX_OUT_OF_RANGE', message: `dialogue index ${args.index} not found` }
+      }
+    }
+    if (args.character !== undefined) target.character = args.character
+    target.lines = [args.text]
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已更新场景 "${args.sceneId}" 第 ${args.index} 条对白` }
+  }
+})
+
+const updateSceneMeta = defineTool({
+  name: 'update_scene_meta',
+  description: '修改场景的背景 / BGM(传空串清除)。sceneId 不可改(改 id 会断开跳转目标)。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    background: z.string().optional(),
+    bgm: z.string().optional()
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    if (args.background !== undefined) {
+      if (args.background === '') delete scene.background
+      else scene.background = args.background
+    }
+    if (args.bgm !== undefined) {
+      if (args.bgm === '') delete scene.bgm
+      else scene.bgm = args.bgm
+    }
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已更新场景 "${args.sceneId}" 元信息` }
+  }
+})
+
+const deleteNode = defineTool({
+  name: 'delete_node',
+  description: '从场景内删除第 N 个子节点(0 基)。可删对白/选项/设变量/条件块/goto/marker。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    index: z.number().int().min(0)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    if (args.index >= scene.children.length) {
+      return {
+        ok: false,
+        content: `场景 "${args.sceneId}" 没有第 ${args.index} 个子节点(共 ${scene.children.length} 个)`,
+        error: { code: 'INDEX_OUT_OF_RANGE', message: `child index ${args.index} out of range` }
+      }
+    }
+    const removed = scene.children.splice(args.index, 1)[0]
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已删除场景 "${args.sceneId}" 第 ${args.index} 个节点(${removed.type})` }
+  }
+})
+
+const moveNode = defineTool({
+  name: 'move_node',
+  description: '在场景内把第 N 个子节点移动到新位置(0 基)。用于重排台词顺序。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    from: z.number().int().min(0),
+    to: z.number().int().min(0)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    const children = scene.children
+    if (args.from >= children.length || args.to >= children.length) {
+      return {
+        ok: false,
+        content: `索引越界:from=${args.from} to=${args.to}(共 ${children.length} 个节点)`,
+        error: { code: 'INDEX_OUT_OF_RANGE', message: 'move index out of range' }
+      }
+    }
+    const [moved] = children.splice(args.from, 1)
+    children.splice(args.to, 0, moved)
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已移动节点 ${args.from} → ${args.to} 于场景 "${args.sceneId}"` }
+  }
+})
+
+const addChoice = defineTool({
+  name: 'add_choice',
+  description: '向指定场景追加一个选项行(可带可选 [当: condition] 门控)。target 应是已存在场景/marker。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    text: z.string().min(1),
+    target: z.string().min(1),
+    condition: z.string().optional()
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    const option = { text: args.text, target: args.target }
+    if (args.condition !== undefined) {
+      const condR = parseExprOrFail(args.condition)
+      if (condR.ok === false) {
+        return {
+          ok: false,
+          content: `条件表达式无效: ${condR.message}`,
+          error: { code: 'INVALID_EXPRESSION', message: condR.message }
+        }
+      }
+      scene.children.push({ type: 'choice', line: 0, column: 1, options: [{ ...option, condition: condR.expr }] })
+    } else {
+      scene.children.push({ type: 'choice', line: 0, column: 1, options: [option] })
+    }
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已在场景 "${args.sceneId}" 追加选项 "${args.text}" → ${args.target}` }
   }
 })
 
@@ -438,6 +644,7 @@ const readVariables = defineTool({
 /** 剧本相关工具集合(注册进 tool-registry) */
 export const scriptTools: readonly RegisteredTool[] = [
   listScenes,
+  createScriptFile,
   readScript,
   findNode,
   createScene,
@@ -445,5 +652,10 @@ export const scriptTools: readonly RegisteredTool[] = [
   setVariable,
   addConditionalBlock,
   addGatedChoice,
+  addChoice,
+  updateDialogue,
+  updateSceneMeta,
+  deleteNode,
+  moveNode,
   readVariables
 ]

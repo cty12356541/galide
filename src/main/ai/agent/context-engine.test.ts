@@ -98,8 +98,18 @@ describe('context-engine', () => {
     expect(ctx.truncated).toBe(true)
   })
 
-  it('estimateTokens 近似按字符数 /4', () => {
-    expect(estimateTokens('abcd')).toBe(1)
-    expect(estimateTokens('')).toBe(0)
+ it('estimateTokens 近似按字符数 /4', () => {
+   expect(estimateTokens('abcd')).toBe(1)
+   expect(estimateTokens('')).toBe(0)
+ })
+
+  it('memoryText 注入"先前会话"段(最低优先级,超预算先截断)', async () => {
+    const git: ContextGit = { diff: async () => ({ ok: true, value: '' }) }
+    const ctx = await buildContext(
+      { projectPath: '/proj', memoryText: '[done] 加场景 → 已完成' },
+      { fs: makeFs(), git }
+    )
+    expect(ctx.text).toContain('先前会话')
+    expect(ctx.text).toContain('加场景')
   })
 })

@@ -13,7 +13,7 @@ import { useAiConfig, useAiProviders } from '../../lib/ipc/use-ai-task'
 import { useAi } from '../../lib/ipc/use-ai'
 import { toChatMessages } from './chat-history'
 
-type Provider = 'openai' | 'claude' | 'ollama'
+type Provider = 'openai' | 'claude'
 
 type TaskStatus = 'pending' | 'running' | 'done' | 'error'
 

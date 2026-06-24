@@ -40,7 +40,9 @@ const DEFAULTS: PreferencesShape = {
   agent: {
     autonomy: 'hybrid',
     topology: 'litePlanExecute',
-    maxSteps: 12
+    maxSteps: 30,
+    memoryEnabled: true,
+    memoryEntries: 8
   },
   editor: {
     fontSize: 14,

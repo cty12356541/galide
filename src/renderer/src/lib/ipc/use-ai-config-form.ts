@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useErrorStore } from '../store'
 import type { ApiKeyProvider } from '@shared/api-key-provider'
 
-type AiProvider = 'openai' | 'claude' | 'ollama'
+type AiProvider = 'openai' | 'claude'
 
 export type TestPhase = 'idle' | 'pending' | 'streaming' | 'done' | 'error'
 

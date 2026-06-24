@@ -1,7 +1,7 @@
 /**
  * AiInlineEdit — 使用已配置的 provider(Phase 0 bug 复现)
  *
- * 之前 generate 硬编码 provider:'openai',用户在偏好里选了 claude/ollama 也无效。
+ * 之前 generate 硬编码 provider:'openai',用户在偏好里选了 claude 也无效。
  * 修复后应读取 ai.getConfig() 的 provider。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'

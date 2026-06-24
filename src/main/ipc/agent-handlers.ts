@@ -9,7 +9,7 @@ import { parseIpcArgs } from './schemas/index.js'
 import type { AiProvider } from '../ai/types.js'
 
 const isAiProvider = (s: string): s is AiProvider =>
-  s === 'openai' || s === 'claude' || s === 'ollama'
+  s === 'openai' || s === 'claude'
 
 export const registerAgentHandlers = (): void => {
   ipcMain.handle(IPC.ai.agent.start, (e, raw: unknown) => {

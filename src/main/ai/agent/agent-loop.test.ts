@@ -198,8 +198,39 @@ describe('agent-loop — autonomy gate', () => {
       toolContext,
       requestConfirm
     })
-    expect(calls).toHaveLength(1)
-    expect(result.status).toBe('done')
+   expect(calls).toHaveLength(1)
+   expect(result.status).toBe('done')
+ })
+
+  it('copilot + previewable:确认请求携带 before/after diff', async () => {
+    const previewable = defineTool({
+      name: 'write_thing',
+      description: '写文件',
+      risk: 'safeWrite',
+      domain: 'disk',
+      previewable: true,
+      schema: z.object({}),
+      handler: async (_args, ctx) => {
+        await ctx.fs.writeFile('/proj/scripts/x.gal', '## new\n阳: "hi"\n')
+        return { ok: true, content: 'wrote' }
+      }
+    })
+    type ConfirmReq = { call: unknown; risk: string; diff?: { before: string; after: string } }
+    const llm = fakeLlm([call('write_thing'), { text: '完成', toolCalls: [] }])
+    const requestConfirm = vi.fn(async (_req: ConfirmReq) => false)
+    await runAgent(baseReq, {
+      llm,
+      tools: createToolRegistry([previewable]),
+      git: fakeGit(),
+      gate: createAutonomyGate('copilot'),
+      topology: TOPOLOGIES.singleReact,
+      toolContext,
+      requestConfirm
+    })
+    expect(requestConfirm).toHaveBeenCalled()
+    const req = requestConfirm.mock.calls[0]?.[0] as ConfirmReq
+    expect(req.diff).toBeDefined()
+    expect(req.diff?.after).toContain('## new')
   })
 })
 

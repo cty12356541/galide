@@ -1,4 +1,4 @@
-export type AiProvider = 'openai' | 'claude' | 'ollama'
+export type AiProvider = 'openai' | 'claude'
 
 export type ChatRole = 'user' | 'assistant'
 

@@ -7,7 +7,7 @@ import { startConnectionTest, type ConnectionTestRequest } from '../ai/connectio
 import { isApiKeyProvider } from '../../shared/api-key-provider.js'
 import type { AiProvider, AiProviderInfo, ChatMessage } from '../ai/types.js'
 
-const isAiProvider = (s: string): s is AiProvider => s === 'openai' || s === 'claude' || s === 'ollama'
+const isAiProvider = (s: string): s is AiProvider => s === 'openai' || s === 'claude'
 
 type AiGenerateRequest = {
   prompt: string

@@ -13,8 +13,7 @@ type ProviderInfo = { id: string; name: string }
 
 const PROVIDER_DOT: Record<string, string> = {
   openai: 'bg-success',
-  claude: 'bg-accent',
-  ollama: 'bg-warning'
+  claude: 'bg-accent'
 }
 
 /**
@@ -35,12 +34,12 @@ export const AiShortcutToolbar = ({
 }: {
   onShortcut: (prompt: string, id: string) => void
   provider: string
-  onProviderChange: (p: 'openai' | 'claude' | 'ollama') => void
+  onProviderChange: (p: 'openai' | 'claude') => void
   providers: ProviderInfo[]
   activeShortcut?: string | null
 }): JSX.Element => {
   // 真实 provider 列表优先,无则退回内置三选
-  const list = providers.length > 0 ? providers : ['openai', 'claude', 'ollama'].map((p) => ({ id: p, name: p }))
+  const list = providers.length > 0 ? providers : ['openai', 'claude'].map((p) => ({ id: p, name: p }))
   const current = list.find((p) => p.id === provider) ?? list[0]
 
   return (

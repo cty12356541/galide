@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useErrorStore } from '../store'
 
-export type AiProvider = 'openai' | 'claude' | 'ollama'
+export type AiProvider = 'openai' | 'claude'
 
 export type AiTaskStatusValue = 'pending' | 'running' | 'done' | 'error'
 

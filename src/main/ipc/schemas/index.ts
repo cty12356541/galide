@@ -128,7 +128,7 @@ export const PreferencesSetSchema = z.object({
 
 // =================== AI ===================
 
-export const AiProviderSchema = z.enum(['openai', 'claude', 'ollama'])
+export const AiProviderSchema = z.enum(['openai', 'claude'])
 
 export const AiConfigSchema = z.object({
   provider: AiProviderSchema,
@@ -158,7 +158,7 @@ export const AiConnectionTestSchema = z.object({
   baseUrl: z.string().optional()
 })
 
-export const ApiKeyProviderSchema = z.enum(['openai', 'claude', 'ollama', 'elevenlabs'])
+export const ApiKeyProviderSchema = z.enum(['openai', 'claude', 'elevenlabs'])
 
 export const AiKeyProviderSchema = z.object({
   provider: ApiKeyProviderSchema
@@ -409,7 +409,7 @@ export const AgentStartSchema = z.object({
   projectPath: z.string().min(1),
   selectedSceneId: z.string().nullable().optional(),
   activeScriptFile: z.string().nullable().optional(),
-  provider: z.enum(['openai', 'claude', 'ollama']).optional(),
+  provider: z.enum(['openai', 'claude']).optional(),
   model: z.string().optional(),
   baseUrl: z.string().optional()
 })

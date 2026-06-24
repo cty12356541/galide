@@ -3,13 +3,13 @@
  *
  * 与流式 generate 分离:agent 需要「一次性带工具的 chat」,返回 text 或 toolCalls。
  * 各 provider 的原生 tool_calls(OpenAI)/ tool_use(Claude)归一为内部 ToolCall。
- * Ollama 无 tool-calling → 降级:只返回文本,toolCalls 恒空。
  *
  * 归一化是纯函数,fixture 驱动测试;SDK 调用部分不参与单测(不触网)。
  */
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 import { apiKeyStore } from '../key-store.js'
+import { resolveApiKey, DEFAULT_OPENAI_BASE, DEFAULT_CLAUDE_BASE } from '../key-resolve.js'
 import type { ChatMessage, AiProvider } from '../types.js'
 import type { ToolCall } from './types.js'
 import type { ToolJsonSchema } from './tool-registry.js'
@@ -35,7 +35,7 @@ export interface LlmChatRequest {
 }
 
 export interface LlmAdapter {
-  /** 是否支持原生工具调用(ollama=false → loop 走降级路径) */
+  /** 是否支持原生工具调用(false 时 loop 不广告工具 schema) */
   supportsTools: boolean
   chat: (req: LlmChatRequest) => Promise<LlmChatResponse>
 }
@@ -136,13 +136,10 @@ export const toolsToClaudeFormat = (tools: readonly ToolJsonSchema[]): ClaudeToo
 // SDK-backed adapters(真实调用,不参与单测)
 // ----------------------------------------------------------------------------
 
-const DEFAULT_OPENAI_BASE = 'https://api.openai.com/v1'
-
 export const createOpenAiLlmAdapter = (model = 'gpt-4o-mini'): LlmAdapter => ({
   supportsTools: true,
   chat: async (req) => {
-    const apiKey = apiKeyStore.get('openai')
-    if (!apiKey) throw new Error('未配置 OpenAI API Key')
+    const apiKey = resolveApiKey(apiKeyStore.get('openai'), req.baseUrl, DEFAULT_OPENAI_BASE)
     const client = new OpenAI({ apiKey, baseURL: req.baseUrl ?? DEFAULT_OPENAI_BASE })
     const resp = await client.chat.completions.create(
       {
@@ -162,9 +159,8 @@ export const createOpenAiLlmAdapter = (model = 'gpt-4o-mini'): LlmAdapter => ({
 export const createClaudeLlmAdapter = (model = 'claude-3-5-sonnet-20241022'): LlmAdapter => ({
   supportsTools: true,
   chat: async (req) => {
-    const apiKey = apiKeyStore.get('claude')
-    if (!apiKey) throw new Error('未配置 Claude API Key')
-    const client = new Anthropic({ apiKey })
+    const apiKey = resolveApiKey(apiKeyStore.get('claude'), req.baseUrl, DEFAULT_CLAUDE_BASE)
+    const client = new Anthropic({ apiKey, ...(req.baseUrl ? { baseURL: req.baseUrl } : {}) })
     const resp = await client.messages.create(
       {
         model: req.model ?? model,
@@ -182,28 +178,6 @@ export const createClaudeLlmAdapter = (model = 'claude-3-5-sonnet-20241022'): Ll
   }
 })
 
-/** Ollama 降级:无 tool-calling,只回文本 */
-export const createOllamaLlmAdapter = (
-  baseUrl = 'http://localhost:11434',
-  model = 'qwen2.5'
-): LlmAdapter => ({
-  supportsTools: false,
-  chat: async (req) => {
-    const flat = req.messages
-      .map((m) => `${m.role === 'user' ? '用户' : '助手'}: ${m.content}`)
-      .join('\n')
-    const response = await fetch(`${baseUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: req.model ?? model, prompt: `${req.system}\n\n${flat}`, stream: false }),
-      ...(req.signal ? { signal: req.signal } : {})
-    })
-    if (!response.ok) throw new Error(`Ollama responded ${response.status}`)
-    const json = (await response.json()) as { response?: string }
-    return { text: json.response ?? '', toolCalls: [] }
-  }
-})
-
 export const createLlmAdapter = (
   provider: AiProvider,
   model?: string,
@@ -214,8 +188,6 @@ export const createLlmAdapter = (
       return withLlmDefaults(createOpenAiLlmAdapter(model), { baseUrl })
     case 'claude':
       return withLlmDefaults(createClaudeLlmAdapter(model), { baseUrl })
-    case 'ollama':
-      return createOllamaLlmAdapter(baseUrl, model)
   }
 }
 

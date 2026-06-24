@@ -33,13 +33,13 @@ type CharacterListResult = {
 }
 
 type AiConfig = {
-  provider: 'openai' | 'claude' | 'ollama'
+  provider: 'openai' | 'claude'
   baseUrl?: string
   model?: string
 }
 
 type AiProviderInfo = {
-  id: 'openai' | 'claude' | 'ollama'
+  id: 'openai' | 'claude'
   name: string
   models: string[]
 }
@@ -141,7 +141,7 @@ const api = {
         taskId: string
         status: 'pending' | 'running' | 'done' | 'error'
         prompt: string
-        provider: 'openai' | 'claude' | 'ollama'
+        provider: 'openai' | 'claude'
         error?: string
         createdAt: number
       }>
@@ -171,7 +171,7 @@ const api = {
     connectionTest: (req: {
       prompt: string
       context: string
-      provider: 'openai' | 'claude' | 'ollama'
+      provider: 'openai' | 'claude'
       model?: string
       baseUrl?: string
     }): Promise<{ taskId: string; status: 'pending' } | { ok: false; error: string }> =>

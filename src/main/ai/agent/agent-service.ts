@@ -16,6 +16,7 @@ import { createAutonomyGate } from './autonomy-gate.js'
 import { createLlmAdapter } from './llm-adapter.js'
 import { TOPOLOGIES } from './topology.js'
 import { createDefaultToolRegistry } from './create-default-registry.js'
+import { readMemory, appendMemory, formatMemoryText } from './agent-memory.js'
 import { getPreference } from '../../preferences/preferences-store.js'
 import { aiProxy } from '../ai-proxy.js'
 import { gitService } from '../../git/git-service.js'
@@ -47,7 +48,11 @@ type AgentTaskRecord = {
 }
 
 const AGENT_SYSTEM =
-  '你是 Galide 创作平台的 AI agent。你可以调用工具读写 .gal 剧本、分析决策树、生成立绘/语音、执行 IDE 命令。' +
+  '你是 Galide 创作平台的 AI agent。你可以调用工具读写 .gal 剧本、分析决策树、生成立绘/语音、管理角色卡、执行 IDE 命令。' +
+  '你不仅能新增,还能修订:对已有对白可用 update_dialogue 改写、用 delete_node 删除、用 move_node 重排,用 update_scene_meta 改背景/BGM;' +
+  '用 create_character/update_character/delete_character 管理角色卡,再用 generate_sprite/generate_voice 补齐资产。' +
+  '从零搭建项目时,先用 create_script_file 建空 .gal,再逐场景 create_scene/add_dialogue。' +
+  '可用 navigate 切换面板、dispatch_command 执行新建/导出/提交。修改后用 analyze_reachability 自检决策树有无死路。' +
   '优先使用工具完成用户目标,完成后用简短中文总结。'
 
 const pendingConfirms = new Map<
@@ -172,23 +177,31 @@ const drain = async (): Promise<void> => {
       runningControllers.set(item.taskId, item.controller)
 
       try {
-      const agentPrefs = getPreference('agent')
-      const aiConfig = aiProxy.getConfig()
-      const provider = item.req.provider ?? aiConfig.provider
-      const ctx = await buildContext(
-        {
-          projectPath: item.req.projectPath,
-          selectedSceneId: item.req.selectedSceneId
-        },
-        {
-          fs: {
-            readFile: (p) => fs.readFile(p, 'utf-8'),
-            readdir: (p) => fs.readdir(p)
-          },
-          git: {
-            diff: (pp) => gitService.diff(pp, '')
-          }
-        }
+     const agentPrefs = getPreference('agent')
+     const aiConfig = aiProxy.getConfig()
+     const provider = item.req.provider ?? aiConfig.provider
+     const memory = agentPrefs.memoryEnabled
+       ? await readMemory(item.req.projectPath, {
+           readFile: (p) => fs.readFile(p, 'utf-8'),
+           writeFile: (p, c) => fs.writeFile(p, c, 'utf-8'),
+           mkdir: (p, o) => fs.mkdir(p, o)
+         })
+       : { entries: [] }
+     const ctx = await buildContext(
+       {
+         projectPath: item.req.projectPath,
+         selectedSceneId: item.req.selectedSceneId,
+         memoryText: agentPrefs.memoryEnabled ? formatMemoryText(memory) : undefined
+       },
+       {
+         fs: {
+           readFile: (p) => fs.readFile(p, 'utf-8'),
+           readdir: (p) => fs.readdir(p)
+         },
+         git: {
+           diff: (pp) => gitService.diff(pp, '')
+         }
+       }
       )
 
       const requestConfirm = async (cr: ConfirmRequest): Promise<boolean> => {
@@ -251,9 +264,22 @@ const drain = async (): Promise<void> => {
         }
       )
 
-      record.status = result.status === 'done' ? 'done' : result.status === 'cancelled' ? 'cancelled' : 'error'
-      if (result.error) record.error = result.error
-      sendStatus(item.sender, item.taskId, record.status, result.error)
+     record.status = result.status === 'done' ? 'done' : result.status === 'cancelled' ? 'cancelled' : 'error'
+     if (result.error) record.error = result.error
+     if (agentPrefs.memoryEnabled && (result.status === 'done' || result.status === 'error')) {
+       await appendMemory(
+         item.req.projectPath,
+         {
+           goal: item.req.goal,
+           finalText: result.finalText,
+           status: result.status,
+           timestamp: new Date().toISOString()
+         },
+         { readFile: (p) => fs.readFile(p, 'utf-8'), writeFile: (p, c) => fs.writeFile(p, c, 'utf-8'), mkdir: (p, o) => fs.mkdir(p, o) },
+        agentPrefs.memoryEntries
+       )
+     }
+     sendStatus(item.sender, item.taskId, record.status, result.error)
       active.delete(item.taskId)
       recent = [record, ...recent].slice(0, 20)
       } finally {

@@ -64,6 +64,7 @@ export const AgentModePanel = (): JSX.Element => {
   const [startError, setStartError] = useState<string | null>(null)
   const [autonomy, setAutonomy] = useState<Mode>('hybrid')
   const [topology, setTopology] = useState<Topology>('litePlanExecute')
+  const [memoryEnabled, setMemoryEnabled] = useState(true)
   const run = useAgentRun(taskId)
 
   useEffect(() => {
@@ -71,6 +72,7 @@ export const AgentModePanel = (): JSX.Element => {
       const prefs = v as AgentPreferences | undefined
       if (prefs?.autonomy) setAutonomy(prefs.autonomy)
       if (prefs?.topology) setTopology(prefs.topology)
+      if (prefs?.memoryEnabled !== undefined) setMemoryEnabled(prefs.memoryEnabled)
     })
   }, [])
 
@@ -79,6 +81,7 @@ export const AgentModePanel = (): JSX.Element => {
     const merged = { ...current, ...next }
     if (next.autonomy) setAutonomy(next.autonomy)
     if (next.topology) setTopology(next.topology)
+    if (next.memoryEnabled !== undefined) setMemoryEnabled(next.memoryEnabled)
     await window.galide.preferences.set('agent', merged)
   }
 
@@ -136,19 +139,27 @@ export const AgentModePanel = (): JSX.Element => {
               <option value="autonomous">全自动</option>
             </select>
           </label>
-          <label className="flex items-center gap-1">
-            拓扑
-            <select
-              className="bg-bg border border-border rounded px-1 py-0.5"
-              value={topology}
-              onChange={(e) => void persistAgentPrefs({ topology: e.target.value as Topology })}
-            >
-              <option value="singleReact">单循环</option>
-              <option value="litePlanExecute">计划+执行</option>
-              <option value="planExecuteCritic">+审查</option>
-            </select>
-          </label>
-        </div>
+         <label className="flex items-center gap-1">
+           拓扑
+           <select
+             className="bg-bg border border-border rounded px-1 py-0.5"
+             value={topology}
+             onChange={(e) => void persistAgentPrefs({ topology: e.target.value as Topology })}
+           >
+             <option value="singleReact">单循环</option>
+             <option value="litePlanExecute">计划+执行</option>
+             <option value="planExecuteCritic">+审查</option>
+           </select>
+         </label>
+         <label className="flex items-center gap-1">
+           记忆
+           <input
+             type="checkbox"
+             checked={memoryEnabled}
+             onChange={(e) => void persistAgentPrefs({ memoryEnabled: e.target.checked })}
+           />
+         </label>
+       </div>
         {startError ? <AiErrorBanner message={startError} preferencesSection="ai" /> : null}
       </div>
       <ScrollArea className="flex-1 p-2">

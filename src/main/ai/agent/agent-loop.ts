@@ -74,7 +74,7 @@ export interface AgentLoopDeps {
   signal?: AbortSignal
 }
 
-const DEFAULT_MAX_STEPS = 12
+const DEFAULT_MAX_STEPS = 30
 
 class CancelledError extends Error {
   constructor() {
@@ -169,10 +169,14 @@ export const runAgent = async (
         const decision = deps.gate.decide(risk)
         emit({ type: 'tool_call', call: toolCall, risk, decision })
 
-        if (decision === 'confirm') {
-          emit({ type: 'awaiting_confirm', call: toolCall })
-          const approved = deps.requestConfirm ? await deps.requestConfirm({ call: toolCall, risk }) : false
-          if (!approved) {
+       if (decision === 'confirm') {
+         // preview 在 overlay fs 上重放(不落真盘),产出 before/after diff 供确认
+         const diff = await deps.tools.preview(toolCall, deps.toolContext)
+         emit({ type: 'awaiting_confirm', call: toolCall })
+         const approved = deps.requestConfirm
+           ? await deps.requestConfirm({ call: toolCall, risk, diff: diff ?? undefined })
+           : false
+         if (!approved) {
             const rejected: ToolResult = {
               id: toolCall.id,
               name: toolCall.name,

@@ -17,20 +17,17 @@ type ProviderInfo = { id: AiProvider; name: string; models: string[]; hasKey: bo
 
 const MODELS: Record<AiProvider, string[]> = {
   openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo', 'MiniMax-M3'],
-  claude: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
-  ollama: ['qwen2.5', 'llama3.1', 'mistral']
+  claude: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
 }
 
 const DEFAULT_MODEL: Record<AiProvider, string> = {
   openai: 'MiniMax-M3',
-  claude: 'claude-3-5-sonnet-20241022',
-  ollama: 'qwen2.5'
+  claude: 'claude-3-5-sonnet-20241022'
 }
 
 const DEFAULT_BASE_URL: Record<AiProvider, string> = {
   openai: 'https://api.minimaxi.com/v1',
-  claude: 'https://api.anthropic.com',
-  ollama: 'http://localhost:11434'
+  claude: 'https://api.anthropic.com'
 }
 
 /**
@@ -425,7 +422,7 @@ export const AiPreferencesPanel = (): JSX.Element => {
           />
           <PreferenceEditor
             label="Base URL"
-            description="仅在使用代理或本地 Ollama 时修改"
+            description="使用代理或本地网络映射端点(vLLM/LM Studio 等)时修改;本地端点可省略 Key"
             control={<BaseUrlEditor value={baseUrl} onChange={setBaseUrl} />}
           />
         </div>

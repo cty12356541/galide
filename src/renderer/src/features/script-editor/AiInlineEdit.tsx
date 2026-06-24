@@ -7,7 +7,7 @@ import { Sparkles, ArrowRight, RefreshCw, Wand2, Languages, X, Check } from 'luc
 
 type AiAction = 'continue' | 'rewrite' | 'polish' | 'translate'
 
-type Provider = 'openai' | 'claude' | 'ollama'
+type Provider = 'openai' | 'claude'
 
 const ACTIONS: { id: AiAction; label: string; icon: typeof Sparkles }[] = [
   { id: 'continue', label: '续写', icon: ArrowRight },

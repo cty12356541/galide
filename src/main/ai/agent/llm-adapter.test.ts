@@ -12,6 +12,7 @@ import {
   withLlmDefaults,
   createLlmAdapter
 } from './llm-adapter.js'
+import { resolveApiKey } from '../key-resolve.js'
 import type { LlmAdapter, LlmChatRequest } from './llm-adapter.js'
 import type { ToolJsonSchema } from './tool-registry.js'
 
@@ -141,11 +142,32 @@ describe('withLlmDefaults / createLlmAdapter', () => {
     expect(calls[0]?.baseUrl).toBe('https://api.minimax.chat/v1')
   })
 
-  it('createLlmAdapter(ollama) 使用配置的 baseUrl', () => {
-    const adapter = createLlmAdapter('ollama', 'qwen2.5', 'http://ollama.local:11434')
-    expect(adapter.supportsTools).toBe(false)
-    // ollama baseUrl 在 adapter 构造时绑定,经 withLlmDefaults 路径验证 openai
+  it('createLlmAdapter(openai) 经 withLlmDefaults 注入 baseUrl', () => {
     const openai = createLlmAdapter('openai', 'gpt-4o-mini', 'https://proxy.example/v1')
     expect(openai.supportsTools).toBe(true)
+    const claude = createLlmAdapter('claude', 'claude-3-5-sonnet-20241022')
+    expect(claude.supportsTools).toBe(true)
+  })
+})
+
+
+describe('resolveApiKey — 本地网络映射容忍空 key', () => {
+  const DEFAULT = 'https://api.openai.com/v1'
+
+  it('有存储 key → 用存储 key', () => {
+    expect(resolveApiKey('sk-real', DEFAULT, DEFAULT)).toBe('sk-real')
+  })
+
+  it('无 key + 自定义 baseUrl(本地映射)→ 占位符,不抛错', () => {
+    expect(resolveApiKey(undefined, 'http://localhost:8000/v1', DEFAULT)).toBe('sk-galide-local')
+  })
+
+  it('无 key + 官方默认端点 → 抛错', () => {
+    expect(() => resolveApiKey(undefined, DEFAULT, DEFAULT)).toThrow('未配置')
+    expect(() => resolveApiKey(undefined, undefined, DEFAULT)).toThrow('未配置')
+  })
+
+  it('有 key + 自定义 baseUrl → 优先用存储 key', () => {
+    expect(resolveApiKey('sk-real', 'http://localhost:8000/v1', DEFAULT)).toBe('sk-real')
   })
 })

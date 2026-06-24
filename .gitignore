@@ -25,3 +25,5 @@ secrets/
 .mavis/
 .worktrees/
 bun.lock
+# Agent 跨会话记忆(机器本地状态)
+.galide/

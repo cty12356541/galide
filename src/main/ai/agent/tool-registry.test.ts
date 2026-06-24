@@ -11,6 +11,7 @@ import {
   type ToolContext,
   type ToolHandlerResult
 } from './tool-registry.js'
+import { scriptTools } from './tools/script-tools.js'
 
 const ctx: ToolContext = {
   projectPath: '/proj',
@@ -91,4 +92,66 @@ describe('tool-registry', () => {
     reg.register(tool)
     expect(reg.list().map((t) => t.name)).toContain('fake_add')
   })
+})
+
+describe('tool-registry — preview(overlay diff)', () => {
+  it('previewable 工具在 overlay 上重放,产出 before/after 且不落真盘', async () => {
+    const { createFsFromVolume, Volume } = await import('memfs')
+    const vol = Volume.fromJSON({ '/proj/scripts/chapter1.gal': '## intro\n背景: classroom\n小雪: "你好"\n' })
+    const mfs = createFsFromVolume(vol)
+    const ctx = {
+      projectPath: '/proj',
+      fs: {
+        readFile: (p: string) => mfs.promises.readFile(p, 'utf-8') as Promise<string>,
+        writeFile: (p: string, c: string) => mfs.promises.writeFile(p, c) as Promise<void>,
+        readdir: (p: string) => mfs.promises.readdir(p) as Promise<string[]>
+      }
+    }
+    const reg = createToolRegistry(scriptTools)
+    const diff = await reg.preview(
+      { id: '1', name: 'add_dialogue', args: { fileName: 'chapter1.gal', sceneId: 'intro', character: '阳', text: '走吧' } },
+      ctx
+    )
+    expect(diff).not.toBeNull()
+    expect(diff!.before).toContain('小雪: "你好"')
+    expect(diff!.after).toContain('阳: "走吧"')
+    // overlay 不落真盘:原文件未被改动
+    expect(mfs.readFileSync('/proj/scripts/chapter1.gal', 'utf-8')).not.toContain('阳')
+  })
+
+  it('无 previewable 的工具 → preview 返回 null', async () => {
+    const reg = createToolRegistry([defineTool({
+      name: 'plain',
+      description: 'd',
+      risk: 'safeWrite',
+      domain: 'disk',
+      schema: z.object({}),
+      handler: async () => ({ ok: true, content: 'x' })
+    })])
+    const diff = await reg.preview({ id: '1', name: 'plain', args: {} }, {
+      projectPath: '/p',
+      fs: { readFile: async () => '', writeFile: async () => undefined, readdir: async () => [] }
+    })
+    expect(diff).toBeNull()
+  })
+
+  it('preview 失败的 mutate(场景不存在)→ null,不抛错', async () => {
+    const { createFsFromVolume, Volume } = await import('memfs')
+    const vol = Volume.fromJSON({ '/proj/scripts/chapter1.gal': '## intro\n小雪: "你好"\n' })
+    const mfs = createFsFromVolume(vol)
+    const ctx = {
+      projectPath: '/proj',
+      fs: {
+        readFile: (p: string) => mfs.promises.readFile(p, 'utf-8') as Promise<string>,
+        writeFile: (p: string, c: string) => mfs.promises.writeFile(p, c) as Promise<void>,
+        readdir: (p: string) => mfs.promises.readdir(p) as Promise<string[]>
+      }
+    }
+    const reg = createToolRegistry(scriptTools)
+    const diff = await reg.preview(
+      { id: '1', name: 'add_dialogue', args: { fileName: 'chapter1.gal', sceneId: 'ghost', character: '阳', text: 'x' } },
+      ctx
+    )
+   expect(diff).toBeNull()
+ })
 })

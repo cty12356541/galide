@@ -2,6 +2,26 @@
 
 Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.com/) 规范。
 
+## [Unreleased]
+
+### 新增 — Agent 自主操作能力扩展
+
+- **剧本全 CRUD** — `update_dialogue` / `update_scene_meta` / `delete_node` / `move_node` / `add_choice`;agent 从「只能追加」升级为可改写/删除/重排既有内容,沿用 parse→mutate AST→serialize 往返
+- **角色卡 CRUD** — 新增 `manifest-tools`(`create_character` / `update_character` / `delete_character` / `list_characters`),经 `patchGalproj` 原子读写;业务冲突(重复/不存在)归一为 `ToolHandlerResult` 不中断循环
+- **命令风险细化** — `command-tools` 拆为 `navigate`(read,面板切换/导航)与 `dispatch_command`(destructive,新建/提交/导出);视图命令在 hybrid 默认模式下不再触发确认噪音
+- **自主预算 + 能力告知** — `maxSteps` 默认 12→30;`AGENT_SYSTEM` 提示扩充,告知 LLM 可修订/管角色/自检决策树
+
+- **确认前 diff 预览** — `agent-loop` 在 confirm 前经 `tools.preview` 取 before/after;`tool-registry` 加可选 `preview`(overlay fs 重放 handler,不落真盘);script/manifest 写工具标记 `previewable`。此前 `ConfirmRequest.diff` 为死代码,现已端到端接通(loop → IPC → `AgentConfirmDiff` UI)。无 preview 的工具(多模态/命令)回退无 diff
+
+- **create_script_file 工具** — agent 可从零创建空 .gal(已存在则拒覆盖),闭合"全自动搭建项目"的最后 bootstrap 缺口;系统提示告知 LLM 从零建项目的步骤
+
+- **跨会话记忆** — 新增 `agent-memory`(`.galide/agent-memory.json`,已 gitignore):每次运行后记录 {goal, finalText, status, timestamp},FIFO 环截断(默认 8 条);context-engine 把记忆注入"先前会话"段(最低优先级,超预算先截断);偏好 `memoryEnabled`/`memoryEntries` 控制,AgentModePanel 加记忆开关。此前每次 `messages: []` 无上下文延续
+
+### 变更 — 移除原生 Ollama provider(本地统一走网络映射)
+
+- **移除 `ollama` provider 选项** — `AiProvider` 收窄为 `openai` | `claude`;删除 `ollama-provider.ts`、Ollama adapter/归一化、UI 模型列表与默认 baseUrl。本地模型(vLLM / LM Studio / Ollama `/v1` 等)统一经 `openai` provider + 自定义 BaseUrl 接入,agent 工具调用与 chat/测试连接均走 OpenAI 兼容协议。`aiProxy.getConfig` 对存量 `ollama` 配置做迁移(回退 openai + 保留 baseUrl/model)
+- **本地网络映射免 Key** — 新增 `key-resolve`(纯函数,跨 agent 适配器与 provider 共用):无存储 key 但用自定义 BaseUrl(本地映射端点)时用占位符绕过 SDK 必填校验,本地模型可无 key 直接驱动 agent 工具调用与 chat/测试连接;无 key 且官方端点仍抛错。OpenAI/Claude adapter 现均支持 BaseUrl 覆盖(Claude 此前忽略 baseUrl)
+
 ## [0.6.0] - 2026-06-22
 
 ### 新增 — 嵌套条件编辑 + Agent 变量工具 + 预览存档

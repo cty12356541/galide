@@ -241,3 +241,139 @@ describe('script-tools — 变量/条件', () => {
     expect(r.ok).toBe(false)
   })
 })
+
+describe('script-tools — 编辑 / 删除 / 重排', () => {
+  it('update_dialogue 改写第 0 条对白', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'update_dialogue',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', index: 0, text: '你好啊' }
+      },
+      ctx
+ )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('小雪: "你好啊"')
+    expect(out).not.toContain('"你好"')
+  })
+
+  it('update_dialogue 索引越界 → ok=false', async () => {
+    const { ctx } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'update_dialogue',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', index: 99, text: 'x' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(false)
+    expect(r.error?.code).toBe('INDEX_OUT_OF_RANGE')
+  })
+
+  it('update_scene_meta 改背景并清空 bgm', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'update_scene_meta',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', background: 'rooftop' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('背景: rooftop')
+  })
+
+  it('delete_node 删除第 0 个子节点', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'delete_node',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', index: 0 }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    expect(read('chapter1.gal')).not.toContain('"你好"')
+  })
+
+  it('move_node 重排子节点顺序', async () => {
+    const { ctx, read } = makeCtx()
+    // intro 现有 1 条对白;先加一条再移动
+    await reg.execute(
+      { id: '1', name: 'add_dialogue', args: { fileName: 'chapter1.gal', sceneId: 'intro', character: '阳', text: 'B' } },
+      ctx
+    )
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'move_node',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', from: 0, to: 1 }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out.indexOf('阳: "B"')).toBeLessThan(out.indexOf('小雪: "你好"'))
+  })
+
+  it('add_choice 追加无门控选项', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_choice',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', text: '去走廊', target: 'hallway' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    expect(read('chapter1.gal')).toContain('去走廊')
+  })
+
+  it('add_choice 带门控条件', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_choice',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', text: '表白', target: 'hallway', condition: 'affinity > 5' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    expect(read('chapter1.gal')).toContain('当: affinity > 5')
+  })
+
+ it('编辑工具 risk=safeWrite', () => {
+   expect(reg.get('update_dialogue')?.risk).toBe('safeWrite')
+   expect(reg.get('delete_node')?.risk).toBe('safeWrite')
+   expect(reg.get('move_node')?.risk).toBe('safeWrite')
+   expect(reg.get('add_choice')?.risk).toBe('safeWrite')
+ })
+
+  it('create_script_file 从零创建空剧本', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      { id: '1', name: 'create_script_file', args: { fileName: 'chapter2.gal' } },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    expect(read('chapter2.gal')).toBe('')
+  })
+
+  it('create_script_file 已存在 → DUPLICATE_FILE', async () => {
+    const { ctx } = makeCtx()
+    const r = await reg.execute(
+      { id: '1', name: 'create_script_file', args: { fileName: 'chapter1.gal' } },
+      ctx
+    )
+    expect(r.ok).toBe(false)
+    expect(r.error?.code).toBe('DUPLICATE_FILE')
+  })
+})

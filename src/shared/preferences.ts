@@ -19,6 +19,10 @@ export type AgentPreferences = {
   topology: 'singleReact' | 'litePlanExecute' | 'planExecuteCritic'
   /** 单次任务的最大步数 */
   maxSteps: number
+  /** 跨会话记忆开关(记录近期运行结论,供新 run 注入上下文) */
+  memoryEnabled: boolean
+  /** 记忆容量(保留最近 N 条运行记录) */
+  memoryEntries: number
 }
 
 export type EditorPreferences = {
@@ -83,7 +87,7 @@ export type PreferencesSection =
   | 'advanced'
 
 export type AiProviderForm = {
-  id: 'openai' | 'claude' | 'ollama'
+  id: 'openai' | 'claude'
   label: string
   hasKey: boolean
   model: string
