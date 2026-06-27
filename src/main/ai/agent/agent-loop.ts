@@ -71,10 +71,14 @@ export interface AgentLoopDeps {
   /** 确定性 critic 读取最终 AST(litePlanExecute);返回 null 跳过 */
   loadScriptAst?: () => Promise<ScriptNode | null>
   maxSteps?: number
+  /** 步数耗尽时的修订重规划次数上限(默认 1);仅 usePlanner 拓扑生效 */
+  maxReplan?: number
   signal?: AbortSignal
 }
 
 const DEFAULT_MAX_STEPS = 30
+
+const DEFAULT_MAX_REPLANS = 1
 
 class CancelledError extends Error {
   constructor() {
@@ -121,6 +125,7 @@ export const runAgent = async (
     ensureLive()
 
     // ---- Plan stage ----
+    let plan: AgentPlan | null = null
     if (deps.topology.usePlanner) {
       const planResp = await deps.llm.chat({
         system: req.system,
@@ -131,17 +136,56 @@ export const runAgent = async (
         tools: [],
         ...chatOpts
       })
-      emit({ type: 'plan', plan: planFromText(planResp.text) })
+      plan = planFromText(planResp.text)
+      emit({ type: 'plan', plan })
     }
 
     // ---- Execute stage(ReAct)----
-    const convo: ChatMessage[] = [...(req.messages ?? []), { role: 'user', content: req.goal }]
+    const planConstraint = plan
+      ? `\n\n参考执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
+      : ''
+    const convo: ChatMessage[] = [
+      ...(req.messages ?? []),
+      { role: 'user', content: req.goal + planConstraint }
+    ]
     const toolSchemas = deps.llm.supportsTools ? deps.tools.toJsonSchemas() : []
     let finalText = ''
     let completed = false
+    const maxReplans = deps.maxReplan ?? DEFAULT_MAX_REPLANS
+    let replansLeft = deps.topology.usePlanner ? maxReplans : 0
 
-    for (let step = 0; step < maxSteps; step++) {
+    let step = 0
+    while (!completed) {
       ensureLive()
+      if (step >= maxSteps) {
+        // 步数耗尽:有 replan 预算则修订计划续跑(不回滚,保留已落盘进度),否则失败
+        if (replansLeft > 0) {
+          replansLeft--
+          const replanResp = await deps.llm.chat({
+            system: req.system,
+            messages: [
+              ...convo,
+              {
+                role: 'user',
+                content:
+                  '已用尽本轮步数但目标尚未完成。请基于已完成的进度,修订一份简短分步计划(编号列表),从下一步继续。'
+              }
+            ],
+            tools: [],
+            ...chatOpts
+          })
+          plan = planFromText(replanResp.text)
+          emit({ type: 'plan', plan })
+          convo.push({
+            role: 'user',
+            content: `修订执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
+          })
+          step = 0
+          continue
+        }
+        break
+      }
+      step++
       const resp = await deps.llm.chat({
         system: req.system,
         messages: convo,
