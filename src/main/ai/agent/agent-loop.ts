@@ -95,7 +95,18 @@ class MaxStepsError extends Error {
 }
 
 const CRITIC_SYSTEM =
-  '你是质量审查员。基于刚才的修改与目标,简要指出是否达成、有无遗漏或风险。'
+  '你是质量审查员。基于目标与本轮执行记录(工具调用及结果),审查是否达成、有无遗漏或风险(死路/悬空跳转/叙事断裂)。简要给出结论。'
+
+/** 从本轮 steps 提取工具调用与结果摘要,供 LLM critic 审查(不再闭眼) */
+const executionDigest = (steps: readonly AgentStep[]): string => {
+  const lines: string[] = []
+  for (const s of steps) {
+    if (s.type === 'tool_call') lines.push(`- 调用 ${s.call.name}`)
+    else if (s.type === 'tool_result')
+      lines.push(`  → ${s.result.ok ? '成功' : '失败'}: ${s.result.content.slice(0, 200)}`)
+  }
+  return lines.length > 0 ? lines.join('\n') : '(本轮无工具调用)'
+}
 
 export const runAgent = async (
   req: AgentRunRequest,
@@ -251,7 +262,12 @@ export const runAgent = async (
     } else if (deps.topology.criticKind === 'llm') {
       const criticResp = await deps.llm.chat({
         system: CRITIC_SYSTEM,
-        messages: [{ role: 'user', content: `目标:${req.goal}\n请审查刚才的修改。` }],
+        messages: [
+          {
+            role: 'user',
+            content: `目标:${req.goal}\n\n本轮执行记录:\n${executionDigest(steps)}\n\n请基于上述执行记录审查:是否达成目标、有无遗漏或风险。`
+          }
+        ],
         tools: [],
         ...chatOpts
       })

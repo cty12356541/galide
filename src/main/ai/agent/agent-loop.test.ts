@@ -161,6 +161,32 @@ describe('agent-loop — 状态机基本流', () => {
     const criticStep = steps.find((s) => s.type === 'critic')
     expect(criticStep?.type === 'critic' && criticStep.report.kind).toBe('llm')
   })
+
+  it('planExecuteCritic:LLM critic 收到本轮执行摘要(不再闭眼)', async () => {
+    const llm = fakeLlm([
+      { text: '1. 干活', toolCalls: [] }, // planner
+      call('do_thing'), // executor 调工具
+      { text: '完成', toolCalls: [] }, // executor done
+      { text: '审查:已达成', toolCalls: [] } // llm critic
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.planExecuteCritic,
+      toolContext,
+      onStep: (s) => steps.push(s)
+    })
+    // critic 是第 4 次 chat(calls[3]);其 user 消息应含执行摘要
+    const criticCall = llm.calls[3]
+    const criticContent = criticCall?.messages[0]?.content ?? ''
+    expect(criticContent).toContain('目标:')
+    expect(criticContent).toContain('本轮执行记录')
+    expect(criticContent).toContain('do_thing')
+  })
 })
 
 describe('agent-loop — autonomy gate', () => {

@@ -9,13 +9,14 @@ import { useUiStore } from '../../lib/store'
 import { AiErrorBanner } from '../../lib/ai-error-banner'
 import { useAgent, useAgentRun, type AgentStep } from '../../lib/ipc/use-agent'
 import { useAiConfig } from '../../lib/ipc/use-ai-task'
+import { type CriticReport } from '../../lib/ipc/use-agent'
 import { AgentConfirmDiff } from './agent-confirm-diff'
 import type { AgentPreferences } from '@shared/preferences'
 
 type Mode = AgentPreferences['autonomy']
 type Topology = AgentPreferences['topology']
 
-const StepView = ({ step }: { step: AgentStep }): JSX.Element => {
+export const StepView = ({ step }: { step: AgentStep }): JSX.Element => {
   switch (step.type) {
     case 'plan':
       return (
@@ -30,6 +31,8 @@ const StepView = ({ step }: { step: AgentStep }): JSX.Element => {
       )
     case 'thought':
       return <div className="text-xs text-text-muted whitespace-pre-wrap">{step.text}</div>
+    case 'awaiting_confirm':
+      return <div className="text-xs text-text-muted">⏸ 等待确认: {step.call.name}</div>
     case 'tool_call':
       return (
         <div className="text-xs">
@@ -43,12 +46,37 @@ const StepView = ({ step }: { step: AgentStep }): JSX.Element => {
           → {step.result.name}: {step.result.content.slice(0, 120)}
         </div>
       )
+    case 'critic': {
+      const r = step.report as CriticReport
+      if (r.kind === 'deterministic') {
+        const rc = r.reachability
+        return (
+          <div className="text-xs space-y-0.5">
+            <div className="font-medium text-accent">审查 · 可达性</div>
+            <div className="text-text-muted">入口: {rc.entry ?? '(无)'}</div>
+            <div className="text-text-muted">
+              不可达: {rc.unreachable.length > 0 ? rc.unreachable.join(', ') : '无'}
+            </div>
+            <div className="text-text-muted">
+              悬空跳转:{' '}
+              {rc.danglingTargets.length > 0
+                ? rc.danglingTargets.map((d) => `${d.from}→${d.target}`).join(', ')
+                : '无'}
+            </div>
+          </div>
+        )
+      }
+      return (
+        <div className="text-xs space-y-0.5">
+          <div className="font-medium text-accent">审查</div>
+          <div className="text-text-muted whitespace-pre-wrap">{r.text}</div>
+        </div>
+      )
+    }
     case 'done':
       return <div className="text-sm whitespace-pre-wrap">{step.text}</div>
     case 'error':
       return <div className="text-xs text-danger">{step.message}</div>
-    default:
-      return <div className="text-xs text-text-muted">{step.type}</div>
   }
 }
 
