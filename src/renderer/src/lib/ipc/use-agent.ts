@@ -11,9 +11,20 @@ export type AgentStep =
   | { type: 'tool_call'; call: { id: string; name: string; args: unknown }; risk: string; decision: string }
   | { type: 'awaiting_confirm'; call: { id: string; name: string; args: unknown } }
   | { type: 'tool_result'; result: { name: string; ok: boolean; content: string } }
-  | { type: 'critic'; report: unknown }
+  | { type: 'critic'; report: CriticReport }
   | { type: 'done'; text: string }
   | { type: 'error'; message: string }
+
+export interface ReachabilityReport {
+  entry: string | null
+  reachable: string[]
+  unreachable: string[]
+  danglingTargets: Array<{ from: string; target: string }>
+}
+
+export type CriticReport =
+  | { kind: 'deterministic'; reachability: ReachabilityReport }
+  | { kind: 'llm'; text: string }
 
 export type AgentTaskStatus = 'pending' | 'running' | 'done' | 'error' | 'cancelled'
 

@@ -71,10 +71,14 @@ export interface AgentLoopDeps {
   /** 确定性 critic 读取最终 AST(litePlanExecute);返回 null 跳过 */
   loadScriptAst?: () => Promise<ScriptNode | null>
   maxSteps?: number
+  /** 步数耗尽时的修订重规划次数上限(默认 1);仅 usePlanner 拓扑生效 */
+  maxReplan?: number
   signal?: AbortSignal
 }
 
 const DEFAULT_MAX_STEPS = 30
+
+const DEFAULT_MAX_REPLANS = 1
 
 class CancelledError extends Error {
   constructor() {
@@ -91,7 +95,18 @@ class MaxStepsError extends Error {
 }
 
 const CRITIC_SYSTEM =
-  '你是质量审查员。基于刚才的修改与目标,简要指出是否达成、有无遗漏或风险。'
+  '你是质量审查员。基于目标与本轮执行记录(工具调用及结果),审查是否达成、有无遗漏或风险(死路/悬空跳转/叙事断裂)。简要给出结论。'
+
+/** 从本轮 steps 提取工具调用与结果摘要,供 LLM critic 审查(不再闭眼) */
+const executionDigest = (steps: readonly AgentStep[]): string => {
+  const lines: string[] = []
+  for (const s of steps) {
+    if (s.type === 'tool_call') lines.push(`- 调用 ${s.call.name}`)
+    else if (s.type === 'tool_result')
+      lines.push(`  → ${s.result.ok ? '成功' : '失败'}: ${s.result.content.slice(0, 200)}`)
+  }
+  return lines.length > 0 ? lines.join('\n') : '(本轮无工具调用)'
+}
 
 export const runAgent = async (
   req: AgentRunRequest,
@@ -121,6 +136,7 @@ export const runAgent = async (
     ensureLive()
 
     // ---- Plan stage ----
+    let plan: AgentPlan | null = null
     if (deps.topology.usePlanner) {
       const planResp = await deps.llm.chat({
         system: req.system,
@@ -131,17 +147,56 @@ export const runAgent = async (
         tools: [],
         ...chatOpts
       })
-      emit({ type: 'plan', plan: planFromText(planResp.text) })
+      plan = planFromText(planResp.text)
+      emit({ type: 'plan', plan })
     }
 
     // ---- Execute stage(ReAct)----
-    const convo: ChatMessage[] = [...(req.messages ?? []), { role: 'user', content: req.goal }]
+    const planConstraint = plan
+      ? `\n\n参考执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
+      : ''
+    const convo: ChatMessage[] = [
+      ...(req.messages ?? []),
+      { role: 'user', content: req.goal + planConstraint }
+    ]
     const toolSchemas = deps.llm.supportsTools ? deps.tools.toJsonSchemas() : []
     let finalText = ''
     let completed = false
+    const maxReplans = deps.maxReplan ?? DEFAULT_MAX_REPLANS
+    let replansLeft = deps.topology.usePlanner ? maxReplans : 0
 
-    for (let step = 0; step < maxSteps; step++) {
+    let step = 0
+    while (!completed) {
       ensureLive()
+      if (step >= maxSteps) {
+        // 步数耗尽:有 replan 预算则修订计划续跑(不回滚,保留已落盘进度),否则失败
+        if (replansLeft > 0) {
+          replansLeft--
+          const replanResp = await deps.llm.chat({
+            system: req.system,
+            messages: [
+              ...convo,
+              {
+                role: 'user',
+                content:
+                  '已用尽本轮步数但目标尚未完成。请基于已完成的进度,修订一份简短分步计划(编号列表),从下一步继续。'
+              }
+            ],
+            tools: [],
+            ...chatOpts
+          })
+          plan = planFromText(replanResp.text)
+          emit({ type: 'plan', plan })
+          convo.push({
+            role: 'user',
+            content: `修订执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
+          })
+          step = 0
+          continue
+        }
+        break
+      }
+      step++
       const resp = await deps.llm.chat({
         system: req.system,
         messages: convo,
@@ -207,7 +262,12 @@ export const runAgent = async (
     } else if (deps.topology.criticKind === 'llm') {
       const criticResp = await deps.llm.chat({
         system: CRITIC_SYSTEM,
-        messages: [{ role: 'user', content: `目标:${req.goal}\n请审查刚才的修改。` }],
+        messages: [
+          {
+            role: 'user',
+            content: `目标:${req.goal}\n\n本轮执行记录:\n${executionDigest(steps)}\n\n请基于上述执行记录审查:是否达成目标、有无遗漏或风险。`
+          }
+        ],
         tools: [],
         ...chatOpts
       })

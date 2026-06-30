@@ -17,7 +17,15 @@ import { serialize } from '../../../../shared/dsl/serializer.js'
 import { findById, collectNodes } from '../../../../shared/dsl/visitor.js'
 import { parseExpression, type Expression } from '../../../../shared/dsl/expression.js'
 import { scanScriptVariables } from '../../../../shared/dsl/scan-variables.js'
-import type { DialogueNode, IfNode, SceneNode, ScriptNode, SetNode } from '../../../../shared/dsl/types.js'
+import type {
+  DialogueNode,
+  GotoNode,
+  IfNode,
+  MarkerNode,
+  SceneNode,
+  ScriptNode,
+  SetNode
+} from '../../../../shared/dsl/types.js'
 import { defineTool, type RegisteredTool } from '../tool-registry.js'
 import type { ToolContext, ToolHandlerResult } from '../types.js'
 
@@ -605,6 +613,64 @@ const addChoice = defineTool({
   }
 })
 
+const addGoto = defineTool({
+  name: 'add_goto',
+  description:
+    '向指定场景追加一个无条件跳转行 [跳转:target]。target 应是已存在场景/marker(允许前向引用,悬空由 analyze_reachability 检测)。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    target: z.string().min(1)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    const goto: GotoNode = { type: 'goto', target: args.target, line: 0, column: 1 }
+    scene.children.push(goto)
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已在场景 "${args.sceneId}" 追加跳转 → ${args.target}` }
+  }
+})
+
+const addMarker = defineTool({
+  name: 'add_marker',
+  description: '向指定场景追加一个标记锚点(=== id ===),可作为跳转目标。id 在文件内必须唯一。',
+  risk: 'safeWrite',
+  previewable: true,
+  domain: 'disk',
+  schema: z.object({
+    fileName: FileNameSchema,
+    sceneId: z.string().min(1),
+    id: z.string().min(1)
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const r = await readAst(ctx, args.fileName)
+    if ('error' in r) return r.error
+    const scene = findScene(r.ast, args.sceneId)
+    if (!scene) return sceneNotFound(args.sceneId)
+    const dup = collectNodes(
+      r.ast,
+      (n): n is MarkerNode => n.type === 'marker' && n.id === args.id
+    )
+    if (dup.length > 0) {
+      return {
+        ok: false,
+        content: `标记 "${args.id}" 已存在`,
+        error: { code: 'DUPLICATE_MARKER', message: `marker ${args.id} already exists` }
+      }
+    }
+    const marker: MarkerNode = { type: 'marker', id: args.id, line: 0, column: 1 }
+    scene.children.push(marker)
+    await writeAst(ctx, args.fileName, r.ast)
+    return { ok: true, content: `已在场景 "${args.sceneId}" 追加标记 "${args.id}"` }
+  }
+})
+
 const readVariables = defineTool({
   name: 'read_variables',
   description: '扫描 .gal 中所有 SetNode 变量名、门控选项 [当:] 条件、if 分支条件。',
@@ -653,6 +719,8 @@ export const scriptTools: readonly RegisteredTool[] = [
   addConditionalBlock,
   addGatedChoice,
   addChoice,
+  addGoto,
+  addMarker,
   updateDialogue,
   updateSceneMeta,
   deleteNode,

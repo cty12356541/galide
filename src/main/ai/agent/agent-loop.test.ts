@@ -161,6 +161,32 @@ describe('agent-loop — 状态机基本流', () => {
     const criticStep = steps.find((s) => s.type === 'critic')
     expect(criticStep?.type === 'critic' && criticStep.report.kind).toBe('llm')
   })
+
+  it('planExecuteCritic:LLM critic 收到本轮执行摘要(不再闭眼)', async () => {
+    const llm = fakeLlm([
+      { text: '1. 干活', toolCalls: [] }, // planner
+      call('do_thing'), // executor 调工具
+      { text: '完成', toolCalls: [] }, // executor done
+      { text: '审查:已达成', toolCalls: [] } // llm critic
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.planExecuteCritic,
+      toolContext,
+      onStep: (s) => steps.push(s)
+    })
+    // critic 是第 4 次 chat(calls[3]);其 user 消息应含执行摘要
+    const criticCall = llm.calls[3]
+    const criticContent = criticCall?.messages[0]?.content ?? ''
+    expect(criticContent).toContain('目标:')
+    expect(criticContent).toContain('本轮执行记录')
+    expect(criticContent).toContain('do_thing')
+  })
 })
 
 describe('agent-loop — autonomy gate', () => {
@@ -362,5 +388,119 @@ describe('agent-loop — 错误与取消分支', () => {
     })
     expect(llm.calls.length).toBeGreaterThan(0)
     expect(llm.calls.every((c) => c.signal === controller.signal)).toBe(true)
+  })
+})
+
+describe('agent-loop — 计划回灌 / 重规划', () => {
+  it('litePlanExecute:计划回灌进 Executor 首条 user 消息', async () => {
+    const llm = fakeLlm([
+      { text: '1. 创建场景\n2. 加对白', toolCalls: [] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext
+    })
+    const executorMessages = llm.calls[1]?.messages
+    const last = executorMessages?.[executorMessages.length - 1]
+    expect(last?.role).toBe('user')
+    expect(last?.content).toContain('参考执行计划')
+  })
+
+  it('步数耗尽触发一次重规划续跑,不回滚', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      call('do_thing'),
+      call('do_thing'),
+      { text: '1. 修订计划', toolCalls: [] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      maxSteps: 2,
+      maxReplan: 1,
+      onStep: (s) => steps.push(s)
+    })
+    expect(result.status).toBe('done')
+    expect(result.rolledBack).toBeFalsy()
+    expect(git.events.some((e) => e.startsWith('rollback'))).toBe(false)
+    expect(steps.filter((s) => s.type === 'plan')).toHaveLength(2)
+  })
+
+  it('重规划预算耗尽 → error 且回滚', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      call('do_thing'),
+      call('do_thing'),
+      { text: '1. 修订计划', toolCalls: [] },
+      call('do_thing'),
+      call('do_thing')
+    ])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      maxSteps: 2,
+      maxReplan: 1
+    })
+    expect(result.status).toBe('error')
+    expect(result.rolledBack).toBe(true)
+    expect(git.events.some((e) => e.startsWith('rollback'))).toBe(true)
+  })
+
+  it('singleReact 步数耗尽仍回滚(无重规划)', async () => {
+    const llm = fakeLlm([call('do_thing')])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.singleReact,
+      toolContext,
+      maxSteps: 1
+    })
+    expect(result.status).toBe('error')
+    expect(result.rolledBack).toBe(true)
+  })
+
+  it('usePlanner 正常完成不触发重规划', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      call('do_thing'),
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      onStep: (s) => steps.push(s)
+    })
+    expect(result.status).toBe('done')
+    expect(steps.filter((s) => s.type === 'plan')).toHaveLength(1)
   })
 })

@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest'
 import { createFsFromVolume, Volume } from 'memfs'
 import { scriptTools } from './script-tools.js'
 import { createToolRegistry } from '../tool-registry.js'
+import { parse } from '../../../../shared/dsl/parser.js'
 import type { ToolContext, ToolFs } from '../types.js'
 
 const chapter1 = `## intro
@@ -375,5 +376,76 @@ describe('script-tools — 编辑 / 删除 / 重排', () => {
     )
     expect(r.ok).toBe(false)
     expect(r.error?.code).toBe('DUPLICATE_FILE')
+  })
+})
+
+describe('script-tools — 跳转 / 标记', () => {
+  it('add_goto 追加无条件跳转并序列化 [跳转:target]', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_goto',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', target: 'hallway' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('[跳转:hallway]')
+    expect(parse(out).ok).toBe(true)
+  })
+
+  it('add_marker 追加标记锚点并序列化 === id ===', async () => {
+    const { ctx, read } = makeCtx()
+    const r = await reg.execute(
+      {
+        id: '1',
+        name: 'add_marker',
+        args: { fileName: 'chapter1.gal', sceneId: 'intro', id: 'mid' }
+      },
+      ctx
+    )
+    expect(r.ok).toBe(true)
+    const out = read('chapter1.gal')
+    expect(out).toContain('=== mid ===')
+    expect(parse(out).ok).toBe(true)
+  })
+
+  it('add_marker 重复 id → DUPLICATE_MARKER 且原文件不变', async () => {
+    const { ctx, read } = makeCtx()
+    await reg.execute(
+      { id: '1', name: 'add_marker', args: { fileName: 'chapter1.gal', sceneId: 'intro', id: 'dup' } },
+      ctx
+    )
+    const before = read('chapter1.gal')
+    const r = await reg.execute(
+      { id: '1', name: 'add_marker', args: { fileName: 'chapter1.gal', sceneId: 'intro', id: 'dup' } },
+      ctx
+    )
+    expect(r.ok).toBe(false)
+    expect(r.error?.code).toBe('DUPLICATE_MARKER')
+    expect(read('chapter1.gal')).toBe(before)
+  })
+
+  it('add_goto / add_marker 指向不存在场景 → SCENE_NOT_FOUND', async () => {
+    const { ctx } = makeCtx()
+    const g = await reg.execute(
+      { id: '1', name: 'add_goto', args: { fileName: 'chapter1.gal', sceneId: 'nope', target: 'hallway' } },
+      ctx
+    )
+    expect(g.ok).toBe(false)
+    expect(g.error?.code).toBe('SCENE_NOT_FOUND')
+    const m = await reg.execute(
+      { id: '1', name: 'add_marker', args: { fileName: 'chapter1.gal', sceneId: 'nope', id: 'm' } },
+      ctx
+    )
+    expect(m.ok).toBe(false)
+    expect(m.error?.code).toBe('SCENE_NOT_FOUND')
+  })
+
+  it('add_goto / add_marker risk=safeWrite', () => {
+    expect(reg.get('add_goto')?.risk).toBe('safeWrite')
+    expect(reg.get('add_marker')?.risk).toBe('safeWrite')
   })
 })

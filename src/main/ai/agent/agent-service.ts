@@ -52,6 +52,7 @@ const AGENT_SYSTEM =
   '你不仅能新增,还能修订:对已有对白可用 update_dialogue 改写、用 delete_node 删除、用 move_node 重排,用 update_scene_meta 改背景/BGM;' +
   '用 create_character/update_character/delete_character 管理角色卡,再用 generate_sprite/generate_voice 补齐资产。' +
   '从零搭建项目时,先用 create_script_file 建空 .gal,再逐场景 create_scene/add_dialogue。' +
+  '用 add_marker 设跳转锚点、add_goto 造无条件跳转来构建分支;选项跳转用 add_choice(可带 [当:] 门控)。' +
   '可用 navigate 切换面板、dispatch_command 执行新建/导出/提交。修改后用 analyze_reachability 自检决策树有无死路。' +
   '优先使用工具完成用户目标,完成后用简短中文总结。'
 
@@ -250,6 +251,7 @@ const drain = async (): Promise<void> => {
           toolContext,
           requestConfirm,
           maxSteps: agentPrefs.maxSteps,
+          maxReplan: 1,
           signal: item.controller.signal,
           onStep: (step) => {
             record.steps.push(step)
