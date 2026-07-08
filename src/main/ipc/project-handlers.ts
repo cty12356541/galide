@@ -7,6 +7,7 @@ import { getStore } from '../store/store.js'
 import { gitService } from '../git/git-service.js'
 import { getPreference } from '../preferences/preferences-store.js'
 import { parseManifest } from '../../shared/manifest-schema.js'
+import { CreateProjectAtPathSchema, parseIpcArgs } from './schemas/index.js'
 import {
   createProject,
   type ProjectFs,
@@ -32,7 +33,8 @@ const fsAdapter: ProjectFs = {
     } catch {
       return false
     }
-  }
+  },
+  readdir: (path) => fs.readdir(path)
 }
 
 const gitAdapter: ProjectGit = {
@@ -63,6 +65,10 @@ const openProjectAtPath = async (projectPath: string): Promise<ProjectOpenResult
   }
 }
 
+export const projectFsAdapter = fsAdapter
+export const projectGitAdapter = gitAdapter
+export { openProjectAtPath }
+
 export const registerProjectHandlers = (): void => {
   ipcMain.handle(IPC.project.create, async (_e, name: string): Promise<ProjectOpenResult> => {
     const win = BrowserWindow.getFocusedWindow()
@@ -87,6 +93,28 @@ export const registerProjectHandlers = (): void => {
     }
     return { ok: false, error: r.error.message }
   })
+
+  ipcMain.handle(
+    IPC.project.createAtPath,
+    async (_e, req: { name: string; projectPath: string }): Promise<ProjectOpenResult> => {
+      try {
+        const validated = parseIpcArgs('project:createAtPath', CreateProjectAtPathSchema, req)
+        const r = await createProject(validated.name, {
+          fs: fsAdapter,
+          git: gitAdapter,
+          dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
+          gitPrefs: getPreference('git')
+        }, { projectPath: validated.projectPath })
+        if (r.ok === true) {
+          return { ok: true, projectPath: r.value.projectPath, manifest: r.value.manifest }
+        }
+        return { ok: false, error: r.error.message }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        return { ok: false, error: message }
+      }
+    }
+  )
 
   ipcMain.handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
     const win = BrowserWindow.getFocusedWindow()

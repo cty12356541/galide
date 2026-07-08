@@ -29,6 +29,14 @@ ai_integration:
   api_key_handling: "API Key 存在 electron-store 加密存储，不暴露给 renderer"
   streaming: "AI 响应使用 SSE (Server-Sent Events)，renderer 端打字机展示"
   task_queue: "AI 任务入队，UI 显示排队状态，不阻塞编辑器操作"
+  agent_platform:
+    topology: "DAG 编排(fan-in/fan-out);非单链 Plan→Exec→Critic。边集见 src/main/ai/agent/topology-dag.ts"
+    topology_dag_mermaid: "AGENT_TOPOLOGY_DAG_MERMAID in topology-dag.ts"
+    disk_tools: "export_project / git_commit / create_project / open_project — main 进程 headless,不经 renderer 对话框"
+    critic_fix_loop: "Critic 发现可达性问题后注入修复指令并重入 Executor(maxCriticFix 可配);DAG retry 边"
+    plan_tracking: "Planner 产出计划后每轮 Executor 注入当前步骤 + plan_progress step;演示路径见 topology-dag EXAMPLE_ADD_DIALOGUE"
+    dag_examples: "topology-dag.ts — EXAMPLE_ADD_DIALOGUE / EXAMPLE_CRITIC_FIX_RETRY(DAG walk,非单链)"
+    dispatch_command: "仅打开 UI 对话框;全自动导出/提交/建项优先 disk 工具"
 
 git_integration:
   library: "simple-git npm 包"

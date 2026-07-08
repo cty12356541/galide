@@ -12,9 +12,110 @@ import { FlowView } from '../../features/flow-view/FlowView'
 import { PreviewCanvas } from '../../features/preview/PreviewCanvas'
 import { useUiStore } from '../../lib/store'
 import { patchEditorCoreLayout } from './editor-core-layout'
+import type { EditorCoreLayout, WorkspacePresetId } from '../../lib/workspace-presets'
 
 const handleH = 'w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1'
 const handleV = 'h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1'
+
+type LayoutPatch = (sizes: number[]) => void
+
+/** 品字顶行:场景轨 | 决策树(左右并列) */
+const TopBand = ({
+  layout,
+  workspacePreset,
+  previewOpen,
+  onLayout
+}: {
+  layout: EditorCoreLayout
+  workspacePreset: WorkspacePresetId
+  previewOpen: boolean
+  onLayout: LayoutPatch
+}): JSX.Element => (
+  <PanelGroup
+    direction="horizontal"
+    className="h-full"
+    key={`ec-tr-${workspacePreset}-${previewOpen ? 'pv' : 'np'}`}
+    onLayout={onLayout}
+  >
+    <Panel id="ec-scene-rail" order={1} defaultSize={layout.sceneRail} minSize={15} maxSize={70}>
+      <SceneRail />
+    </Panel>
+    <PanelResizeHandle className={handleH} />
+    <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={15} maxSize={85}>
+      <FlowView />
+    </Panel>
+  </PanelGroup>
+)
+
+/** 预览关:左一右二 — 右列场景轨 / 流程上下叠 */
+const RightStack = ({
+  layout,
+  workspacePreset,
+  onLayout
+}: {
+  layout: EditorCoreLayout
+  workspacePreset: WorkspacePresetId
+  onLayout: LayoutPatch
+}): JSX.Element => (
+  <PanelGroup
+    direction="vertical"
+    className="h-full"
+    key={`ec-rs-${workspacePreset}`}
+    onLayout={onLayout}
+  >
+    <Panel id="ec-scene-rail" order={1} defaultSize={layout.sceneRail} minSize={18} maxSize={70}>
+      <SceneRail />
+    </Panel>
+    <PanelResizeHandle className={handleV} />
+    <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={18} maxSize={82}>
+      <FlowView />
+    </Panel>
+  </PanelGroup>
+)
+
+/** 预览开:品字 — 顶行场景|流程,底格预览(左列编辑器贯通) */
+const RightColumn = ({
+  previewOpen,
+  layout,
+  workspacePreset,
+  onLayoutVertical,
+  onLayoutStack,
+  onLayoutTopBand
+}: {
+  previewOpen: boolean
+  layout: EditorCoreLayout
+  workspacePreset: WorkspacePresetId
+  onLayoutVertical: LayoutPatch
+  onLayoutStack: LayoutPatch
+  onLayoutTopBand: LayoutPatch
+}): JSX.Element => {
+  if (!previewOpen) {
+    return (
+      <RightStack layout={layout} workspacePreset={workspacePreset} onLayout={onLayoutStack} />
+    )
+  }
+  return (
+    <PanelGroup
+      direction="vertical"
+      className="h-full"
+      key={`ec-rv-${workspacePreset}`}
+      onLayout={onLayoutVertical}
+    >
+      <Panel id="ec-top-band" order={1} defaultSize={layout.centerRow} minSize={22}>
+        <TopBand
+          layout={layout}
+          workspacePreset={workspacePreset}
+          previewOpen={previewOpen}
+          onLayout={onLayoutTopBand}
+        />
+      </Panel>
+      <PanelResizeHandle className={handleV} />
+      <Panel id="ec-preview" order={2} defaultSize={layout.preview} minSize={18} maxSize={65}>
+        <PreviewCanvas />
+      </Panel>
+    </PanelGroup>
+  )
+}
 
 /** 面板 onLayout 会频繁回调;仅在尺寸实际变化时写 store,避免 remount 死循环 */
 export const EditorCore = (): JSX.Element => {
@@ -48,65 +149,6 @@ export const EditorCore = (): JSX.Element => {
     if (patch) setEditorCoreLayout(patch)
   }
 
-  /** 品字顶行:场景轨 | 决策树(左右并列) */
-  const TopBand = (): JSX.Element => (
-    <PanelGroup
-      direction="horizontal"
-      className="h-full"
-      key={`ec-tr-${workspacePreset}-${previewOpen ? 'pv' : 'np'}`}
-      onLayout={patchTopRightHorizontal}
-    >
-      <Panel id="ec-scene-rail" order={1} defaultSize={layout.sceneRail} minSize={15} maxSize={70}>
-        <SceneRail />
-      </Panel>
-      <PanelResizeHandle className={handleH} />
-      <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={15} maxSize={85}>
-        <FlowView />
-      </Panel>
-    </PanelGroup>
-  )
-
-  /** 预览关:左一右二 — 右列场景轨 / 流程上下叠 */
-  const RightStack = (): JSX.Element => (
-    <PanelGroup
-      direction="vertical"
-      className="h-full"
-      key={`ec-rs-${workspacePreset}`}
-      onLayout={patchRightStackVertical}
-    >
-      <Panel id="ec-scene-rail" order={1} defaultSize={layout.sceneRail} minSize={18} maxSize={70}>
-        <SceneRail />
-      </Panel>
-      <PanelResizeHandle className={handleV} />
-      <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={18} maxSize={82}>
-        <FlowView />
-      </Panel>
-    </PanelGroup>
-  )
-
-  /** 预览开:品字 — 顶行场景|流程,底格预览(左列编辑器贯通) */
-  const RightColumn = (): JSX.Element => {
-    if (!previewOpen) {
-      return <RightStack />
-    }
-    return (
-      <PanelGroup
-        direction="vertical"
-        className="h-full"
-        key={`ec-rv-${workspacePreset}`}
-        onLayout={patchRightVertical}
-      >
-        <Panel id="ec-top-band" order={1} defaultSize={layout.centerRow} minSize={22}>
-          <TopBand />
-        </Panel>
-        <PanelResizeHandle className={handleV} />
-        <Panel id="ec-preview" order={2} defaultSize={layout.preview} minSize={18} maxSize={65}>
-          <PreviewCanvas />
-        </Panel>
-      </PanelGroup>
-    )
-  }
-
   return (
     <div className="relative h-full w-full">
       <PanelGroup
@@ -120,7 +162,14 @@ export const EditorCore = (): JSX.Element => {
         </Panel>
         <PanelResizeHandle className={handleH} />
         <Panel id="ec-right" order={2} defaultSize={layout.right} minSize={28}>
-          <RightColumn />
+          <RightColumn
+            previewOpen={previewOpen}
+            layout={layout}
+            workspacePreset={workspacePreset}
+            onLayoutVertical={patchRightVertical}
+            onLayoutStack={patchRightStackVertical}
+            onLayoutTopBand={patchTopRightHorizontal}
+          />
         </Panel>
       </PanelGroup>
       <button

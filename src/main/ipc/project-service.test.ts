@@ -39,6 +39,10 @@ const makeFs = (): ProjectFs & { log: Log } => {
     exists: async (...args) => {
       log.push({ op: 'exists', args })
       return true
+    },
+    readdir: async (...args) => {
+      log.push({ op: 'readdir', args })
+      return []
     }
   }
 }
@@ -213,6 +217,43 @@ describe('createProject', () => {
     if (r.ok !== true) return
     expect(r.value.manifest.name.length).toBeLessThanOrEqual(80)
     expect(r.value.manifest.name.startsWith('a')).toBe(true)
+  })
+
+  it('headless projectPath: skips dialog, rejects non-empty dir', async () => {
+    const fs = makeFs()
+    const git = makeGit()
+    const dialog: ProjectDialog = {
+      showOpenDialog: async () => ({ canceled: false, filePaths: ['/should-not-use'] })
+    }
+    fs.readdir = async () => ['existing.txt']
+    const r = await createProject('Headless', {
+      fs,
+      git,
+      dialog,
+      gitPrefs: baseGitPrefs
+    }, { projectPath: '/tmp/myproj' })
+    expect(r.ok).toBe(false)
+    if (r.ok !== false) return
+    expect(r.error.code).toBe('DIR_NOT_EMPTY')
+  })
+
+  it('headless projectPath: creates when dir empty', async () => {
+    const fs = makeFs()
+    fs.exists = async () => true
+    fs.readdir = async () => []
+    const git = makeGit()
+    const dialog: ProjectDialog = {
+      showOpenDialog: async () => ({ canceled: false, filePaths: ['/unused'] })
+    }
+    const r = await createProject('Headless', {
+      fs,
+      git,
+      dialog,
+      gitPrefs: { ...baseGitPrefs, autoInit: false }
+    }, { projectPath: '/tmp/empty-proj' })
+    expect(r.ok).toBe(true)
+    if (r.ok !== true) return
+    expect(r.value.projectPath).toBe('/tmp/empty-proj')
   })
 })
 

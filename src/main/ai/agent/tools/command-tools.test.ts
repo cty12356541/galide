@@ -26,9 +26,17 @@ describe('command-tools', () => {
 
   it('dispatch_command 为 destructive 风险,投递状态命令', async () => {
     expect(dispatchCommand.risk).toBe('destructive')
-    const r = await dispatchCommand.run({ commandId: 'export' }, ctx)
+    const r = await dispatchCommand.run({ commandId: 'undo' }, ctx)
     expect(r.ok).toBe(true)
-    expect(dispatch).toHaveBeenCalledWith('export')
+    expect(dispatch).toHaveBeenCalledWith('undo')
+  })
+
+  it('与 platform headless 重叠的命令已从 schema 移除', async () => {
+    for (const commandId of ['export', 'commit', 'newProject', 'openProject'] as const) {
+      const r = await dispatchCommand.run({ commandId }, ctx)
+      expect(r.ok).toBe(false)
+      expect(r.error?.code).toBe('SCHEMA_FAILED')
+    }
   })
 
   it('视图命令不能走 dispatch_command(schema 拒绝)', async () => {

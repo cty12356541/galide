@@ -42,7 +42,9 @@ const DEFAULTS: PreferencesShape = {
     topology: 'litePlanExecute',
     maxSteps: 30,
     memoryEnabled: true,
-    memoryEntries: 8
+    memoryEntries: 8,
+    maxReplan: 1,
+    maxCriticFix: 1
   },
   editor: {
     fontSize: 14,

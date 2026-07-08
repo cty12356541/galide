@@ -45,10 +45,25 @@ export type ToolDispatch = (
   payload?: unknown
 ) => Promise<{ ok: boolean; error?: string }>
 
+import type { ProjectManifest } from '../../../shared/types.js'
+
 export interface ToolContext {
   projectPath: string
   fs: ToolFs
   dispatch?: ToolDispatch
+  /**
+   * 建项/开项成功后切换 agent 运行时项目根(并应由 service 层通知 renderer)。
+   * platform-tools 在 create_project / open_project 成功时调用。
+   */
+  switchProject?: (payload: {
+    projectPath: string
+    manifest: ProjectManifest
+  }) => Promise<void>
+  /** @deprecated 使用 switchProject */
+  notifyProjectOpened?: (payload: {
+    projectPath: string
+    manifest: ProjectManifest
+  }) => Promise<void>
 }
 
 /** 工具 handler 的返回(registry 再包成 ToolResult) */

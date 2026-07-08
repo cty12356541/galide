@@ -6,10 +6,23 @@
  *   - 循环主体不随 autonomy mode 变化:是否暂停确认只问 gate.decide(risk)
  *   - 拓扑只切换 stage 编排(Planner / Executor / Critic),共用同一执行循环
  *
- * 状态流:Snapshot → [Plan] → (Executing → Gate → AwaitConfirm? → Observing)* → [Critic] → Done
+ * 状态流(DAG,非单链):
+ *   Snapshot + Context ──fan-in──► [Plan] ──► Execute ◄──┐
+ *                                    │         │  │       │ retry(maxReplan/criticFix)
+ *                                    │         ▼  ▼       │
+ *                                    │       Gate→Tools───┘
+ *                                    │         │
+ *                                    └──► Critic(det[/llm]) ──► Done
  *         失败 / 取消 / 超步 → git 回滚 → Error / Cancelled
+ *
+ * 边集: topology-dag.ts
  */
-import { analyzeReachability, type ReachabilityReport } from './decision-tree.js'
+import {
+  analyzeReachability,
+  formatReachabilityIssues,
+  hasReachabilityIssues,
+  type ReachabilityReport
+} from './decision-tree.js'
 import { planFromText, type AgentPlan, type Topology } from './topology.js'
 import type { LlmAdapter } from './llm-adapter.js'
 import type { AutonomyGate, GateDecision } from './autonomy-gate.js'
@@ -36,9 +49,10 @@ export type CriticReport =
 
 export type AgentStep =
   | { type: 'plan'; plan: AgentPlan }
+  | { type: 'plan_progress'; current: number; total: number; description: string }
   | { type: 'thought'; text: string }
   | { type: 'tool_call'; call: ToolCall; risk: ToolRisk; decision: GateDecision }
-  | { type: 'awaiting_confirm'; call: ToolCall }
+  | { type: 'awaiting_confirm'; call: ToolCall; risk: ToolRisk; diff?: { before: string; after: string } }
   | { type: 'tool_result'; result: ToolResult }
   | { type: 'critic'; report: CriticReport }
   | { type: 'done'; text: string }
@@ -73,12 +87,16 @@ export interface AgentLoopDeps {
   maxSteps?: number
   /** 步数耗尽时的修订重规划次数上限(默认 1);仅 usePlanner 拓扑生效 */
   maxReplan?: number
+  /** Critic 发现可达性问题后的修复重试次数上限(默认 1) */
+  maxCriticFix?: number
   signal?: AbortSignal
 }
 
 const DEFAULT_MAX_STEPS = 30
 
 const DEFAULT_MAX_REPLANS = 1
+
+const DEFAULT_MAX_CRITIC_FIX = 1
 
 class CancelledError extends Error {
   constructor() {
@@ -95,7 +113,8 @@ class MaxStepsError extends Error {
 }
 
 const CRITIC_SYSTEM =
-  '你是质量审查员。基于目标与本轮执行记录(工具调用及结果),审查是否达成、有无遗漏或风险(死路/悬空跳转/叙事断裂)。简要给出结论。'
+  '你是质量审查员。基于目标与本轮执行记录(工具调用及结果),审查是否达成、有无遗漏或风险(死路/悬空跳转/叙事断裂)。' +
+  '以 JSON 回复: {"pass": true/false, "issues": ["问题1", ...]}。pass 为 true 表示无问题。'
 
 /** 从本轮 steps 提取工具调用与结果摘要,供 LLM critic 审查(不再闭眼) */
 const executionDigest = (steps: readonly AgentStep[]): string => {
@@ -106,6 +125,39 @@ const executionDigest = (steps: readonly AgentStep[]): string => {
       lines.push(`  → ${s.result.ok ? '成功' : '失败'}: ${s.result.content.slice(0, 200)}`)
   }
   return lines.length > 0 ? lines.join('\n') : '(本轮无工具调用)'
+}
+
+const runDeterministicCritic = async (
+  deps: AgentLoopDeps,
+  emit: (s: AgentStep) => void
+): Promise<ReachabilityReport | null> => {
+  if (!deps.loadScriptAst) return null
+  const ast = await deps.loadScriptAst()
+  if (!ast) return null
+  const reachability = analyzeReachability(ast)
+  emit({ type: 'critic', report: { kind: 'deterministic', reachability } })
+  return reachability
+}
+
+const runLlmCritic = async (
+  req: AgentRunRequest,
+  deps: AgentLoopDeps,
+  steps: readonly AgentStep[],
+  emit: (s: AgentStep) => void,
+  chatOpts: { signal?: AbortSignal }
+): Promise<void> => {
+  const criticResp = await deps.llm.chat({
+    system: CRITIC_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: `目标:${req.goal}\n\n本轮执行记录:\n${executionDigest(steps)}\n\n请基于上述执行记录审查:是否达成目标、有无遗漏或风险。`
+      }
+    ],
+    tools: [],
+    ...chatOpts
+  })
+  emit({ type: 'critic', report: { kind: 'llm', text: criticResp.text } })
 }
 
 export const runAgent = async (
@@ -151,7 +203,7 @@ export const runAgent = async (
       emit({ type: 'plan', plan })
     }
 
-    // ---- Execute stage(ReAct)----
+    // ---- Execute + Critic fix loop ----
     const planConstraint = plan
       ? `\n\n参考执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
       : ''
@@ -161,117 +213,158 @@ export const runAgent = async (
     ]
     const toolSchemas = deps.llm.supportsTools ? deps.tools.toJsonSchemas() : []
     let finalText = ''
-    let completed = false
     const maxReplans = deps.maxReplan ?? DEFAULT_MAX_REPLANS
     let replansLeft = deps.topology.usePlanner ? maxReplans : 0
+    const maxCriticFix = deps.maxCriticFix ?? DEFAULT_MAX_CRITIC_FIX
+    const criticEnabled = deps.topology.criticKind !== 'none'
+    let fixesLeft = criticEnabled ? maxCriticFix : 0
+    const runDeterministic =
+      deps.topology.criticKind === 'deterministic' || deps.topology.criticKind === 'llm'
+    const runLlm = deps.topology.criticKind === 'llm'
+    let planCursor = 0
 
-    let step = 0
-    while (!completed) {
-      ensureLive()
-      if (step >= maxSteps) {
-        // 步数耗尽:有 replan 预算则修订计划续跑(不回滚,保留已落盘进度),否则失败
-        if (replansLeft > 0) {
-          replansLeft--
-          const replanResp = await deps.llm.chat({
-            system: req.system,
-            messages: [
-              ...convo,
-              {
-                role: 'user',
-                content:
-                  '已用尽本轮步数但目标尚未完成。请基于已完成的进度,修订一份简短分步计划(编号列表),从下一步继续。'
-              }
-            ],
-            tools: [],
-            ...chatOpts
-          })
-          plan = planFromText(replanResp.text)
-          emit({ type: 'plan', plan })
-          convo.push({
-            role: 'user',
-            content: `修订执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
-          })
-          step = 0
-          continue
-        }
-        break
-      }
-      step++
-      const resp = await deps.llm.chat({
-        system: req.system,
-        messages: convo,
-        tools: toolSchemas,
-        ...chatOpts
-      })
-      if (resp.text) emit({ type: 'thought', text: resp.text })
+    const planStepHint = (): string => {
+      if (!plan || planCursor >= plan.steps.length) return ''
+      const stepDef = plan.steps[planCursor]!
+      return `\n\n当前计划步骤 ${planCursor + 1}/${plan.steps.length}: ${stepDef.description}`
+    }
 
-      if (resp.toolCalls.length === 0) {
-        finalText = resp.text
-        completed = true
-        break
-      }
+    while (true) {
+      let completed = false
+      let step = 0
 
-      convo.push({
-        role: 'assistant',
-        content: resp.text || `(调用工具: ${resp.toolCalls.map((c) => c.name).join(', ')})`
-      })
-
-      for (const toolCall of resp.toolCalls) {
+      // ---- Execute stage (ReAct) ----
+      while (!completed) {
         ensureLive()
-        const def = deps.tools.get(toolCall.name)
-        // 未知工具按最高风险处理(最安全),交给 registry 返回 UNKNOWN_TOOL
-        const risk: ToolRisk = def?.risk ?? 'destructive'
-        const decision = deps.gate.decide(risk)
-        emit({ type: 'tool_call', call: toolCall, risk, decision })
+        if (step >= maxSteps) {
+          if (replansLeft > 0) {
+            replansLeft--
+            const replanResp = await deps.llm.chat({
+              system: req.system,
+              messages: [
+                ...convo,
+                {
+                  role: 'user',
+                  content:
+                    '已用尽本轮步数但目标尚未完成。请基于已完成的进度,修订一份简短分步计划(编号列表),从下一步继续。'
+                }
+              ],
+              tools: [],
+              ...chatOpts
+            })
+            plan = planFromText(replanResp.text)
+            emit({ type: 'plan', plan })
+            planCursor = 0
+            convo.push({
+              role: 'user',
+              content: `修订执行计划:\n${plan.steps.map((s) => `${s.index}. ${s.description}`).join('\n')}`
+            })
+            step = 0
+            continue
+          }
+          break
+        }
+        step++
+        if (plan && planCursor < plan.steps.length) {
+          const stepDef = plan.steps[planCursor]!
+          emit({
+            type: 'plan_progress',
+            current: planCursor + 1,
+            total: plan.steps.length,
+            description: stepDef.description
+          })
+        }
+        const executorSystem = req.system + planStepHint()
+        const resp = await deps.llm.chat({
+          system: executorSystem,
+          messages: convo,
+          tools: toolSchemas,
+          ...chatOpts
+        })
+        if (resp.text) emit({ type: 'thought', text: resp.text })
 
-       if (decision === 'confirm') {
-         // preview 在 overlay fs 上重放(不落真盘),产出 before/after diff 供确认
-         const diff = await deps.tools.preview(toolCall, deps.toolContext)
-         emit({ type: 'awaiting_confirm', call: toolCall })
-         const approved = deps.requestConfirm
-           ? await deps.requestConfirm({ call: toolCall, risk, diff: diff ?? undefined })
-           : false
-         if (!approved) {
-            const rejected: ToolResult = {
+        if (resp.toolCalls.length === 0) {
+          finalText = resp.text
+          completed = true
+          break
+        }
+
+        convo.push({
+          role: 'assistant',
+          content: resp.text || `(调用工具: ${resp.toolCalls.map((c) => c.name).join(', ')})`
+        })
+
+        for (const toolCall of resp.toolCalls) {
+          ensureLive()
+          const def = deps.tools.get(toolCall.name)
+          if (!def) {
+            const unknown: ToolResult = {
               id: toolCall.id,
               name: toolCall.name,
               ok: false,
-              content: '用户拒绝执行该工具',
-              error: { code: 'REJECTED', message: 'user rejected tool call' }
+              content: `未知工具 ${toolCall.name}`,
+              error: { code: 'UNKNOWN_TOOL', message: `tool not registered: ${toolCall.name}` }
             }
-            emit({ type: 'tool_result', result: rejected })
-            convo.push({ role: 'user', content: `工具 ${toolCall.name} 结果: 用户拒绝执行` })
+            emit({ type: 'tool_result', result: unknown })
+            convo.push({ role: 'user', content: `工具 ${toolCall.name} 结果: ${unknown.content}` })
             continue
           }
+          const risk: ToolRisk = def.risk
+          const decision = deps.gate.decide(risk)
+          emit({ type: 'tool_call', call: toolCall, risk, decision })
+
+          if (decision === 'confirm') {
+            const diff = await deps.tools.preview(toolCall, deps.toolContext)
+            emit({ type: 'awaiting_confirm', call: toolCall, risk, diff: diff ?? undefined })
+            const approved = deps.requestConfirm
+              ? await deps.requestConfirm({ call: toolCall, risk, diff: diff ?? undefined })
+              : false
+            if (!approved) {
+              const rejected: ToolResult = {
+                id: toolCall.id,
+                name: toolCall.name,
+                ok: false,
+                content: '用户拒绝执行该工具',
+                error: { code: 'REJECTED', message: 'user rejected tool call' }
+              }
+              emit({ type: 'tool_result', result: rejected })
+              convo.push({ role: 'user', content: `工具 ${toolCall.name} 结果: 用户拒绝执行` })
+              continue
+            }
+          }
+
+          const result = await deps.tools.execute(toolCall, deps.toolContext)
+          emit({ type: 'tool_result', result })
+          convo.push({ role: 'user', content: `工具 ${toolCall.name} 结果: ${result.content}` })
         }
 
-        const result = await deps.tools.execute(toolCall, deps.toolContext)
-        emit({ type: 'tool_result', result })
-        convo.push({ role: 'user', content: `工具 ${toolCall.name} 结果: ${result.content}` })
+        if (plan && planCursor < plan.steps.length) {
+          planCursor++
+        }
       }
-    }
 
-    if (!completed) throw new MaxStepsError()
+      if (!completed) throw new MaxStepsError()
 
-    // ---- Critic stage ----
-    if (deps.topology.criticKind === 'deterministic' && deps.loadScriptAst) {
-      const ast = await deps.loadScriptAst()
-      if (ast) {
-        emit({ type: 'critic', report: { kind: 'deterministic', reachability: analyzeReachability(ast) } })
-      }
-    } else if (deps.topology.criticKind === 'llm') {
-      const criticResp = await deps.llm.chat({
-        system: CRITIC_SYSTEM,
-        messages: [
-          {
+      // ---- Critic stage ----
+      let needFix = false
+      if (runDeterministic) {
+        const reachability = await runDeterministicCritic(deps, emit)
+        if (reachability && hasReachabilityIssues(reachability) && fixesLeft > 0) {
+          needFix = true
+          convo.push({
             role: 'user',
-            content: `目标:${req.goal}\n\n本轮执行记录:\n${executionDigest(steps)}\n\n请基于上述执行记录审查:是否达成目标、有无遗漏或风险。`
-          }
-        ],
-        tools: [],
-        ...chatOpts
-      })
-      emit({ type: 'critic', report: { kind: 'llm', text: criticResp.text } })
+            content: `审查发现可达性问题,请修复:\n${formatReachabilityIssues(reachability)}\n修复后继续,不要重复已完成的工作。`
+          })
+        }
+      }
+
+      if (runLlm) {
+        await runLlmCritic(req, deps, steps, emit, chatOpts)
+      }
+
+      if (!needFix) break
+      fixesLeft--
+      // loop continues with fresh executor step budget
     }
 
     emit({ type: 'done', text: finalText })

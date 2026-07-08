@@ -23,6 +23,10 @@ export type AgentPreferences = {
   memoryEnabled: boolean
   /** 记忆容量(保留最近 N 条运行记录) */
   memoryEntries: number
+  /** 步数耗尽时的重规划次数上限 */
+  maxReplan: number
+  /** Critic 发现可达性问题后的修复重试次数上限 */
+  maxCriticFix: number
 }
 
 export type EditorPreferences = {

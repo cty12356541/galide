@@ -4,6 +4,16 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [Unreleased]
 
+### 新增 — Agent 智能度修复(规划→执行→审查→修复闭环)
+
+- **Agent 编排拓扑(DAG)** — 新增 `topology-dag.ts`:fan-in、fan-out、双轨 Critic、有预算 retry 边;演示例子 `EXAMPLE_ADD_DIALOGUE` / `EXAMPLE_CRITIC_FIX_RETRY` 用 DAG walk 描述(非单链)
+- **Critic 修复环** — 确定性可达性审查发现问题后自动注入修复指令并重入 Executor(`maxCriticFix` 可配,默认 1);修复过程不回滚
+- **Headless 平台工具** — `export_project` / `git_commit` / `create_project` / `open_project`(disk 域,main 直接执行);`runExportJob` 与 IPC 共用;`project:createAtPath` headless 建项
+- **计划步进追踪** — Executor 每轮注入「当前计划步骤 N/M」;新增 `plan_progress` step
+- **上下文增强** — 选中场景注入对白摘要;`activeScriptFile` 优先查找;section 内部 token 截断
+- **Agent 偏好** — `maxReplan` / `maxCriticFix` 类型+UI;AgentModePanel 可配步数/重规划/审查修复
+- **UI** — StepView 增强 awaiting_confirm(risk/args/diff 只读)、critic 可达计数、确认步骤高亮;`project:opened` 推送同步 renderer store
+
 ### 新增 — Agent 自主操作能力扩展
 
 - **剧本全 CRUD** — `update_dialogue` / `update_scene_meta` / `delete_node` / `move_node` / `add_choice`;agent 从「只能追加」升级为可改写/删除/重排既有内容,沿用 parse→mutate AST→serialize 往返

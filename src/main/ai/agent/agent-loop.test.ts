@@ -258,6 +258,30 @@ describe('agent-loop — autonomy gate', () => {
     expect(req.diff).toBeDefined()
     expect(req.diff?.after).toContain('## new')
   })
+
+  it('未知工具名:不弹确认,直接 UNKNOWN_TOOL observation', async () => {
+    const llm = fakeLlm([
+      { text: '', toolCalls: [{ id: 'c1', name: 'no_such_tool', args: {} }] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry, calls } = makeTools('safeWrite')
+    const requestConfirm = vi.fn(async () => true)
+    const steps: AgentStep[] = []
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('copilot'),
+      topology: TOPOLOGIES.singleReact,
+      toolContext,
+      requestConfirm,
+      onStep: (s) => steps.push(s)
+    })
+    expect(requestConfirm).not.toHaveBeenCalled()
+    expect(calls).toHaveLength(0)
+    const resultStep = steps.find((s) => s.type === 'tool_result')
+    expect(resultStep?.type === 'tool_result' && resultStep.result.error?.code).toBe('UNKNOWN_TOOL')
+  })
 })
 
 describe('agent-loop — 错误与取消分支', () => {
@@ -412,6 +436,24 @@ describe('agent-loop — 计划回灌 / 重规划', () => {
     expect(last?.content).toContain('参考执行计划')
   })
 
+  it('litePlanExecute:executor system 含当前计划步骤', async () => {
+    const llm = fakeLlm([
+      { text: '1. 创建场景\n2. 加对白', toolCalls: [] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext
+    })
+    const executorCall = llm.calls[1]
+    expect(executorCall?.system).toContain('当前计划步骤')
+  })
+
   it('步数耗尽触发一次重规划续跑,不回滚', async () => {
     const llm = fakeLlm([
       { text: '1. 计划', toolCalls: [] },
@@ -502,5 +544,105 @@ describe('agent-loop — 计划回灌 / 重规划', () => {
     })
     expect(result.status).toBe('done')
     expect(steps.filter((s) => s.type === 'plan')).toHaveLength(1)
+  })
+})
+
+describe('agent-loop — critic-fix 环', () => {
+  const astWithOrphan: ScriptNode = {
+    type: 'script',
+    line: 1,
+    column: 1,
+    errors: [],
+    children: [
+      { type: 'scene', id: 'start', line: 0, column: 1, children: [] },
+      { type: 'scene', id: 'orphan', line: 0, column: 1, children: [] }
+    ]
+  }
+
+  const astClean: ScriptNode = {
+    type: 'script',
+    line: 1,
+    column: 1,
+    errors: [],
+    children: [{ type: 'scene', id: 'start', line: 0, column: 1, children: [] }]
+  }
+
+  it('可达性问题触发 fix 重入 executor,第二次 critic 通过', async () => {
+    let loadCount = 0
+    const llm = fakeLlm([
+      { text: '1. 修复', toolCalls: [] },
+      { text: '完成', toolCalls: [] },
+      call('do_thing'),
+      { text: '已修复', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      maxCriticFix: 1,
+      loadScriptAst: async () => {
+        loadCount++
+        return loadCount === 1 ? astWithOrphan : astClean
+      },
+      onStep: (s) => steps.push(s)
+    })
+    expect(result.status).toBe('done')
+    expect(steps.filter((s) => s.type === 'critic')).toHaveLength(2)
+    expect(git.events.some((e) => e.startsWith('rollback'))).toBe(false)
+    expect(llm.calls.length).toBeGreaterThan(2)
+  })
+
+  it('maxCriticFix: 0 有问题仍 done,不重入 executor', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      maxCriticFix: 0,
+      loadScriptAst: async () => astWithOrphan
+    })
+    expect(result.status).toBe('done')
+    expect(llm.calls).toHaveLength(2)
+  })
+
+  it('fix 过程不回滚', async () => {
+    let loadCount = 0
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      { text: '完成', toolCalls: [] },
+      call('do_thing'),
+      { text: '已修复', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      maxCriticFix: 1,
+      loadScriptAst: async () => {
+        loadCount++
+        return loadCount === 1 ? astWithOrphan : astClean
+      }
+    })
+    expect(result.status).toBe('done')
+    expect(result.rolledBack).toBeFalsy()
+    expect(git.events.some((e) => e.startsWith('rollback'))).toBe(false)
   })
 })

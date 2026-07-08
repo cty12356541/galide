@@ -11,6 +11,7 @@ import { galScriptAbs, isGalScriptFileName, scriptsDirAbs } from '../../../share
 import { IPC } from '../../../shared/ipc-channels.js'
 import { runAgent, type AgentStep, type ConfirmRequest } from './agent-loop.js'
 import { createAgentGit } from './agent-git.js'
+import { createAgentRuntime } from './agent-runtime.js'
 import { buildContext } from './context-engine.js'
 import { createAutonomyGate } from './autonomy-gate.js'
 import { createLlmAdapter } from './llm-adapter.js'
@@ -51,9 +52,10 @@ const AGENT_SYSTEM =
   '你是 Galide 创作平台的 AI agent。你可以调用工具读写 .gal 剧本、分析决策树、生成立绘/语音、管理角色卡、执行 IDE 命令。' +
   '你不仅能新增,还能修订:对已有对白可用 update_dialogue 改写、用 delete_node 删除、用 move_node 重排,用 update_scene_meta 改背景/BGM;' +
   '用 create_character/update_character/delete_character 管理角色卡,再用 generate_sprite/generate_voice 补齐资产。' +
-  '从零搭建项目时,先用 create_script_file 建空 .gal,再逐场景 create_scene/add_dialogue。' +
+  '从零搭建项目时,可用 create_project 建项 + open_project 打开,或 create_script_file 建空 .gal,再逐场景 create_scene/add_dialogue。' +
   '用 add_marker 设跳转锚点、add_goto 造无条件跳转来构建分支;选项跳转用 add_choice(可带 [当:] 门控)。' +
-  '可用 navigate 切换面板、dispatch_command 执行新建/导出/提交。修改后用 analyze_reachability 自检决策树有无死路。' +
+  '导出/提交请优先用 headless 工具 export_project、git_commit(无需对话框);dispatch_command 仅打开 UI 对话框,需用户手动完成。' +
+  '可用 navigate 切换面板。修改后用 analyze_reachability 自检决策树有无死路。' +
   '优先使用工具完成用户目标,完成后用简短中文总结。'
 
 const pendingConfirms = new Map<
@@ -192,6 +194,7 @@ const drain = async (): Promise<void> => {
        {
          projectPath: item.req.projectPath,
          selectedSceneId: item.req.selectedSceneId,
+         activeScriptFile: item.req.activeScriptFile,
          memoryText: agentPrefs.memoryEnabled ? formatMemoryText(memory) : undefined
        },
        {
@@ -223,17 +226,22 @@ const drain = async (): Promise<void> => {
         })
       }
 
-      const toolContext = {
-        projectPath: item.req.projectPath,
+      const runtime = createAgentRuntime({ projectPath: item.req.projectPath })
+
+      const toolContext = runtime.createToolContext({
         fs: {
           readFile: (p: string) => fs.readFile(p, 'utf-8'),
-          writeFile: createBroadcastingWriteFile(item.req.projectPath, (p, c) =>
+          writeFile: createBroadcastingWriteFile(() => runtime.getProjectPath(), (p, c) =>
             fs.writeFile(p, c, 'utf-8')
           ),
           readdir: (p: string) => fs.readdir(p)
         },
-        dispatch: createDispatch(item.sender)
-      }
+        dispatch: createDispatch(item.sender),
+        onProjectOpened: async (payload) => {
+          if (item.sender.isDestroyed()) return
+          item.sender.send(IPC.project.opened, payload)
+        }
+      })
 
       const baseUrl = item.req.baseUrl ?? aiConfig.baseUrl
       const result = await runAgent(
@@ -251,14 +259,15 @@ const drain = async (): Promise<void> => {
           toolContext,
           requestConfirm,
           maxSteps: agentPrefs.maxSteps,
-          maxReplan: 1,
+          maxReplan: agentPrefs.maxReplan ?? 1,
+          maxCriticFix: agentPrefs.maxCriticFix ?? 1,
           signal: item.controller.signal,
           onStep: (step) => {
             record.steps.push(step)
             sendStep(item.sender, item.taskId, step)
           },
           loadScriptAst: async () => {
-            const src = await readGalScript(item.req.projectPath, item.req.activeScriptFile)
+            const src = await readGalScript(runtime.getProjectPath(), item.req.activeScriptFile)
             if (!src) return null
             const parsed = parse(src)
             return parsed.ok ? parsed.value : null

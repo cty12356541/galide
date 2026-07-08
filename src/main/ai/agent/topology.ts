@@ -1,10 +1,18 @@
 /**
  * topology — 可切换循环拓扑(可组合 stage 的配置)
  *
- * 三档共用同一套 stage(Planner / Executor / Critic),仅编排不同:
- *   - singleReact      — 仅 Executor(ReAct),最轻
- *   - litePlanExecute  — Planner → Executor → 确定性可达性 Critic(默认)
- *   - planExecuteCritic— Planner → Executor → LLM Critic(最强)
+ * 三档共用同一套 stage(Planner / Executor / Critic),编排为 DAG 而非单链:
+ *   - 输入 fan-in: Context + Goal → Planner / Executor
+ *   - 工具 fan-out: Executor → Gate → ToolRegistry → observation → Executor
+ *   - 审查 fan-out: Executor → Critic(det/llm) → Done;有问题时 retry → Executor
+ *   - 步数耗尽: Executor → Replan(retry) → Executor
+ *
+ * 完整边集见 topology-dag.ts (AGENT_STAGE_EDGES / AGENT_TOPOLOGY_DAG_MERMAID)
+ *
+ * 三档预设(DAG 子图,非单链命名):
+ *   - singleReact      — Execute ↔ Tools 环 + Done
+ *   - litePlanExecute  — fan-in(Plan) + Execute↔Tools + CriticDet → Done
+ *   - planExecuteCritic— 同上 + 双轨 CriticDet ∥ CriticLlm → Done
  */
 
 export type AgentTopology = 'singleReact' | 'litePlanExecute' | 'planExecuteCritic'

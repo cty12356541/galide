@@ -81,7 +81,11 @@ export const VoicePreferencesSchema = z.object({
 export const AgentPreferencesSchema = z.object({
   autonomy: z.enum(['copilot', 'hybrid', 'autonomous']),
   topology: z.enum(['singleReact', 'litePlanExecute', 'planExecuteCritic']),
-  maxSteps: z.number().int().min(1).max(64)
+  maxSteps: z.number().int().min(1).max(64),
+  memoryEnabled: z.boolean(),
+  memoryEntries: z.number().int().min(1).max(50),
+  maxReplan: z.number().int().min(0).max(3),
+  maxCriticFix: z.number().int().min(0).max(3)
 })
 
 export const ExportPreferencesSchema = z.object({
@@ -373,6 +377,11 @@ export const ExportRequestSchema = z.object({
 
 export const ExportCancelSchema = z.object({
   jobId: z.string().min(1)
+})
+
+export const CreateProjectAtPathSchema = z.object({
+  name: z.string().min(1).max(80),
+  projectPath: z.string().min(1)
 })
 
 // =================== 浮出 panel (PR3-A) ===================

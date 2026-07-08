@@ -48,6 +48,8 @@ const api = {
   project: {
     create: (name: string): Promise<ProjectOpenResult> =>
       ipcRenderer.invoke(IPC.project.create, name),
+    createAtPath: (req: { name: string; projectPath: string }): Promise<ProjectOpenResult> =>
+      ipcRenderer.invoke(IPC.project.createAtPath, req),
     open: (): Promise<ProjectOpenResult> => ipcRenderer.invoke(IPC.project.open),
     openPath: (projectPath: string): Promise<ProjectOpenResult> =>
       ipcRenderer.invoke(IPC.project.openPath, projectPath),
@@ -57,7 +59,15 @@ const api = {
     recordRecent: (entry: { path: string; name: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.project.recent, entry),
     listRecent: (): Promise<{ ok: boolean; items: { path: string; name: string; lastOpened: string }[] }> =>
-      ipcRenderer.invoke(IPC.project.listRecent)
+      ipcRenderer.invoke(IPC.project.listRecent),
+    onOpened: (
+      cb: (payload: { projectPath: string; manifest: ProjectManifest }) => void
+    ): (() => void) => {
+      const handler = (_: unknown, payload: { projectPath: string; manifest: ProjectManifest }): void =>
+        cb(payload)
+      ipcRenderer.on(IPC.project.opened, handler)
+      return () => ipcRenderer.removeListener(IPC.project.opened, handler)
+    }
   },
   script: {
     read: (projectPath: string, fileName: string): Promise<string> =>

@@ -55,7 +55,8 @@ const realProjectFs: ProjectFs = {
     } catch {
       return false
     }
-  }
+  },
+  readdir: (path) => fs.readdir(path)
 }
 
 const realScriptFs: ScriptFs = {

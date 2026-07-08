@@ -32,6 +32,7 @@ import { useProjectScriptAst } from '../lib/hooks/use-project-script-ast'
 import { useWorkspacePersistence } from '../lib/hooks/use-workspace-persistence'
 import { useAgentDispatch } from '../lib/ipc/use-agent-dispatch'
 import { useCommandHandlers } from '../lib/ipc/use-command-handlers'
+import { useProjectOpened } from '../lib/ipc/use-project-opened'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import {
@@ -56,6 +57,7 @@ export const App = (): JSX.Element => {
   useWorkspacePersistence()
   useAgentDispatch()
   useCommandHandlers()
+  useProjectOpened()
 
   // 浮出窗口关闭 → 同步 store + restore(主岛回 dockSide 槽 / 子岛回 tab)
   useEffect(() => {

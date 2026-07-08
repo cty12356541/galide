@@ -81,3 +81,19 @@ export const analyzeReachability = (ast: ScriptNode): ReachabilityReport => {
     danglingTargets: dangling
   }
 }
+
+/** 是否存在需修复的可达性问题 */
+export const hasReachabilityIssues = (r: ReachabilityReport): boolean =>
+  r.unreachable.length > 0 || r.danglingTargets.length > 0
+
+/** 格式化可达性问题,供 critic-fix 注入 convo */
+export const formatReachabilityIssues = (r: ReachabilityReport): string => {
+  const lines: string[] = []
+  if (r.unreachable.length > 0) lines.push(`不可达节点: ${r.unreachable.join(', ')}`)
+  if (r.danglingTargets.length > 0) {
+    lines.push(
+      `悬空跳转: ${r.danglingTargets.map((d) => `${d.from}→${d.target}`).join(', ')}`
+    )
+  }
+  return lines.join('\n')
+}

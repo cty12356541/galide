@@ -100,9 +100,9 @@ pnpm build:linux  # Linux
 
 ### AI Agent
 
-- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;写盘后 `script:changed` 广播
-- **Tool Registry** — list_scenes / read_script / add_dialogue / analyze_reachability / generate_sprite / dispatch_command 等
-- **Agent 面板** — 步骤流、计划预览、destructive 确认、autonomy + topology 偏好
+- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;编排为 DAG(fan-in/fan-out),见 `topology-dag.ts`
+- **Tool Registry** — list_scenes / read_script / add_dialogue / export_project / git_commit / analyze_reachability 等
+- **Agent 面板** — 步骤流(DAG stage 映射)、计划预览、destructive 确认、autonomy + topology 偏好
 
 ### 预览 (Preview Fidelity)
 

@@ -7,6 +7,7 @@ import { manifestTools } from './tools/manifest-tools.js'
 import { multimodalTools } from './tools/multimodal-tools.js'
 import { commandTools } from './tools/command-tools.js'
 import { analysisTools } from './tools/analysis-tools.js'
+import { platformTools } from './tools/platform-tools.js'
 
 export const createDefaultToolRegistry = () =>
   createToolRegistry([
@@ -14,5 +15,6 @@ export const createDefaultToolRegistry = () =>
     ...manifestTools,
     ...multimodalTools,
     ...commandTools,
-    ...analysisTools
+    ...analysisTools,
+    ...platformTools
   ])

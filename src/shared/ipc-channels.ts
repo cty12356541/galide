@@ -9,9 +9,11 @@ export const IPC = {
     openPath: 'project:openPath',
     save: 'project:save',
     create: 'project:create',
+    createAtPath: 'project:createAtPath',
     close: 'project:close',
     recent: 'project:recent',
-    listRecent: 'project:listRecent'
+    listRecent: 'project:listRecent',
+    opened: 'project:opened'
   },
   script: {
     parse: 'script:parse',

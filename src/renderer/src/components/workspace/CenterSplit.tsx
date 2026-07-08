@@ -29,6 +29,65 @@ const renderSlot = (content: ToolWindowId | PlaceholderId | null): JSX.Element |
   return null
 }
 
+/** 中区行:左 | 大陆 | 右 — 模块级组件,避免父级 re-render 时 PanelGroup 被当作新类型反复卸载 */
+const CenterRow = ({
+  showLeft,
+  showRight,
+  leftContent,
+  rightContent
+}: {
+  showLeft: boolean
+  showRight: boolean
+  leftContent: ToolWindowId | PlaceholderId | null
+  rightContent: ToolWindowId | PlaceholderId | null
+}): JSX.Element => (
+  <PanelGroup direction="horizontal" autoSaveId="galide-center-row.v2" className="h-full gap-3">
+    {showLeft ? (
+      <>
+        <Panel
+          defaultSize={DEFAULT_CENTER_SPLIT.left}
+          minSize={12}
+          maxSize={40}
+          collapsible
+          order={1}
+        >
+          {renderSlot(leftContent)}
+        </Panel>
+        <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
+      </>
+    ) : null}
+    <Panel
+      defaultSize={
+        showLeft
+          ? showRight
+            ? DEFAULT_CENTER_SPLIT.centerWithBoth
+            : DEFAULT_CENTER_SPLIT.centerLeftOnly
+          : showRight
+            ? DEFAULT_CENTER_SPLIT.centerRightOnly
+            : 100
+      }
+      minSize={30}
+      order={2}
+    >
+      <EditorCore />
+    </Panel>
+    {showRight ? (
+      <>
+        <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
+        <Panel
+          defaultSize={DEFAULT_CENTER_SPLIT.right}
+          minSize={15}
+          maxSize={50}
+          collapsible
+          order={3}
+        >
+          {renderSlot(rightContent)}
+        </Panel>
+      </>
+    ) : null}
+  </PanelGroup>
+)
+
 export const CenterSplit = (): JSX.Element => {
   const visiblePerSide = useUiStore((s) => s.visiblePerSide)
   const floatingPanels = useUiStore((s) => s.floatingPanels)
@@ -48,61 +107,17 @@ export const CenterSplit = (): JSX.Element => {
   const showRight = rightContent !== null && !rightFloating
   const showBottom = bottomContent !== null && !bottomFloating
 
-  // 中区行:左 | 大陆 | 右
-  const CenterRow = (): JSX.Element => (
-    <PanelGroup direction="horizontal" autoSaveId="galide-center-row.v2" className="h-full gap-3">
-      {showLeft ? (
-        <>
-          <Panel
-            defaultSize={DEFAULT_CENTER_SPLIT.left}
-            minSize={12}
-            maxSize={40}
-            collapsible
-            order={1}
-          >
-            {renderSlot(leftContent)}
-          </Panel>
-          <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
-        </>
-      ) : null}
-      <Panel
-        defaultSize={
-          showLeft
-            ? showRight
-              ? DEFAULT_CENTER_SPLIT.centerWithBoth
-              : DEFAULT_CENTER_SPLIT.centerLeftOnly
-            : showRight
-              ? DEFAULT_CENTER_SPLIT.centerRightOnly
-              : 100
-        }
-        minSize={30}
-        order={2}
-      >
-        <EditorCore />
-      </Panel>
-      {showRight ? (
-        <>
-          <PanelResizeHandle className="w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1" />
-          <Panel
-            defaultSize={DEFAULT_CENTER_SPLIT.right}
-            minSize={15}
-            maxSize={50}
-            collapsible
-            order={3}
-          >
-            {renderSlot(rightContent)}
-          </Panel>
-        </>
-      ) : null}
-    </PanelGroup>
-  )
-
   // 有底部槽:垂直 [中区行 | 底部]
   if (showBottom) {
     return (
       <PanelGroup direction="vertical" autoSaveId="galide-center-bottom.v2" className="flex-1 min-h-0 gap-3">
         <Panel defaultSize={DEFAULT_CENTER_SPLIT.bottomMain} minSize={30}>
-          <CenterRow />
+          <CenterRow
+            showLeft={showLeft}
+            showRight={showRight}
+            leftContent={leftContent}
+            rightContent={rightContent}
+          />
         </Panel>
         <PanelResizeHandle className="h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1" />
         <Panel defaultSize={DEFAULT_CENTER_SPLIT.bottomPanel} minSize={15} maxSize={60} collapsible>
@@ -114,7 +129,12 @@ export const CenterSplit = (): JSX.Element => {
 
   return (
     <div className="flex-1 min-h-0">
-      <CenterRow />
+      <CenterRow
+        showLeft={showLeft}
+        showRight={showRight}
+        leftContent={leftContent}
+        rightContent={rightContent}
+      />
     </div>
   )
 }

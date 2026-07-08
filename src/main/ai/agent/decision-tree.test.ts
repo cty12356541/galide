@@ -4,7 +4,7 @@
  * 供 Phase 2 确定性 Critic + Phase 4 决策树分析工具复用。
  */
 import { describe, it, expect } from 'vitest'
-import { analyzeReachability } from './decision-tree.js'
+import { analyzeReachability, hasReachabilityIssues, formatReachabilityIssues } from './decision-tree.js'
 import type { ScriptNode, SceneNode, ChoiceNode, GotoNode } from '../../../shared/dsl/types.js'
 
 const scene = (id: string, children: SceneNode['children'] = []): SceneNode => ({
@@ -65,5 +65,25 @@ describe('analyzeReachability', () => {
     const r = analyzeReachability(ast)
     expect(r.reachable.sort()).toEqual(['ending', 'start'])
     expect(r.unreachable).toEqual([])
+  })
+})
+
+describe('hasReachabilityIssues / formatReachabilityIssues', () => {
+  it('不可达或悬空跳转 → true', () => {
+    const ast = script([
+      scene('start', [choice('坏', 'ghost')]),
+      scene('orphan', [])
+    ])
+    const r = analyzeReachability(ast)
+    expect(hasReachabilityIssues(r)).toBe(true)
+    expect(formatReachabilityIssues(r)).toContain('ghost')
+    expect(formatReachabilityIssues(r)).toContain('orphan')
+  })
+
+  it('无问题 → false', () => {
+    const ast = script([scene('start', [])])
+    const r = analyzeReachability(ast)
+    expect(hasReachabilityIssues(r)).toBe(false)
+    expect(formatReachabilityIssues(r)).toBe('')
   })
 })

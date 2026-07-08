@@ -77,6 +77,24 @@ describe('context-engine', () => {
     expect(ctx.text).toContain('intro')
   })
 
+  it('选中场景注入对白摘要', async () => {
+    const ctx = await buildContext(
+      { projectPath: '/proj', selectedSceneId: 'intro', activeScriptFile: 'chapter1.gal' },
+      { fs: makeFs(), git: noGit }
+    )
+    expect(ctx.selectedSceneExcerpt).toContain('小雪')
+    expect(ctx.text).toContain('对白摘要')
+    expect(ctx.text).toContain('你好')
+  })
+
+  it('activeScriptFile 优先查找选中场景', async () => {
+    const ctx = await buildContext(
+      { projectPath: '/proj', selectedSceneId: 'intro', activeScriptFile: 'chapter1.gal' },
+      { fs: makeFs(), git: noGit }
+    )
+    expect(ctx.selectedScene?.fileName).toBe('chapter1.gal')
+  })
+
   it('注入 git diff', async () => {
     const git: ContextGit = {
       diff: async () => ({ ok: true, value: '+ 小雪: "新增一行"' })
