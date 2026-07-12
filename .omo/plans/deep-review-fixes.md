@@ -169,18 +169,18 @@ Wave 3 (P2, 5 todos): T11→T13→T14 有依赖, T10/T12 独立
   QA: Happy — autocomplete works for scene IDs and keywords. Failure — completion blocks typing → check `activateOnTyping` config.
   Commit: Y | feat(editor): add DSL autocomplete + inline error markers
 
-- [ ] 13. 拆分 Zustand store + 删除 topology-dag.ts
-  What to do: Split `useUiStore` into 4 independent stores: `useScriptStore` (script content + AST + fileCache), `useProjectStore` (projectPath + manifest + parseError), `useWorkspaceStore` (dock + presets + floating), `useUiStore` (theme + recentProjects + remaining UI state). Replace `setProject`/`closeProject` cross-slice logic with a `useOpenProject`/`useCloseProject` coordinator hook. Delete `src/main/ai/agent/topology-dag.ts` — the DAG is documentation, not runtime. Move the Mermaid diagram to a comment in `docs/agent-architecture.md`. Remove all `as never` casts.
+- [x] 13. 拆分 Zustand store + 删除 topology-dag.ts
+  What to do: Split `useUiStore` into 4 independent stores: `useScriptStore` (script content + AST + fileCache), `useProjectStore` (projectPath + manifest + parseError), `useWorkspaceStore` (dock + presets + floating), `useUiStore` (theme + recentProjects + remaining UI state). Replace `setProject`/`closeProject` cross-slice logic with a `useOpenProject`/`useCloseProject` coordinator hook. Delete `src/main/ai/agent/topology-dag.ts` — the DAG is documentation, not runtime. Move the Mermaid diagram to `docs/agent-architecture.md` (standalone doc, not a code comment). Remove all `as never` casts.
   Must NOT do: Do NOT change store state shape. Do NOT change component hook usage — `useUiStore(s => s.theme)` should still work. Do NOT change agent-loop behavior.
   References: `src/renderer/src/lib/store.ts`, `src/renderer/src/lib/script-store.ts`, `src/renderer/src/lib/workspace-store.ts`, `src/renderer/src/lib/project-store.ts`, `src/main/ai/agent/topology-dag.ts`
   Acceptance: 4 independent stores. Zero `as never` casts. `setProject`/`closeProject` logic in coordinator hook. topology-dag.ts deleted. All store tests pass.
   QA: Happy — `pnpm test` passes with all store tests. Failure — cross-store state inconsistency → check coordinator hook.
   Commit: Y (2 commits) | refactor(store): split into independent Zustand stores | chore(agent): remove dead topology-dag.ts
 
-- [ ] 14. 简化布局状态模型
-  What to do: Replace the 4-field layout model (`dockSide: Record<Id, DockSide>`, `visiblePerSide: VisiblePerSide`, `activeSubIsland: Record<Id, SubIslandId>`, `floatingPanels: string[]`) with a single `panelStates: Record<PanelId, { side: DockSide; visible: boolean; activeTab: SubIslandId }>` plus `floating: Set<PanelId>`. Remove `PlaceholderId` concept (search/debug/settings panels don't exist). Update `workspace-store.ts`, `ActivityBar.tsx`, `CenterSplit.tsx`, `FloatingPanelHost.tsx` to use the simplified model. Remove `workspace-presets.ts` snapshot capture — just serialize the flat map directly.
+- [x] 14. 简化布局状态模型
+  What to do: Replace the 4-field layout model (`dockSide: Record<Id, DockSide>`, `visiblePerSide: VisiblePerSide`, `activeSubIsland: Record<Id, SubIslandId>`, `floatingPanels: string[]`) with a single `panelStates: Record<ToolWindowId, PanelState>` where `PanelState = { visible: boolean; dock: DockSide; activeSub: SubIslandId }`, plus `floatingPanels: readonly string[]`. The old `dockSide`/`visiblePerSide`/`activeSubIsland` become derived fields in the store. Remove `PlaceholderId` concept; `search` is upgraded to a real but default-hidden `ToolWindowId`. Keep `workspace-presets.ts` snapshot capture (`captureWorkspaceSnapshot` / `applyWorkspacePreset`) to declaratively apply per-preset layouts. Update `workspace-store.ts`, `store.ts`, `ActivityBar.tsx`, `CenterSplit.tsx`, `SideToolWindow.tsx`, `FloatingPanelHost.tsx`, and related tests to use the simplified model.
   Must NOT do: Do NOT change the visual layout. Do NOT change panel behavior. Do NOT remove any existing panel.
-  References: `src/renderer/src/lib/workspace-store.ts`, `src/renderer/src/components/workspace/mosaic/panel-registry.ts`, `src/renderer/src/lib/workspace-presets.ts`
+  References: `src/renderer/src/lib/workspace-store.ts`, `src/renderer/src/lib/workspace-store.types.ts`, `src/renderer/src/lib/store.ts`, `src/renderer/src/components/workspace/mosaic/panel-registry.ts`, `src/renderer/src/lib/workspace-presets.ts`, `src/renderer/src/lib/hooks/use-workspace-persistence.ts`
   Acceptance: `workspace-store.ts` < 100 LOC (was 207). Layout persistence still works. All panels function identically.
   QA: Happy — switch presets, float panels, close panels → all work as before. Failure — panel disappears → check state migration.
   Commit: Y | refactor(layout): simplify island state model to flat map
