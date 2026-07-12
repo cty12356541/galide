@@ -1,10 +1,12 @@
 /**
  * Galide renderer 端 Zustand stores
  *
- * 功能即岛 v2(2026-06-19): 主岛/子岛二级群岛 + dock 可移动
+ * 功能即岛 v3(2026-07-12): workspace 状态扁平化为单一 `panelStates` map,
+ * `visiblePerSide` / `dockSide` / `activeSubIsland` 为派生字段。
  *
  * 设计原则:
  *   - 4 个独立 store: script / project / workspace / ui
+ *   - workspace store 持有 `panelStates` 等核心布局状态
  *   - useUiStore 为兼容 facade,保留旧的合并 state shape 与 selector 写法
  *   - 跨 store 协调通过 project-coordinator 完成
  */

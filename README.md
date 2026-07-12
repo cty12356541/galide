@@ -142,8 +142,9 @@ pnpm build:linux  # Linux
 
 ### 架构升级
 
-> **注(2026-06-19):** UI 状态模型已迁移至「功能即岛 v2」(`dockSide` / `visiblePerSide` /
-> `activeSubIsland` / `floatingPanels`)。下文 v0.4 的 `leftPanelOpen` 等字段已废弃,详见 `store.ts`。
+> **注(2026-07-12):** UI 状态模型已迁移至「功能即岛 v3」:单一 `panelStates` map 作为 source of truth,
+> `visiblePerSide` / `dockSide` / `activeSubIsland` 为派生字段,`floatingPanels` 保留数组形式。旧版 `dockSide` /
+> `visiblePerSide` / `activeSubIsland` 仍可被持久化层读取并迁移,详见 `workspace-store.ts` / `use-workspace-persistence.ts`。
 
 - 删 `workspaceLayout` 嵌套对象(治本,代码腐化主因)
 - 简化 `useUiStore` 5 个标量字段:`workspacePreset` / `leftPanelOpen` /
