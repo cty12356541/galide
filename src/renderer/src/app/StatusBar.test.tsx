@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { StatusBar } from './StatusBar'
 import { useUiStore, useErrorStore } from '../lib/store'
+import { WORKSPACE_PRESET_DEFAULTS } from '../lib/workspace-presets'
 
 const wrap = (ui: ReactNode): ReactNode => {
   const client = new QueryClient({
@@ -17,8 +18,7 @@ describe('StatusBar', () => {
     useUiStore.setState({
       projectPath: '/proj',
       workspacePreset: 'writing',
-      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-      visiblePerSide: { left: 'project', right: 'ai', bottom: null }
+      panelStates: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates }
     })
     useErrorStore.setState({ entries: [] })
     ;(window as unknown as { galide: unknown }).galide = {

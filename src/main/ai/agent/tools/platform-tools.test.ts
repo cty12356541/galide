@@ -81,7 +81,7 @@ describe('platform-tools', () => {
 
   it('create_project 调用 createProject headless', async () => {
     const t = getTool('create_project')
-    const r = await t.run({ name: 'Demo', directory: '/tmp/demo' }, ctx)
+    const r = await t.run({ name: 'Demo', directory: '/proj/demo' }, ctx)
     expect(r.ok).toBe(true)
     expect(createProject).toHaveBeenCalled()
     expect(r.content).toContain('/tmp/new-proj')
@@ -112,7 +112,7 @@ describe('platform-tools', () => {
     const rt = createAgentRuntime({ projectPath: '/proj' })
     const runtimeCtx = rt.createToolContext({ fs: ctx.fs })
     const t = getTool('create_project')
-    const r = await t.run({ name: 'Demo', directory: '/tmp/demo' }, runtimeCtx)
+    const r = await t.run({ name: 'Demo', directory: '/proj/demo' }, runtimeCtx)
     expect(r.ok).toBe(true)
     expect(runtimeCtx.projectPath).toBe('/tmp/new-proj')
   })

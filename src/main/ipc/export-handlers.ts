@@ -31,7 +31,7 @@ export const registerExportHandlers = (): void => {
         const job = { cancelled: false }
         activeJobs.set(jobId, job)
         const progress = (p: ExportProgress): void => {
-          if (job.cancelled || win?.isDestroyed()) return
+          if (job.cancelled || !win || win.isDestroyed()) return
           win.webContents.send(IPC.export.progress, { ...p, jobId })
         }
         const result = await runExportJob(validated, {

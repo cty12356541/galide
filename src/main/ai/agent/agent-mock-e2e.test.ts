@@ -12,7 +12,7 @@ import {
   stagesFromAgentSteps,
   stepsCoverExampleWalk,
   walkStages
-} from './topology-dag.js'
+} from './topology.js'
 import { TOPOLOGIES } from './topology.js'
 import type { LlmAdapter, LlmChatRequest, LlmChatResponse } from './llm-adapter.js'
 import type { ToolFs } from './types.js'
@@ -168,7 +168,18 @@ describe('agent — switchProject 后工具写入新项目', () => {
       handler: async (args, ctx) => {
         await ctx.switchProject!({
           projectPath: args.projectPath,
-          manifest: { name: 'New' } as never
+          manifest: {
+            version: '0.1.0',
+            name: 'New',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            characters: [],
+            assets: {
+              characters: 'assets/characters',
+              backgrounds: 'assets/backgrounds',
+              bgm: 'assets/bgm'
+            }
+          }
         })
         return { ok: true, content: `已打开 ${args.projectPath}` }
       }

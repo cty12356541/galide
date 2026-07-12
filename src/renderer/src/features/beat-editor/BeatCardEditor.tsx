@@ -34,7 +34,7 @@ import { collectNodes } from '../../../../shared/dsl/visitor'
 import type { SceneNode, ScriptNode } from '../../../../shared/dsl/types'
 import { cn } from '../../lib/utils'
 import { groupBeats, type Beat } from './group-beats'
-import { BeatList } from './BeatList'
+import BeatList from './BeatList'
 import { mutateBeatChildren } from './beat-locator'
 
 export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JSX.Element => {
@@ -57,7 +57,7 @@ export const BeatCardEditor = ({ embedded = false }: { embedded?: boolean }): JS
   }, [scenes, selectedSceneId])
 
   useEffect(() => {
-    if (scenes.length > 0 && !selectedSceneId) setSelectedSceneId(scenes[0].id)
+    if (scenes.length > 0 && !selectedSceneId) setSelectedSceneId(scenes[0]!.id)
   }, [scenes, selectedSceneId, setSelectedSceneId])
 
   const beats = useMemo(() => (scene ? groupBeats(scene.children) : []), [scene])

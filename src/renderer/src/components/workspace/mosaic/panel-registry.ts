@@ -17,9 +17,9 @@
  */
 import type { ComponentType } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { FileText, GitBranch, Box, Folder, Sparkles, ListTree, Users, Mic, Image } from 'lucide-react'
+import { FileText, GitBranch, Box, Folder, Sparkles, ListTree, Users, Mic, Image, Search } from 'lucide-react'
 import { ScriptEditor } from '../../../features/script-editor/ScriptEditor'
-import { FlowView } from '../../../features/flow-view/FlowView'
+import FlowView from '../../../features/flow-view/FlowView'
 import { PreviewCanvas } from '../../../features/preview/PreviewCanvas'
 import { ScriptFileTree } from '../../../features/script-editor/ScriptFileTree'
 import { GitPanel } from '../../../features/git/GitPanel'
@@ -28,6 +28,7 @@ import { CharacterListPanel } from '../../../features/character/CharacterListPan
 import { VoicePanel } from '../../../features/voice/VoicePanel'
 import { AssetListPanel } from '../../../features/asset/AssetListPanel'
 import { AiPanel } from '../../../features/ai-panel/AiPanel'
+import { ScriptSearchPanel } from '../../../features/search/ScriptSearchPanel'
 
 // =================== 三类 id ===================
 
@@ -35,19 +36,13 @@ import { AiPanel } from '../../../features/ai-panel/AiPanel'
 export type EditorDocId = 'script-editor' | 'flow-view' | 'preview-canvas'
 
 /** 主岛:可 dock/浮出的工具窗 */
-export type ToolWindowId = 'project' | 'git' | 'outline' | 'character' | 'ai'
+export type ToolWindowId = 'project' | 'git' | 'outline' | 'character' | 'ai' | 'search'
 
 /** 子岛:主岛内 tab(单子岛主岛的子岛 id 与主岛同名,不单独浮出) */
-export type SubIslandId = 'scripts' | 'assets' | 'git' | 'outline' | 'profiles' | 'voice' | 'ai'
-
-/** 未实现的占位主岛(ActivityBar 可选,不可浮出) */
-export type PlaceholderId = 'search' | 'debug' | 'settings'
+export type SubIslandId = 'scripts' | 'assets' | 'git' | 'outline' | 'profiles' | 'voice' | 'ai' | 'search'
 
 /** dock 侧 */
 export type DockSide = 'left' | 'right' | 'bottom'
-
-/** 侧槽可见内容(主岛或占位) */
-export type SlotContent = ToolWindowId | PlaceholderId
 
 // =================== 编辑器大陆 ===================
 
@@ -83,6 +78,7 @@ export type ToolWindowMeta = {
   title: string
   icon: LucideIcon
   defaultDock: DockSide
+  hidden?: boolean
   /** ≥2:渲染 tab 条,每个子岛可单独脱离;=1:无 tab,整主岛浮出 */
   subIslands: readonly SubIslandDef[]
 }
@@ -128,6 +124,14 @@ export const TOOL_WINDOWS: readonly ToolWindowMeta[] = [
     icon: Sparkles,
     defaultDock: 'right',
     subIslands: [{ id: 'ai', label: 'AI', icon: Sparkles, component: AiPanel }]
+  },
+  {
+    id: 'search',
+    title: '搜索',
+    icon: Search,
+    defaultDock: 'left',
+    hidden: true,
+    subIslands: [{ id: 'search', label: '搜索', icon: Search, component: ScriptSearchPanel }]
   }
 ]
 
@@ -156,7 +160,7 @@ export const parentOfSubIsland = (sub: SubIslandId): ToolWindowId | null => {
 
 /** 主岛的默认子岛(第一个) */
 export const defaultSubIslandOf = (tw: ToolWindowId): SubIslandId =>
-  TOOL_WINDOW_META[tw].subIslands[0].id
+  TOOL_WINDOW_META[tw]!.subIslands[0]!.id
 
 // =================== 类型守卫 ===================
 
@@ -170,9 +174,6 @@ export const isToolWindowId = (id: string): id is ToolWindowId =>
   TOOL_WINDOW_SET.has(id as ToolWindowId)
 
 export const isSubIslandId = (id: string): id is SubIslandId => id in SUB_ISLANDS
-
-export const isPlaceholderId = (id: string): id is PlaceholderId =>
-  id === 'search' || id === 'debug' || id === 'settings'
 
 /** 该子岛 id 是否可单独脱离(仅多子岛主岛的子岛) */
 export const isFloatableSubIsland = (id: string): boolean => {

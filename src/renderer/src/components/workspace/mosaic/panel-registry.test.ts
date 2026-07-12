@@ -28,16 +28,17 @@ import {
 } from './panel-registry'
 
 describe('panel-registry — 主岛/子岛映射', () => {
-  it('5 个主岛:project/git/outline/character/ai', () => {
-    expect(TOOL_WINDOW_IDS).toEqual(['project', 'git', 'outline', 'character', 'ai'])
+  it('6 个主岛:project/git/outline/character/ai/search', () => {
+    expect(TOOL_WINDOW_IDS).toEqual(['project', 'git', 'outline', 'character', 'ai', 'search'])
   })
 
-  it('project 与 character 是多子岛主岛;git/outline/ai 单子岛', () => {
+  it('project 与 character 是多子岛主岛;git/outline/ai/search 单子岛', () => {
     expect(isMultiSubIsland('project')).toBe(true)
     expect(isMultiSubIsland('character')).toBe(true)
     expect(isMultiSubIsland('git')).toBe(false)
     expect(isMultiSubIsland('outline')).toBe(false)
     expect(isMultiSubIsland('ai')).toBe(false)
+    expect(isMultiSubIsland('search')).toBe(false)
   })
 
   it('project 子岛 = scripts + assets;character 子岛 = profiles + voice', () => {
@@ -49,6 +50,7 @@ describe('panel-registry — 主岛/子岛映射', () => {
     expect(defaultSubIslandOf('project')).toBe('scripts')
     expect(defaultSubIslandOf('character')).toBe('profiles')
     expect(defaultSubIslandOf('ai')).toBe('ai')
+    expect(defaultSubIslandOf('search')).toBe('search')
   })
 
   it('parentOfSubIsland 正确反查', () => {
@@ -56,6 +58,7 @@ describe('panel-registry — 主岛/子岛映射', () => {
     expect(parentOfSubIsland('voice')).toBe('character')
     expect(parentOfSubIsland('git')).toBe('git')
     expect(parentOfSubIsland('ai')).toBe('ai')
+    expect(parentOfSubIsland('search')).toBe('search')
   })
 })
 
@@ -69,10 +72,11 @@ describe('panel-registry — 浮出 id 分发', () => {
     expect(isFloatableSubIsland('git')).toBe(false)
     expect(isFloatableSubIsland('outline')).toBe(false)
     expect(isFloatableSubIsland('ai')).toBe(false)
+    expect(isFloatableSubIsland('search')).toBe(false)
   })
 
-  it('FLOATABLE_IDS 含 3 编辑器大陆 + 5 主岛 + 4 可脱离子岛 = 12', () => {
-    expect(FLOATABLE_IDS).toHaveLength(12)
+  it('FLOATABLE_IDS 含 3 编辑器大陆 + 6 主岛 + 4 可脱离子岛 = 13', () => {
+    expect(FLOATABLE_IDS).toHaveLength(13)
     for (const d of EDITOR_DOCS) expect(FLOATABLE_IDS).toContain(d)
     for (const t of TOOL_WINDOW_IDS) expect(FLOATABLE_IDS).toContain(t)
     for (const s of ['scripts', 'assets', 'profiles', 'voice']) expect(FLOATABLE_IDS).toContain(s)
@@ -100,9 +104,9 @@ describe('panel-registry — 浮出 id 分发', () => {
     expect(MOSAIC_PANEL_IDS).toEqual(['script-editor', 'flow-view', 'preview-canvas'])
   })
 
-  it('SUB_ISLANDS 含全部 7 子岛', () => {
+  it('SUB_ISLANDS 含全部 8 子岛', () => {
     expect(Object.keys(SUB_ISLANDS).sort()).toEqual(
-      ['ai', 'assets', 'git', 'outline', 'profiles', 'scripts', 'voice'].sort()
+      ['ai', 'assets', 'git', 'outline', 'profiles', 'scripts', 'search', 'voice'].sort()
     )
   })
 

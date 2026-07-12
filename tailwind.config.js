@@ -34,8 +34,9 @@ export default {
         '2xs': ['10px', '14px']
       },
       borderRadius: {
-        sm: '6px',
-        md: '10px',
+        sm: '4px',
+        md: '6px',
+        lg: '8px',
         xl: '12px',
         '2xl': '16px'
       },

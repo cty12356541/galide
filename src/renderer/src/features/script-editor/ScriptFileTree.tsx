@@ -77,6 +77,7 @@ export const ScriptFileTree = (): JSX.Element => {
 
   const handleRename = async (oldName: string): Promise<void> => {
     setContextMenu(null)
+    if (!projectPath) return
     const newName = window.prompt('重命名文件', oldName)
     if (!newName || newName === oldName) return
     const fileName = newName.endsWith('.gal') ? newName : `${newName}.gal`

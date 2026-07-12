@@ -1,38 +1,41 @@
 /**
  * useWorkspacePersistence — 工作区布局持久化(P5c + B2)
  *
- * renderer localStorage 持久化 dock/可见侧/子岛 + 最后预设 + per-preset 快照 + EditorCore 分栏。
+ * renderer localStorage 持久化 panelStates + 最后预设 + per-preset 快照 + EditorCore 分栏。
+ * 仍可读旧版(dockSide/visiblePerSide/activeSubIsland)并转换为 panelStates。
  */
 import { useEffect } from 'react'
 import { useUiStore, type WorkspacePresetId } from '../store'
+import { useWorkspaceStore } from '../workspace-store'
 import { isFloatingWindow } from '../../app/FloatingPanelHost'
 import {
-  isToolWindowId,
+  TOOL_WINDOW_IDS,
   isSubIslandId,
+  isToolWindowId,
   type ToolWindowId,
   type SubIslandId,
-  type DockSide,
-  type SlotContent
+  type DockSide
 } from '../../components/workspace/mosaic/panel-registry'
 import {
   DEFAULT_EDITOR_CORE_LAYOUT,
   WORKSPACE_PRESET_DEFAULTS,
+  type PanelState,
   type EditorCoreLayout,
   type LayoutsByPreset
 } from '../workspace-presets'
 
 export const WORKSPACE_LAYOUT_KEY = 'galide.workspaceLayout.v1'
 const PRESET_IDS: readonly WorkspacePresetId[] = ['writing', 'flow', 'review']
-const TOOL_WINDOWS: readonly ToolWindowId[] = ['project', 'git', 'outline', 'character', 'ai']
 const DOCK_SIDES: readonly DockSide[] = ['left', 'right', 'bottom']
-const PLACEHOLDERS = new Set(['search', 'debug', 'settings'])
+const LEGACY_TOOL_WINDOWS: readonly ToolWindowId[] = ['project', 'git', 'outline', 'character', 'ai']
 
-type VisiblePerSide = { left: SlotContent | null; right: SlotContent | null; bottom: SlotContent | null }
+type LegacyVisible = { left: string | null; right: string | null; bottom: string | null }
 
 export interface PersistedWorkspaceLayout {
-  dockSide: Record<ToolWindowId, DockSide>
-  visiblePerSide: VisiblePerSide
-  activeSubIsland: Record<ToolWindowId, SubIslandId>
+  panelStates?: Record<ToolWindowId, PanelState>
+  dockSide?: Record<ToolWindowId, DockSide>
+  visiblePerSide?: LegacyVisible
+  activeSubIsland?: Record<ToolWindowId, SubIslandId>
   lastPreset?: WorkspacePresetId
   layoutsByPreset?: LayoutsByPreset
   editorCoreLayout?: EditorCoreLayout
@@ -45,8 +48,26 @@ const isDockSide = (x: unknown): x is DockSide =>
 const isSubIslandValue = (x: unknown): x is SubIslandId =>
   typeof x === 'string' && isSubIslandId(x)
 
-const isSlot = (x: unknown): boolean =>
-  x === null || (typeof x === 'string' && (isToolWindowId(x) || PLACEHOLDERS.has(x)))
+const isPanelState = (x: unknown): x is PanelState => {
+  if (!x || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  return typeof o.visible === 'boolean' && isDockSide(o.dock) && isSubIslandValue(o.activeSub)
+}
+
+const isPanelStates = (x: unknown): x is Record<ToolWindowId, PanelState> => {
+  if (!x || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  return TOOL_WINDOW_IDS.every((tw) => isPanelState(o[tw]))
+}
+
+const isLegacySlot = (x: unknown): x is string | null =>
+  x === null || (typeof x === 'string' && (isToolWindowId(x) || x === 'search' || x === 'debug' || x === 'settings'))
+
+const isLegacyVisible = (x: unknown): x is LegacyVisible => {
+  if (!x || typeof x !== 'object') return false
+  const o = x as Record<string, unknown>
+  return DOCK_SIDES.every((side) => isLegacySlot(o[side]))
+}
 
 const isPresetId = (x: unknown): x is WorkspacePresetId =>
   typeof x === 'string' && (PRESET_IDS as readonly string[]).includes(x as WorkspacePresetId)
@@ -59,47 +80,57 @@ const isEditorCoreLayout = (x: unknown): x is EditorCoreLayout => {
   )
 }
 
+const buildPanelStatesFromLegacy = (
+  dockSide: Record<ToolWindowId, DockSide>,
+  visiblePerSide: LegacyVisible,
+  activeSubIsland: Record<ToolWindowId, SubIslandId>
+): Record<ToolWindowId, PanelState> => {
+  const ps = { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates }
+  for (const tw of LEGACY_TOOL_WINDOWS) {
+    ps[tw] = { visible: visiblePerSide[dockSide[tw]] === tw, dock: dockSide[tw], activeSub: activeSubIsland[tw] }
+  }
+  return ps
+}
+
 const validate = (raw: unknown): PersistedWorkspaceLayout | null => {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
+
+  if (o.panelStates && isPanelStates(o.panelStates)) {
+    return {
+      panelStates: o.panelStates as Record<ToolWindowId, PanelState>,
+      lastPreset: o.lastPreset !== undefined && isPresetId(o.lastPreset) ? o.lastPreset : undefined,
+      layoutsByPreset: o.layoutsByPreset as LayoutsByPreset | undefined,
+      editorCoreLayout: o.editorCoreLayout !== undefined && isEditorCoreLayout(o.editorCoreLayout) ? o.editorCoreLayout : undefined,
+      editorSurface: o.editorSurface !== undefined && (o.editorSurface === 'cards' || o.editorSurface === 'source') ? o.editorSurface : undefined
+    }
+  }
+
   const { dockSide, visiblePerSide, activeSubIsland } = o
   if (!dockSide || typeof dockSide !== 'object') return null
   if (!visiblePerSide || typeof visiblePerSide !== 'object') return null
   if (!activeSubIsland || typeof activeSubIsland !== 'object') return null
   const ds = dockSide as Record<string, unknown>
-  const vis = visiblePerSide as Record<string, unknown>
   const asi = activeSubIsland as Record<string, unknown>
-  for (const tw of TOOL_WINDOWS) {
+  for (const tw of LEGACY_TOOL_WINDOWS) {
     if (!isDockSide(ds[tw])) return null
     if (!isSubIslandValue(asi[tw])) return null
   }
-  for (const side of DOCK_SIDES) {
-    if (!isSlot(vis[side])) return null
-  }
-  const lastPreset = o.lastPreset
-  if (lastPreset !== undefined && !isPresetId(lastPreset)) return null
-  const editorCoreLayout = o.editorCoreLayout
-  if (editorCoreLayout !== undefined && !isEditorCoreLayout(editorCoreLayout)) return null
-  const editorSurface = o.editorSurface
-  if (editorSurface !== undefined && editorSurface !== 'cards' && editorSurface !== 'source') {
-    return null
-  }
+  if (!isLegacyVisible(visiblePerSide)) return null
   return {
     dockSide: ds as Record<ToolWindowId, DockSide>,
-    visiblePerSide: vis as VisiblePerSide,
+    visiblePerSide: visiblePerSide as LegacyVisible,
     activeSubIsland: asi as Record<ToolWindowId, SubIslandId>,
-    lastPreset: lastPreset as WorkspacePresetId | undefined,
+    lastPreset: o.lastPreset !== undefined && isPresetId(o.lastPreset) ? o.lastPreset : undefined,
     layoutsByPreset: o.layoutsByPreset as LayoutsByPreset | undefined,
-    editorCoreLayout: editorCoreLayout as EditorCoreLayout | undefined,
-    editorSurface: editorSurface as 'cards' | 'source' | undefined
+    editorCoreLayout: o.editorCoreLayout !== undefined && isEditorCoreLayout(o.editorCoreLayout) ? o.editorCoreLayout : undefined,
+    editorSurface: o.editorSurface !== undefined && (o.editorSurface === 'cards' || o.editorSurface === 'source') ? o.editorSurface : undefined
   }
 }
 
 export const useWorkspacePersistence = (): void => {
   const floating = isFloatingWindow()
-  const dockSide = useUiStore((s) => s.dockSide)
-  const visiblePerSide = useUiStore((s) => s.visiblePerSide)
-  const activeSubIsland = useUiStore((s) => s.activeSubIsland)
+  const panelStates = useWorkspaceStore((s) => s.panelStates)
   const workspacePreset = useUiStore((s) => s.workspacePreset)
   const layoutsByPreset = useUiStore((s) => s.layoutsByPreset)
   const editorCoreLayout = useUiStore((s) => s.editorCoreLayout)
@@ -114,10 +145,12 @@ export const useWorkspacePersistence = (): void => {
       if (!layout) return
       const preset = layout.lastPreset ?? 'writing'
       const snapshot = layout.layoutsByPreset?.[preset] ?? WORKSPACE_PRESET_DEFAULTS[preset]
-      useUiStore.setState({
-        dockSide: layout.dockSide,
-        visiblePerSide: layout.visiblePerSide,
-        activeSubIsland: layout.activeSubIsland,
+      const restored = layout.panelStates
+        ? layout.panelStates
+        : buildPanelStatesFromLegacy(layout.dockSide!, layout.visiblePerSide!, layout.activeSubIsland!)
+      const st = useWorkspaceStore.getState()
+      st.setPanelStates(restored)
+      useWorkspaceStore.setState({
         workspacePreset: preset,
         layoutsByPreset: layout.layoutsByPreset ?? {},
         editorCoreLayout: layout.editorCoreLayout ?? snapshot.editorCoreLayout ?? DEFAULT_EDITOR_CORE_LAYOUT,
@@ -134,9 +167,7 @@ export const useWorkspacePersistence = (): void => {
     const id = setTimeout(() => {
       try {
         const payload: PersistedWorkspaceLayout = {
-          dockSide,
-          visiblePerSide,
-          activeSubIsland,
+          panelStates,
           lastPreset: workspacePreset,
           layoutsByPreset,
           editorCoreLayout,
@@ -148,14 +179,5 @@ export const useWorkspacePersistence = (): void => {
       }
     }, 300)
     return () => clearTimeout(id)
-  }, [
-    floating,
-    dockSide,
-    visiblePerSide,
-    activeSubIsland,
-    workspacePreset,
-    layoutsByPreset,
-    editorCoreLayout,
-    editorSurface
-  ])
+  }, [floating, panelStates, workspacePreset, layoutsByPreset, editorCoreLayout, editorSurface])
 }

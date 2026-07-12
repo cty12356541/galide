@@ -4,6 +4,7 @@ import type { VmState } from '../../../../shared/preview/runtime-vm'
 export interface PreviewSlotInfo {
   slot: number
   timestamp: string | null
+  sceneId: string | null
   occupied: boolean
 }
 

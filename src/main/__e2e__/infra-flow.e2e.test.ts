@@ -215,11 +215,8 @@ describe('E2E: 用户完整流程', () => {
 
     // git log 应当有 2(初始) + 1(脚本) + 4(角色 4 个动作) = 6
     const logRes = await gitService.log(projectPath)
-    // eslint-disable-next-line no-console
     console.log('\n=== git log after #3 ===')
-    // eslint-disable-next-line no-console
     console.log(JSON.stringify(logRes, null, 2))
-    // eslint-disable-next-line no-console
     console.log('=== end ===\n')
     expect(logRes.ok).toBe(true)
     if (logRes.ok === true) {
@@ -276,15 +273,12 @@ describe('E2E: 用户完整流程', () => {
     expect(logRes.ok).toBe(true)
     if (logRes.ok === true) {
       expect(logRes.value.length).toBe(6)
-      // eslint-disable-next-line no-console
       console.log('\n=== git log of MyFirstGalgame ===')
       for (const e of logRes.value) {
-        // eslint-disable-next-line no-console
         console.log(
           `${e.hash.slice(0, 7)}  ${e.message.padEnd(40)}  <${e.author}>`
         )
       }
-      // eslint-disable-next-line no-console
       console.log('=== end ===\n')
     }
   })

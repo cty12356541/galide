@@ -2,6 +2,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MotionConfig } from 'framer-motion'
 import { TooltipProvider } from './components/ui/tooltip'
 import { Toaster } from './components/ui/toast'
 import { App } from './app/App'
@@ -44,12 +45,21 @@ const handleError = (label: string, err: unknown): void => {
 window.addEventListener('error', (e) => handleError('window.error', e.error ?? e.message))
 window.addEventListener('unhandledrejection', (e) => handleError('unhandledrejection', e.reason))
 
+function MotionApp(): JSX.Element {
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return (
+    <MotionConfig reducedMotion={prefersReduced ? 'always' : 'never'}>
+      <App />
+    </MotionConfig>
+  )
+}
+
 try {
   ReactDOM.createRoot(rootEl).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider delayDuration={300}>
-          <App />
+          <MotionApp />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>

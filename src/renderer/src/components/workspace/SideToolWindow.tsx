@@ -38,7 +38,7 @@ export const SideToolWindow = ({
   const float = usePanelFloat()
 
   const multi = isMultiSubIsland(toolWindowId)
-  const ActiveComp = meta.subIslands.find((s) => s.id === activeSub)?.component ?? meta.subIslands[0].component
+  const ActiveComp = meta.subIslands.find((s) => s.id === activeSub)?.component ?? meta.subIslands[0]!.component
 
   const close = (): void => {
     if (floating) {

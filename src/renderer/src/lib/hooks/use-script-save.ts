@@ -49,7 +49,7 @@ export const useScriptSave = (): UseScriptSaveResult => {
       )
       if (r && r.ok === true) {
         markScriptSaved()
-      } else if (r && r.ok !== true) {
+      } else if (r && r.ok === false) {
         toast({
           message: r.code === 'COMMIT_FAILED' ? '保存成功,但 git commit 失败' : '保存失败',
           variant: 'error'

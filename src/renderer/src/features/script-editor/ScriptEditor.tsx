@@ -12,7 +12,7 @@ import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { toast } from '../../components/ui/toast'
 import { DiagnosticsPanel } from './DiagnosticsPanel'
 import { AiInlineEdit } from './AiInlineEdit'
-import { galLanguage } from '../../lib/codemirror/gal-language'
+import { galLanguage, galAutocomplete, galDiagnostics, setGalDiagnostics } from '../../lib/codemirror/gal-language'
 import { cn } from '../../lib/utils'
 
 interface ScriptEditorProps {
@@ -69,6 +69,8 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
       search({ top: true }),
       highlightSelectionMatches(),
       galLanguage(),
+      galAutocomplete(),
+      galDiagnostics(),
       EditorView.lineWrapping,
       EditorView.theme(
         {
@@ -96,6 +98,7 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
     const state = EditorState.create({ doc: useUiStore.getState().scriptSource, extensions })
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+    setGalDiagnostics(view, useUiStore.getState().scriptDiagnostics)
     return () => {
       view.destroy()
       viewRef.current = null
@@ -130,6 +133,12 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
     })
     setScriptEditorScrollTarget(null)
   }, [scriptEditorScrollTarget, scriptSource, setScriptEditorScrollTarget])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    setGalDiagnostics(view, scriptDiagnostics)
+  }, [scriptDiagnostics])
 
   const handleSave = async (): Promise<void> => {
     if (!projectPath || !activeScript) return

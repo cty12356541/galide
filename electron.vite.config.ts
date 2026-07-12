@@ -36,7 +36,16 @@ export default defineConfig({
     plugins: [react()],
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html') }
+        input: { index: resolve('src/renderer/index.html') },
+        output: {
+          manualChunks: {
+            'pixi': ['pixi.js'],
+            'codemirror': ['@codemirror/state', '@codemirror/view', '@codemirror/language'],
+            'reactflow': ['@xyflow/react'],
+            'markdown': ['react-markdown', 'remark-gfm', 'rehype-highlight'],
+            'motion': ['framer-motion']
+          }
+        }
       }
     }
   }

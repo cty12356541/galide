@@ -16,6 +16,7 @@ import {
   scriptsDirAbs
 } from '../../shared/project-layout.js'
 import type { GitPreferences } from '../../shared/preferences.js'
+import { parseCache } from './script-parse-cache.js'
 
 export type ScriptError =
   | { code: 'INVALID_FILENAME'; message: string }
@@ -97,11 +98,13 @@ export const writeScript = async (
 ): Promise<Result<void, ScriptError>> => {
   const v = validateFileName(fileName)
   if (v.ok !== true) return v
+  const absPath = galScriptAbs(projectPath, fileName)
   try {
-    await deps.fs.writeFile(galScriptAbs(projectPath, fileName), content)
+    await deps.fs.writeFile(absPath, content)
   } catch (e) {
     return errOf({ code: 'WRITE_FAILED', message: eMessage(e) })
   }
+  parseCache.invalidate(absPath)
   if (deps.gitPrefs.autoCommitOnSave) {
     const relPath = galScriptRel(fileName)
     const r = await deps.git.addAndCommit(projectPath, [relPath], `update: ${fileName}`)

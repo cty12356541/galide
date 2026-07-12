@@ -13,6 +13,7 @@ import { Toolbar } from './Toolbar'
 import { StatusBar } from './StatusBar'
 import { ProjectTabs } from './ProjectTabs'
 import { useUiStore } from '../lib/store'
+import { WORKSPACE_PRESET_DEFAULTS } from '../lib/workspace-presets'
 
 beforeEach(() => {
   useUiStore.setState({
@@ -21,9 +22,7 @@ beforeEach(() => {
     manifest: null,
     activeScriptFile: 'chapter1.gal',
     workspacePreset: 'writing',
-    dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-    visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-    activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
+    panelStates: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates },
     theme: 'light',
     preferencesOpen: false,
     commandPaletteOpen: false,

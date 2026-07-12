@@ -31,6 +31,9 @@ const createWindow = (): void => {
     backgroundColor: '#fafaf9',
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
+      // SECURITY(sandbox): disabled because preload/index.ts (~487 lines) uses ipcRenderer,
+      // contextBridge.exposeInMainWorld, and Node.js APIs that are incompatible with Electron
+      // sandbox mode. A sandbox:true migration would require restructuring all preload code.
       sandbox: false,
       contextIsolation: true
     }
@@ -52,6 +55,17 @@ const createWindow = (): void => {
       // 解析失败的 URL 一律 deny
     }
     return { action: 'deny' }
+  })
+
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'"
+        ]
+      }
+    })
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

@@ -13,7 +13,7 @@ import {
   advanceVm,
   type VmState
 } from './runtime-vm'
-import type { PlaybackIfStep, PlaybackSetStep } from './playback-timeline'
+import type { PlaybackChoiceOption, PlaybackIfStep, PlaybackSetStep } from './playback-timeline'
 
 describe('runtime-vm variables', () => {
   it('applySetStep sets/adds/subtracts variables', () => {
@@ -65,7 +65,7 @@ describe('runtime-vm variables', () => {
   })
 
   it('filterChoiceOptions hides gated options when condition false', () => {
-    const options = [
+    const options: PlaybackChoiceOption[] = [
       { text: 'secret', target: 'a', condition: { kind: 'binary' as const, op: 'ge' as const, left: { kind: 'var' as const, name: 'affinity' }, right: { kind: 'literal' as const, value: 10 } } },
       { text: 'normal', target: 'b' }
     ]

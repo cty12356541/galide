@@ -10,8 +10,8 @@
  *   <PanelHeader title="Git" icon={GitBranch} actions={<RefreshButton />} />
  *   <PanelHeader title="场景" subtitle="12" size="sm" />
  */
+import React, { type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { cn } from '../../lib/utils'
 
 type Size = 'sm' | 'md' | 'lg'
@@ -22,7 +22,7 @@ const sizeClass: Record<Size, string> = {
   lg: 'h-10 px-3 text-xs gap-2'
 }
 
-export const PanelHeader = ({
+const PanelHeaderInner = ({
   title,
   subtitle,
   icon: Icon,
@@ -56,3 +56,5 @@ export const PanelHeader = ({
     </header>
   )
 }
+
+export const PanelHeader = React.memo(PanelHeaderInner)

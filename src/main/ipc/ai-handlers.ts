@@ -1,29 +1,26 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { z } from 'zod'
 import { IPC } from '../../shared/ipc-channels.js'
 import { aiProxy } from '../ai/ai-proxy.js'
 import { aiTaskQueue } from '../ai/task-queue.js'
 import { keyManager } from '../preferences/key-manager.js'
-import { startConnectionTest, type ConnectionTestRequest } from '../ai/connection-test.js'
-import { isApiKeyProvider } from '../../shared/api-key-provider.js'
-import type { AiProvider, AiProviderInfo, ChatMessage } from '../ai/types.js'
-
-const isAiProvider = (s: string): s is AiProvider => s === 'openai' || s === 'claude'
-
-type AiGenerateRequest = {
-  prompt: string
-  context: string
-  provider: AiProvider
-  model?: string
-  baseUrl?: string
-  messages?: ChatMessage[]
-}
+import { startConnectionTest } from '../ai/connection-test.js'
+import type { AiProviderInfo } from '../ai/types.js'
+import {
+  parseIpcArgs,
+  ipcSchemaFailure,
+  AiGenerateSchema,
+  AiSetConfigSchema,
+  AiConnectionTestSchema,
+  ApiKeyProviderSchema
+} from './schemas/index.js'
 
 type AiListTasksResult = {
   tasks: Array<{
     taskId: string
     status: 'pending' | 'running' | 'done' | 'error'
     prompt: string
-    provider: AiProvider
+    provider: string
     error?: string
     createdAt: number
   }>
@@ -47,12 +44,14 @@ export const registerAiHandlers = (): void => {
 
   ipcMain.handle(
     IPC.ai.setConfig,
-    async (_e: IpcMainInvokeEvent, config: { provider: string; baseUrl?: string; model?: string }) => {
-      if (!isAiProvider(config.provider)) {
-        return { ok: false, error: `unknown provider: ${config.provider}` }
+    async (_e: IpcMainInvokeEvent, raw: unknown) => {
+      try {
+        const config = parseIpcArgs('ai:setConfig', AiSetConfigSchema, raw)
+        aiProxy.setConfig(config)
+        return { ok: true }
+      } catch (err) {
+        return ipcSchemaFailure(err)
       }
-      aiProxy.setConfig({ provider: config.provider, baseUrl: config.baseUrl, model: config.model })
-      return { ok: true }
     }
   )
 
@@ -62,10 +61,10 @@ export const registerAiHandlers = (): void => {
    */
   ipcMain.handle(
     IPC.ai.generate,
-    async (e, req: AiGenerateRequest): Promise<{ taskId: string; status: 'pending' }> => {
+    async (e, raw: unknown): Promise<{ taskId: string; status: 'pending' }> => {
+      const req = parseIpcArgs('ai:generate', AiGenerateSchema, raw)
       const effectiveBaseUrl = req.baseUrl ?? aiProxy.getConfig().baseUrl
-      const finalReq = { ...req, baseUrl: effectiveBaseUrl }
-      const taskId = aiTaskQueue.enqueue(finalReq, e.sender)
+      const taskId = aiTaskQueue.enqueue({ ...req, baseUrl: effectiveBaseUrl }, e.sender)
       return { taskId, status: 'pending' }
     }
   )
@@ -86,44 +85,46 @@ export const registerAiHandlers = (): void => {
     return { tasks }
   })
 
-  // ---- P0-1 修复: 缺失的四个 AI Key IPC handler ----
   ipcMain.handle(
     IPC.ai.keySet,
-    async (_e: IpcMainInvokeEvent, provider: string, key: string): Promise<{ ok: boolean; error?: string }> => {
-      if (!isApiKeyProvider(provider)) {
-        return { ok: false, error: `unknown provider: ${provider}` }
-      }
-      if (!key || key.trim().length === 0) {
-        return { ok: false, error: 'API Key 不能为空' }
-      }
+    async (_e: IpcMainInvokeEvent, raw: unknown): Promise<{ ok: boolean; error?: string }> => {
       try {
+        const { provider, key } = parseIpcArgs('ai:keySet', z.object({
+          provider: ApiKeyProviderSchema,
+          key: z.string().min(1, 'API Key 不能为空')
+        }), raw)
         keyManager.set(provider, key)
         return { ok: true }
       } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+        return ipcSchemaFailure(err)
       }
     }
   )
 
   ipcMain.handle(
     IPC.ai.keyDelete,
-    async (_e: IpcMainInvokeEvent, provider: string): Promise<{ ok: boolean; error?: string }> => {
-      if (!isApiKeyProvider(provider)) {
-        return { ok: false, error: `unknown provider: ${provider}` }
-      }
+    async (_e: IpcMainInvokeEvent, raw: unknown): Promise<{ ok: boolean; error?: string }> => {
       try {
+        const { provider } = parseIpcArgs('ai:keyDelete', z.object({
+          provider: ApiKeyProviderSchema
+        }), raw)
         keyManager.delete(provider)
         return { ok: true }
       } catch (err) {
-        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+        return ipcSchemaFailure(err)
       }
     }
   )
 
-  ipcMain.handle(IPC.ai.keyHas, async (_e: IpcMainInvokeEvent, provider: string): Promise<boolean> => {
-    if (!isApiKeyProvider(provider)) return false
-    return keyManager.has(provider)
-  })
+  ipcMain.handle(
+    IPC.ai.keyHas,
+    async (_e: IpcMainInvokeEvent, raw: unknown): Promise<boolean> => {
+      const { provider } = parseIpcArgs('ai:keyHas', z.object({
+        provider: ApiKeyProviderSchema
+      }), raw)
+      return keyManager.has(provider)
+    }
+  )
 
   /**
    * 测试连接 — 独立通道(P0-6 修复)
@@ -135,11 +136,13 @@ export const registerAiHandlers = (): void => {
    */
   ipcMain.handle(
     IPC.ai.connectionTest,
-    (e: IpcMainInvokeEvent, req: ConnectionTestRequest) => {
-      if (!isAiProvider(req.provider)) {
-        return { ok: false, error: `unknown provider: ${req.provider}` }
+    (e: IpcMainInvokeEvent, raw: unknown) => {
+      try {
+        const req = parseIpcArgs('ai:connectionTest', AiConnectionTestSchema, raw)
+        return startConnectionTest(e, req)
+      } catch (err) {
+        return ipcSchemaFailure(err)
       }
-      return startConnectionTest(e, req)
     }
   )
 }

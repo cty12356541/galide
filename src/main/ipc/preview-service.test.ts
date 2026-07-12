@@ -45,13 +45,15 @@ describe('preview-service', () => {
     expect(r.state).toEqual(sampleState)
   })
 
-  it('listPreviewSlots reports occupied slots', async () => {
+  it('listPreviewSlots reports occupied slots with sceneId', async () => {
     const { fs, projectPath } = makeFs()
     await savePreviewSlot(projectPath, 1, sampleState, fs)
     const slots = await listPreviewSlots(projectPath, fs)
     expect(slots).toHaveLength(3)
     expect(slots[0]?.occupied).toBe(true)
+    expect(slots[0]?.sceneId).toBe('教室')
     expect(slots[1]?.occupied).toBe(false)
+    expect(slots[1]?.sceneId).toBeNull()
   })
 
   it('rejects invalid slot number', async () => {

@@ -4,15 +4,19 @@
  * 四格:左列贯通(卡片/源码) | 右上场景轨 | 右上流程 | 右下预览(可折叠)。
  * 左列纵向连通;右列上二下一,比例读 store.editorCoreLayout。
  */
+import React, { Suspense } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Eye, EyeOff } from 'lucide-react'
 import { SceneRail } from './SceneRail'
 import { EditorSurfaceTabs } from './EditorSurfaceTabs'
-import { FlowView } from '../../features/flow-view/FlowView'
-import { PreviewCanvas } from '../../features/preview/PreviewCanvas'
 import { useUiStore } from '../../lib/store'
 import { patchEditorCoreLayout } from './editor-core-layout'
 import type { EditorCoreLayout, WorkspacePresetId } from '../../lib/workspace-presets'
+
+const FlowView = React.lazy(() => import('../../features/flow-view/FlowView'))
+const PreviewCanvas = React.lazy(() =>
+  import('../../features/preview/PreviewCanvas').then((m) => ({ default: m.PreviewCanvas }))
+)
 
 const handleH = 'w-1.5 rounded-full bg-border hover:bg-accent transition-colors my-1'
 const handleV = 'h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1'
@@ -42,7 +46,9 @@ const TopBand = ({
     </Panel>
     <PanelResizeHandle className={handleH} />
     <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={15} maxSize={85}>
-      <FlowView />
+      <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+        <FlowView />
+      </Suspense>
     </Panel>
   </PanelGroup>
 )
@@ -68,7 +74,9 @@ const RightStack = ({
     </Panel>
     <PanelResizeHandle className={handleV} />
     <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={18} maxSize={82}>
-      <FlowView />
+      <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+        <FlowView />
+      </Suspense>
     </Panel>
   </PanelGroup>
 )
@@ -111,7 +119,9 @@ const RightColumn = ({
       </Panel>
       <PanelResizeHandle className={handleV} />
       <Panel id="ec-preview" order={2} defaultSize={layout.preview} minSize={18} maxSize={65}>
-        <PreviewCanvas />
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+          <PreviewCanvas />
+        </Suspense>
       </Panel>
     </PanelGroup>
   )

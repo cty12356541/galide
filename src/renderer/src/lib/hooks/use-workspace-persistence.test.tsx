@@ -6,10 +6,11 @@
  *   - 非法/坏数据静默丢弃,沿用默认
  *   - 变更后防抖写回 localStorage
  */
-import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { renderHook, act, cleanup } from '@testing-library/react'
 import { useWorkspacePersistence, WORKSPACE_LAYOUT_KEY } from './use-workspace-persistence.js'
 import { useUiStore } from '../store.js'
+import { WORKSPACE_PRESET_DEFAULTS } from '../workspace-presets.js'
 
 // happy-dom 部分版本不在 window 上挂 localStorage → 补一个内存版(仅测试用)
 const ensureLocalStorage = (): void => {
@@ -42,19 +43,44 @@ ensureLocalStorage()
 
 describe('useWorkspacePersistence — P5c', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     window.localStorage.clear()
     useUiStore.setState({
-      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-      visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-      activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' }
+      panelStates: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates }
     })
   })
 
-  it('hydrate 合法布局覆盖默认', async () => {
+  afterEach(() => {
+    cleanup()
+    vi.runOnlyPendingTimers()
+    vi.useRealTimers()
+  })
+
+  it('hydrate 合法 panelStates 布局覆盖默认', async () => {
     window.localStorage.setItem(
       WORKSPACE_LAYOUT_KEY,
       JSON.stringify({
-        dockSide: { project: 'bottom', git: 'left', outline: 'left', character: 'left', ai: 'left' },
+        panelStates: {
+          ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates,
+          project: { visible: true, dock: 'bottom', activeSub: 'scripts' },
+          git: { visible: true, dock: 'left', activeSub: 'git' },
+          ai: { visible: false, dock: 'right', activeSub: 'ai' }
+        }
+      })
+    )
+    await act(async () => {
+      renderHook(() => useWorkspacePersistence())
+    })
+    expect(useUiStore.getState().dockSide.project).toBe('bottom')
+    expect(useUiStore.getState().visiblePerSide.left).toBe('git')
+    expect(useUiStore.getState().visiblePerSide.bottom).toBe('project')
+  })
+
+  it('hydrate 旧版字段(dockSide/visiblePerSide/activeSubIsland)可转换', async () => {
+    window.localStorage.setItem(
+      WORKSPACE_LAYOUT_KEY,
+      JSON.stringify({
+        dockSide: { project: 'bottom', git: 'left', outline: 'left', character: 'left', ai: 'right' },
         visiblePerSide: { left: 'git', right: null, bottom: 'project' },
         activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' }
       })
@@ -91,18 +117,18 @@ describe('useWorkspacePersistence — P5c', () => {
     expect(useUiStore.getState().dockSide.ai).toBe('right')
   })
 
-  it('persist 变更后写回 localStorage', async () => {
+  it('persist 变更后写回 panelStates', async () => {
     await act(async () => {
       renderHook(() => useWorkspacePersistence())
     })
     act(() => {
       useUiStore.getState().setDockSide('ai', 'bottom')
     })
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 400))
+    act(() => {
+      vi.advanceTimersByTime(400)
     })
     const raw = window.localStorage.getItem(WORKSPACE_LAYOUT_KEY)
     expect(raw).toBeTruthy()
-    expect(JSON.parse(raw as string).dockSide.ai).toBe('bottom')
+    expect(JSON.parse(raw as string).panelStates.ai.dock).toBe('bottom')
   })
 })

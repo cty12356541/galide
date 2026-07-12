@@ -151,7 +151,7 @@ export const agentService = {
     const idx = queue.findIndex((t) => t.taskId === taskId)
     if (idx >= 0) {
       const [removed] = queue.splice(idx, 1)
-      sendStatus(removed.sender, taskId, 'cancelled')
+      sendStatus(removed!.sender, taskId, 'cancelled')
       active.delete(taskId)
       return { ok: true, cancelled: true }
     }

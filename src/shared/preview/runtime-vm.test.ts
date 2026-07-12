@@ -7,8 +7,10 @@ import {
   getCurrentStep,
   advanceVm,
   jumpToTarget,
-  executeGotoStep
+  executeGotoStep,
+  stepBack
 } from './runtime-vm'
+import { MAX_VM_HISTORY } from './vm-history'
 
 const base = (line: number): BaseNode => ({ line, column: 1 })
 
@@ -162,5 +164,64 @@ describe('runtime-vm', () => {
       'marker',
       'goto'
     ])
+  })
+
+  it('records history on advance and stepBack restores the previous state', () => {
+    const ast = makeAst([
+      makeScene('s1', [makeDialogue('A', 'one'), makeDialogue('A', 'two')])
+    ])
+    const graph = buildVmGraph(ast)
+    const state = createVmState(graph, 's1')
+    expect(state.history).toEqual([])
+
+    const advanced = advanceVm(graph, state)
+    expect(advanced.ok).toBe(true)
+    if (!advanced.ok) return
+    expect(advanced.state.history).toHaveLength(1)
+    expect(advanced.state.history?.[0]).toMatchObject({ sceneId: 's1', stepIndex: 0 })
+
+    const restored = stepBack(advanced.state)
+    expect(restored.sceneId).toBe('s1')
+    expect(restored.stepIndex).toBe(0)
+    expect(restored.history).toEqual([])
+    expect(getCurrentStep(graph, restored)).toMatchObject({ text: 'one' })
+  })
+
+  it('records history on jump and stepBack restores the state before jump', () => {
+    const ast = makeAst([
+      makeScene('s1', [makeDialogue('A', 'start')]),
+      makeScene('s2', [makeDialogue('A', 'dest')])
+    ])
+    const graph = buildVmGraph(ast)
+    const state = createVmState(graph, 's1')
+    const jumped = jumpToTarget(graph, state, 's2')
+    expect(jumped.ok).toBe(true)
+    if (!jumped.ok) return
+    expect(jumped.state.history).toHaveLength(1)
+    expect(jumped.state.history?.[0]).toMatchObject({ sceneId: 's1', stepIndex: 0 })
+
+    const restored = stepBack(jumped.state)
+    expect(restored.sceneId).toBe('s1')
+    expect(restored.stepIndex).toBe(0)
+  })
+
+  it('stepBack is a no-op when history is empty', () => {
+    const ast = makeAst([makeScene('s1', [makeDialogue('A', 'one')])])
+    const graph = buildVmGraph(ast)
+    const state = createVmState(graph, 's1')
+    const restored = stepBack(state)
+    expect(restored).toEqual(state)
+  })
+
+  it('caps history at MAX_VM_HISTORY by dropping oldest entries', () => {
+    const ast = makeAst([makeScene('s1', [makeDialogue('A', 'one')])])
+    const graph = buildVmGraph(ast)
+    let state: ReturnType<typeof createVmState> = createVmState(graph, 's1')
+    for (let i = 0; i < MAX_VM_HISTORY + 5; i++) {
+      const r = advanceVm(graph, state)
+      if (r.ok) state = r.state
+    }
+    expect(state.history).toHaveLength(MAX_VM_HISTORY)
+    expect(state.history?.[0]?.stepIndex).toBe(5)
   })
 })

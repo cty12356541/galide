@@ -152,8 +152,28 @@
     opacity: 1;
     transform: none;
   }
-  .prose-ai.prose-ai-streaming > :last-child::after {
+  .prose-ai.prose-ai-streaming > :last-child::after,
+  .ai-cursor {
     animation: none;
+  }
+
+  /* Disable Tailwind CSS animations and slide transforms */
+  .animate-in,
+  .fade-in-0,
+  .zoom-in-95,
+  [class*="slide-in-from-"],
+  [class*="slide-out-to-"] {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* Global animation/transition suppression */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -412,7 +432,8 @@ div[class*="mosaic-split"]:not(.-vertical)::before {
 
 /* 流式打字光标 — ChatGPT/Claude 同款:停在最后一个块的末尾,accent 色闪烁。
    ::after 不进 textContent,故不影响测试断言;reduced-motion 下静止。 */
-.prose-ai.prose-ai-streaming > :last-child::after {
+.prose-ai.prose-ai-streaming > :last-child::after,
+.ai-cursor {
   content: "";
   display: inline-block;
   width: 2px;

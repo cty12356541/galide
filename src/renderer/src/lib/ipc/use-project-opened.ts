@@ -2,7 +2,7 @@
  * use-project-opened — agent open_project 后同步 UI store
  */
 import { useEffect } from 'react'
-import { useUiStore } from '../store'
+import { openProject } from '../project-coordinator'
 import { getGalide } from './galide-safe.js'
 
 export const useProjectOpened = (): void => {
@@ -10,7 +10,7 @@ export const useProjectOpened = (): void => {
     const g = getGalide()
     if (!g?.project?.onOpened) return
     const off = g.project.onOpened(({ projectPath, manifest }) => {
-      useUiStore.getState().setProject(projectPath, manifest)
+      openProject(projectPath, manifest)
     })
     return off
   }, [])

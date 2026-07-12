@@ -49,7 +49,6 @@ const sanitizeName = (raw: unknown): Result<string, ProjectError> => {
     return { ok: false, error: { code: 'INVALID_NAME', message: 'project name must not be empty' } }
   }
   // 控制字符 / NUL 防御
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f]/.test(trimmed)) {
     return { ok: false, error: { code: 'INVALID_NAME', message: 'project name contains control characters' } }
   }

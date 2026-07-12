@@ -189,9 +189,9 @@ export const aiTaskQueue = {
     if (idx >= 0) {
       const [removed] = queue.splice(idx, 1)
       activeControllers.delete(taskId)
-      sendStatus(removed.sender, taskId, 'error', 'cancelled')
+      sendStatus(removed!.sender, taskId, 'error', 'cancelled')
       recentTasks = [
-        stripSender({ ...removed, status: 'error' as const, error: 'cancelled' }),
+        stripSender({ ...removed!, status: 'error' as const, error: 'cancelled' }),
         ...recentTasks
       ].slice(0, MAX_RECENT)
       return { ok: true, cancelled: true }

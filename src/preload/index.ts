@@ -290,13 +290,13 @@ const api = {
   },
   character: {
     create: (projectPath: string, character: CharacterInput): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.character.create, projectPath, character),
+      ipcRenderer.invoke(IPC.character.create, { projectPath, character }),
     update: (projectPath: string, character: CharacterInput): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.character.update, projectPath, character),
+      ipcRenderer.invoke(IPC.character.update, { projectPath, character }),
     list: (projectPath: string): Promise<CharacterListResult> =>
-      ipcRenderer.invoke(IPC.character.list, projectPath),
+      ipcRenderer.invoke(IPC.character.list, { projectPath }),
     delete: (projectPath: string, id: string): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.character.delete, projectPath, id)
+      ipcRenderer.invoke(IPC.character.delete, { projectPath, id })
   },
   voice: {
     generate: (projectPath: string, lineId: string, text: string, characterId: string): Promise<{ ok: boolean; path?: string; error?: string }> =>
@@ -388,6 +388,7 @@ workspace: {
           | 'outline'
           | 'character'
           | 'ai'
+          | 'search'
           | 'scripts'
           | 'assets'
           | 'profiles'
@@ -449,6 +450,7 @@ workspace: {
           | 'outline'
           | 'character'
           | 'ai'
+          | 'search'
           | 'scripts'
           | 'assets'
           | 'profiles'
@@ -463,20 +465,20 @@ workspace: {
     saveSlot: (req: {
       projectPath: string
       slot: number
-      state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[] }
+      state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[]; history?: unknown[] }
     }): Promise<{ ok: true; timestamp: string } | { ok: false; error: string; code?: string }> =>
       ipcRenderer.invoke(IPC.preview.saveSlot, req),
     loadSlot: (req: {
       projectPath: string
       slot: number
     }): Promise<
-      | { ok: true; state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[] }; timestamp: string }
+      | { ok: true; state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[]; history?: unknown[] }; timestamp: string }
       | { ok: false; error: string; code?: string }
     > => ipcRenderer.invoke(IPC.preview.loadSlot, req),
     listSlots: (
       projectPath: string
     ): Promise<
-      | { ok: true; slots: { slot: number; timestamp: string | null; occupied: boolean }[] }
+      | { ok: true; slots: { slot: number; timestamp: string | null; sceneId: string | null; occupied: boolean }[] }
       | { ok: false; error: string }
     > => ipcRenderer.invoke(IPC.preview.listSlots, projectPath)
   }

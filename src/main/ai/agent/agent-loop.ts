@@ -15,7 +15,7 @@
  *                                    └──► Critic(det[/llm]) ──► Done
  *         失败 / 取消 / 超步 → git 回滚 → Error / Cancelled
  *
- * 边集: topology-dag.ts
+ * 完整边集与 Mermaid 图见 docs/agent-architecture.md
  */
 import {
   analyzeReachability,
@@ -229,6 +229,7 @@ export const runAgent = async (
       return `\n\n当前计划步骤 ${planCursor + 1}/${plan.steps.length}: ${stepDef.description}`
     }
 
+    // Agent state machine — intentionally infinite loop with explicit break/return exits.
     while (true) {
       let completed = false
       let step = 0

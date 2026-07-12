@@ -6,10 +6,12 @@ import { registerCommandHandlers } from '../command-dispatcher.js'
 import { useUiStore } from '../store'
 import { useNewScriptFile } from '../hooks/use-new-script-file'
 import { useProject } from './use-project'
+import { useCloseProject } from '../project-coordinator.js'
 
 export const useCommandHandlers = (): void => {
   const newScriptFile = useNewScriptFile()
   const { open: openProject } = useProject()
+  const closeProject = useCloseProject()
 
   useEffect(() => {
     registerCommandHandlers({
@@ -19,7 +21,7 @@ export const useCommandHandlers = (): void => {
       newScriptFile: () => void newScriptFile(),
       newProject: () => useUiStore.getState().openNewProjectDialog(),
       openProject: () => void openProject(),
-      closeProject: () => void useUiStore.getState().closeProject(),
+      closeProject: () => void closeProject(),
       commit: () => useUiStore.getState().openCommitDialog(),
       export: () => useUiStore.getState().openExportDialog(),
       toggleLeftPanel: () => useUiStore.getState().toggleLeftPanel(),
@@ -35,5 +37,5 @@ export const useCommandHandlers = (): void => {
       undo: () => useUiStore.getState().undo(),
       redo: () => useUiStore.getState().redo()
     })
-  }, [newScriptFile, openProject])
+  }, [newScriptFile, openProject, closeProject])
 }

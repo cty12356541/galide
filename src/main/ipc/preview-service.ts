@@ -32,6 +32,7 @@ export interface PreviewLoadResult {
 export interface PreviewSlotInfo {
   slot: number
   timestamp: string | null
+  sceneId: string | null
   occupied: boolean
 }
 
@@ -99,9 +100,9 @@ export const listPreviewSlots = async (
     try {
       const raw = await fs.readFile(slotPath(projectPath, slot))
       const parsed = JSON.parse(raw) as VmSaveFile
-      slots.push({ slot, timestamp: parsed.timestamp ?? null, occupied: true })
+      slots.push({ slot, timestamp: parsed.timestamp ?? null, sceneId: parsed.currentSceneId ?? null, occupied: true })
     } catch {
-      slots.push({ slot, timestamp: null, occupied: false })
+      slots.push({ slot, timestamp: null, sceneId: null, occupied: false })
     }
   }
   return slots

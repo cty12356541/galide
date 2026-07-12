@@ -3,7 +3,7 @@
  *
  * disk 域工具,在 main 进程直接执行,不依赖 renderer 对话框。
  */
-import { join } from 'node:path'
+import path from 'node:path'
 import { promises as fs } from 'node:fs'
 import * as z from 'zod/v4'
 import { defineTool, type RegisteredTool } from '../tool-registry.js'
@@ -32,7 +32,7 @@ const applyProjectSwitch = async (
 
 const defaultExportOutputPath = (projectPath: string, target: ExportTarget): string => {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  return join(projectPath, 'exports', `${target}-${stamp}`)
+  return path.join(projectPath, 'exports', `${target}-${stamp}`)
 }
 
 const exportProject = defineTool({
@@ -49,6 +49,11 @@ const exportProject = defineTool({
     const exportPrefs = getPreference('export')
     const target = args.target ?? exportPrefs.defaultTarget
     const outputPath = args.outputPath ?? defaultExportOutputPath(ctx.projectPath, target)
+    const resolvedOut = path.resolve(outputPath)
+    const resolvedProj = path.resolve(ctx.projectPath)
+    if (!resolvedOut.startsWith(resolvedProj + path.sep)) {
+      return { ok: false, content: `导出路径必须在项目目录内: ${outputPath}`, error: { code: 'OUTSIDE_PROJECT', message: '路径越界' } }
+    }
     try {
       const result = await runExportJob(
         { projectPath: ctx.projectPath, target, outputPath },
@@ -116,6 +121,11 @@ const createProjectTool = defineTool({
     directory: z.string().min(1)
   }),
   handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const resolvedDir = path.resolve(args.directory)
+    const resolvedProj = path.resolve(ctx.projectPath)
+    if (!resolvedDir.startsWith(resolvedProj + path.sep)) {
+      return { ok: false, content: `创建路径必须在项目目录内: ${args.directory}`, error: { code: 'OUTSIDE_PROJECT', message: '路径越界' } }
+    }
     const r = await createProject(
       args.name,
       {

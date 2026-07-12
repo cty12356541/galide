@@ -5,28 +5,19 @@
  *   - 左槽(visiblePerSide.left)| 编辑器大陆(mosaic)| 右槽(visiblePerSide.right)
  *   - 底部槽(visiblePerSide.bottom)横跨大陆下方
  *   - 槽内主岛若已浮出则该槽隐藏(避免双渲染)
- *   - 占位主岛(search/debug/settings)走 LeftToolWindow;真实主岛走 SideToolWindow
  *
  * 沿用 react-resizable-panels,泛化原 AI 的 right/bottom 分支为通用三槽。
  */
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useUiStore } from '../../lib/store'
-import { LeftToolWindow } from './LeftToolWindow'
 import { SideToolWindow } from './SideToolWindow'
 import { EditorCore } from './EditorCore'
 import { DEFAULT_CENTER_SPLIT } from '../../lib/workspace-presets'
-import {
-  isToolWindowId,
-  isPlaceholderId,
-  type ToolWindowId,
-  type PlaceholderId
-} from './mosaic/panel-registry'
+import { isToolWindowId, type ToolWindowId } from './mosaic/panel-registry'
 
-const renderSlot = (content: ToolWindowId | PlaceholderId | null): JSX.Element | null => {
+const renderSlot = (content: ToolWindowId | null): JSX.Element | null => {
   if (content === null) return null
-  if (isPlaceholderId(content)) return <LeftToolWindow placeholderId={content} />
-  if (isToolWindowId(content)) return <SideToolWindow toolWindowId={content} />
-  return null
+  return <SideToolWindow toolWindowId={content} />
 }
 
 /** 中区行:左 | 大陆 | 右 — 模块级组件,避免父级 re-render 时 PanelGroup 被当作新类型反复卸载 */
@@ -38,8 +29,8 @@ const CenterRow = ({
 }: {
   showLeft: boolean
   showRight: boolean
-  leftContent: ToolWindowId | PlaceholderId | null
-  rightContent: ToolWindowId | PlaceholderId | null
+  leftContent: ToolWindowId | null
+  rightContent: ToolWindowId | null
 }): JSX.Element => (
   <PanelGroup direction="horizontal" autoSaveId="galide-center-row.v2" className="h-full gap-3">
     {showLeft ? (

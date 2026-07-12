@@ -119,6 +119,7 @@ const FLOATABLE_PANEL_IDS = new Set<string>([
   'outline',
   'character',
   'ai',
+  'search',
   'scripts',
   'assets',
   'profiles',
@@ -134,6 +135,7 @@ type FloatablePanelId =
   | 'outline'
   | 'character'
   | 'ai'
+  | 'search'
   | 'scripts'
   | 'assets'
   | 'profiles'
@@ -183,6 +185,17 @@ export const createFloatingPanelWindow = (
   })
 
   win.on('ready-to-show', () => win.show())
+
+  win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'"
+        ]
+      }
+    })
+  })
 
   // 关闭时通知 owner
   win.on('closed', () => {

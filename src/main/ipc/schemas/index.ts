@@ -356,12 +356,21 @@ export const DialogChooseDirectorySchema = z.object({
   defaultPath: z.string().optional()
 })
 
+export const StoreKeySchema = z.enum([
+  'aiConfig',
+  'recentProjects',
+  'shortcuts',
+  'workspacePreset',
+  'panelLayout',
+  'activeEditor'
+])
+
 export const StoreGetSchema = z.object({
-  key: z.string().min(1)
+  key: StoreKeySchema
 })
 
 export const StoreSetSchema = z.object({
-  key: z.string().min(1),
+  key: StoreKeySchema,
   value: z.unknown()
 })
 
@@ -372,7 +381,10 @@ export const ExportTargetSchema = z.enum(['web', 'renpy', 'ink', 'json', 'electr
 export const ExportRequestSchema = z.object({
   projectPath: z.string().min(1),
   target: ExportTargetSchema,
-  outputPath: z.string().min(1)
+  outputPath: z.string().min(1).refine(
+    (p) => !p.includes('..'),
+    { message: 'outputPath must not contain path traversal (..)' }
+  )
 })
 
 export const ExportCancelSchema = z.object({
@@ -386,7 +398,7 @@ export const CreateProjectAtPathSchema = z.object({
 
 // =================== 浮出 panel (PR3-A) ===================
 
-/** 浮出 id 全集 — 编辑器大陆(3)+ 主岛(5)+ 可脱离子岛(4: scripts/assets/profiles/voice) */
+/** 浮出 id 全集 — 编辑器大陆(3)+ 主岛(6)+ 可脱离子岛(4: scripts/assets/profiles/voice) */
 export const OpenPanelIdSchema = z.enum([
   'script-editor',
   'flow-view',
@@ -396,6 +408,7 @@ export const OpenPanelIdSchema = z.enum([
   'outline',
   'character',
   'ai',
+  'search',
   'scripts',
   'assets',
   'profiles',
@@ -425,11 +438,19 @@ export const AgentStartSchema = z.object({
 
 // =================== Preview save/load ===================
 
-export const VmStateSchema = z.object({
+export const VmHistoryEntrySchema = z.object({
   sceneId: z.string(),
   stepIndex: z.number().int().min(0),
   variables: z.record(z.string(), z.unknown()),
   branchQueue: z.array(z.unknown()).optional()
+})
+
+export const VmStateSchema = z.object({
+  sceneId: z.string(),
+  stepIndex: z.number().int().min(0),
+  variables: z.record(z.string(), z.unknown()),
+  branchQueue: z.array(z.unknown()).optional(),
+  history: z.array(VmHistoryEntrySchema).optional()
 })
 
 export const PreviewSaveSlotSchema = z.object({
