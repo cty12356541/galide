@@ -2,7 +2,7 @@
  * CenterSplit — 主区分栏(功能即岛 v3:三槽 + 编辑器大陆)
  *
  * 布局:
- *   - 左槽(visiblePerSide.left)| 编辑器大陆(mosaic)| 右槽(visiblePerSide.right)
+ *   - 左槽(visiblePerSide.left)| 编辑器大陆 | 右槽(visiblePerSide.right)
  *   - 底部槽(visiblePerSide.bottom)横跨大陆下方
  *   - 槽内主岛若已浮出则该槽隐藏(避免双渲染)
  *

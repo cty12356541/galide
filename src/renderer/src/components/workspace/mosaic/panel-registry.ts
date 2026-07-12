@@ -2,7 +2,7 @@
  * Panel Registry — 功能即岛 v3(主岛/子岛二级群岛 + 编辑器大陆)
  *
  * 严格分层(PyCharm 风格):
- *   - EditorDocId:中心编辑器大陆(script/flow/preview),进 mosaic 树,非「岛」
+ *   - EditorDocId:中心编辑器大陆(script/flow/preview),进 EditorCore,非「岛」
  *   - ToolWindowId:主岛(可 dock 左/右/底,可整座浮出)
  *   - SubIslandId:主岛内子岛(多子岛主岛有 tab 条,子岛可单独脱离)
  *
@@ -32,7 +32,7 @@ import { ScriptSearchPanel } from '../../../features/search/ScriptSearchPanel'
 
 // =================== 三类 id ===================
 
-/** 编辑器大陆:中心 mosaic 树叶子(非岛) */
+/** 编辑器大陆:EditorCore 三 tab(非岛) */
 export type EditorDocId = 'script-editor' | 'flow-view' | 'preview-canvas'
 
 /** 主岛:可 dock/浮出的工具窗 */
@@ -61,8 +61,8 @@ export const EDITOR_DOC_META: Record<EditorDocId, EditorDocMeta> = {
   'preview-canvas': { id: 'preview-canvas', title: '预览', icon: Box, component: PreviewCanvas }
 }
 
-/** mosaic 树合法叶子(= 编辑器大陆三 doc)— 旧名保留,内部即 EDITOR_DOCS */
-export const MOSAIC_PANEL_IDS: readonly EditorDocId[] = EDITOR_DOCS
+/** 编辑器大陆合法 id(= 编辑器大陆三 doc) */
+export const EDITOR_DOC_IDS: readonly EditorDocId[] = EDITOR_DOCS
 
 // =================== 主岛 + 子岛 ===================
 

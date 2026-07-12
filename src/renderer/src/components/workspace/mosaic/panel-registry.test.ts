@@ -6,12 +6,12 @@
  *   - getFloatingContent 三类 id 分发(主岛优先,避免 'git' 歧义)
  *   - FLOATABLE_IDS = 编辑器大陆 + 主岛 + 可脱离子岛(scripts/assets/profiles/voice)
  *   - parentOfSubIsland / isFloatableSubIsland
- *   - EDITOR_DOCS 与 MOSAIC_PANEL_IDS 一致(mosaic 树叶子合法性)
+ *   - EDITOR_DOCS 与 EDITOR_DOC_IDS 一致(编辑器大陆合法 id)
  */
 import { describe, it, expect } from 'vitest'
 import {
   EDITOR_DOCS,
-  MOSAIC_PANEL_IDS,
+  EDITOR_DOC_IDS,
   TOOL_WINDOWS,
   TOOL_WINDOW_META,
   TOOL_WINDOW_IDS,
@@ -99,9 +99,9 @@ describe('panel-registry — 浮出 id 分发', () => {
     expect(isEditorDoc('project')).toBe(false)
   })
 
-  it('EDITOR_DOCS === MOSAIC_PANEL_IDS(mosaic 树叶子合法集)', () => {
-    expect(MOSAIC_PANEL_IDS).toEqual(EDITOR_DOCS)
-    expect(MOSAIC_PANEL_IDS).toEqual(['script-editor', 'flow-view', 'preview-canvas'])
+  it('EDITOR_DOCS === EDITOR_DOC_IDS(编辑器大陆合法集)', () => {
+    expect(EDITOR_DOC_IDS).toEqual(EDITOR_DOCS)
+    expect(EDITOR_DOC_IDS).toEqual(['script-editor', 'flow-view', 'preview-canvas'])
   })
 
   it('SUB_ISLANDS 含全部 8 子岛', () => {

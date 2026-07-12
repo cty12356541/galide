@@ -45,7 +45,7 @@ export interface AgentPlan {
 }
 
 // ----------------------------------------------------------------------------
-// DAG stage helpers (moved from topology-dag.ts, kept for tests & docs)
+// DAG stage helpers (kept for tests & docs)
 // ----------------------------------------------------------------------------
 
 /** 编排阶段节点 */

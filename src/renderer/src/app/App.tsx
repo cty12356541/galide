@@ -7,7 +7,7 @@
  *   - 6 区块 StatusBar
  *
  * 功能即岛 v3(2026-07-12):
- *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 mosaic / 主岛回 dock 侧槽 / 子岛回 tab)
+ *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 EditorCore / 主岛回 dock 侧槽 / 子岛回 tab)
  *   - 状态语义扁平化为单一 `panelStates`;`visiblePerSide`/`dockSide`/`activeSubIsland` 为派生字段(见 workspace-store.ts)
  */
 import { useEffect } from 'react'

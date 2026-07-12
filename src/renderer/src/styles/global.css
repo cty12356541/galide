@@ -182,7 +182,7 @@
  * ============================================
  * 工具岛(侧边岛 / AI 岛 / 占位岛)非焦点时轻微退让
  * (opacity + saturate),获得焦点时全力 + 更强阴影浮起。
- * mosaic 中区三岛仅做焦点阴影增强(不降透明度,避免影响 PixiJS 预览画布合成)。
+ * 中区三岛仅做焦点阴影增强(不降透明度,避免影响 PixiJS 预览画布合成)。
  */
 .island {
   transition: opacity 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
@@ -196,14 +196,6 @@
   opacity: 1;
   filter: none;
   box-shadow: var(--shadow-popover);
-}
-
-/* mosaic 中区三岛:仅焦点阴影增强(canvas 安全) */
-.mosaic-window {
-  transition: box-shadow 0.18s ease;
-}
-.mosaic-window:focus-within {
-  box-shadow: var(--shadow-popover) !important;
 }
 
 /* ============================================
@@ -221,8 +213,7 @@
     --border: #4a4750;
     --border-strong: #6b6770;
   }
-  .island,
-  .mosaic-window {
+  .island {
     opacity: 1 !important;
     filter: none !important;
     box-shadow: none !important;
@@ -231,8 +222,7 @@
 }
 
 @media (forced-colors: active) {
-  .island,
-  .mosaic-window {
+  .island {
     opacity: 1 !important;
     filter: none !important;
     box-shadow: none !important;
