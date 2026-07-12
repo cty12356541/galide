@@ -1,7 +1,6 @@
 /**
  * usePanelFloat hook 单测
  *
- * mosaic 引擎已移除:浮出 = addFloatingPanel + openPanel,不再操纵树。
  * 覆盖:
  *   - 浮出任意 panel → 加入 floatingPanels
  *   - 浮出 IPC 失败 → 回滚 floatingPanels

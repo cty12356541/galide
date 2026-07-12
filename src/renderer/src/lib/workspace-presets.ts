@@ -4,7 +4,7 @@
  * 三个预设(写作 / 流程 / 评审)各含 panelStates、EditorCore 分栏比例、预览开关。
  * applyWorkspacePreset 在 store 内做 per-preset 快照往返;本模块只提供默认值与类型。
  */
-import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/mosaic/panel-registry'
+import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/panels/panel-registry'
 
 export type WorkspacePresetId = 'writing' | 'flow' | 'review'
 

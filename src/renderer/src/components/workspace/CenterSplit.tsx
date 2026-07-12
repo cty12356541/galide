@@ -13,7 +13,7 @@ import { useUiStore } from '../../lib/store'
 import { SideToolWindow } from './SideToolWindow'
 import { EditorCore } from './EditorCore'
 import { DEFAULT_CENTER_SPLIT } from '../../lib/workspace-presets'
-import { isToolWindowId, type ToolWindowId } from './mosaic/panel-registry'
+import { isToolWindowId, type ToolWindowId } from './panels/panel-registry'
 
 const renderSlot = (content: ToolWindowId | null): JSX.Element | null => {
   if (content === null) return null

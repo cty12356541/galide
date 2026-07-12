@@ -1,4 +1,4 @@
-import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/mosaic/panel-registry'
+import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/panels/panel-registry'
 import type { WorkspacePresetId, EditorCoreLayout, LayoutsByPreset, PanelState } from './workspace-presets'
 
 type Visible = { left: ToolWindowId | null; right: ToolWindowId | null; bottom: ToolWindowId | null }

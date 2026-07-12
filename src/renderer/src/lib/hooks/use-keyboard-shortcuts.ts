@@ -24,7 +24,7 @@ import {
   COMMANDS,
   type CommandId
 } from '../command-registry'
-import type { ToolWindowId } from '../../components/workspace/mosaic/panel-registry'
+import type { ToolWindowId } from '../../components/workspace/panels/panel-registry'
 
 const TOOL_WINDOW_COMMANDS: Partial<Record<CommandId, ToolWindowId>> = {
   showGit: 'git',

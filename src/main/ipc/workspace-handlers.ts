@@ -6,8 +6,7 @@
  *  - workspace:focusMain     → 浮出窗口请求聚焦主窗口
  *  - workspace:panelClosed   → 浮出关闭通知(主→渲染)
  *
- * 历史:mosaic 树持久化(read/write)及 WorkspaceLayout 模型已移除
- * (mosaic 引擎不再渲染,布局由 useUiStore 标量 + EditorCore 自管)。
+ * workspaceStore.panelStates 为当前布局 source of truth,EditorCore 自管内部分栏。
  */
 
 import { ipcMain } from 'electron'

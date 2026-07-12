@@ -39,7 +39,7 @@ import {
   isToolWindowId,
   isSubIslandId,
   parentOfSubIsland
-} from '../components/workspace/mosaic/panel-registry'
+} from '../components/workspace/panels/panel-registry'
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)

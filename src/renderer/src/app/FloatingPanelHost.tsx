@@ -13,7 +13,7 @@ import { X, ArrowLeft } from 'lucide-react'
 import {
   getFloatingContent,
   FLOATABLE_IDS
-} from '../components/workspace/mosaic/panel-registry'
+} from '../components/workspace/panels/panel-registry'
 import { SideToolWindow } from '../components/workspace/SideToolWindow'
 
 type FloatingMode = { enabled: true; panelId: string } | { enabled: false }

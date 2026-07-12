@@ -1,7 +1,7 @@
 /** workspace-store — v3 扁平模型. panelStates 为 source of truth; 其余为派生字段. */
 import { createStore } from 'zustand'
 import { useStore } from 'zustand'
-import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/mosaic/panel-registry'
+import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/panels/panel-registry'
 import { WORKSPACE_PRESET_DEFAULTS, DEFAULT_EDITOR_CORE_LAYOUT, captureWorkspaceSnapshot, type PanelState } from './workspace-presets'
 import type { WorkspaceState } from './workspace-store.types'
 

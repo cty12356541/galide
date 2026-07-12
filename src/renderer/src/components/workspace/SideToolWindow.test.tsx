@@ -13,7 +13,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SideToolWindow } from './SideToolWindow.js'
 import { useUiStore } from '../../lib/store.js'
 import { WORKSPACE_PRESET_DEFAULTS } from '../../lib/workspace-presets.js'
-import { TOOL_WINDOWS, TOOL_WINDOW_META, isMultiSubIsland } from './mosaic/panel-registry.js'
+import { TOOL_WINDOWS, TOOL_WINDOW_META, isMultiSubIsland } from './panels/panel-registry.js'
 
 vi.mock('@renderer/features/script-editor/ScriptEditor', () => ({ ScriptEditor: () => <div data-testid="editor-stub" /> }))
 vi.mock('@renderer/features/flow-view/FlowView', () => ({

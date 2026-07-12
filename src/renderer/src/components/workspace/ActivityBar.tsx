@@ -7,7 +7,7 @@ import { Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { cn } from '../../lib/utils'
-import { TOOL_WINDOWS, type ToolWindowId } from './mosaic/panel-registry'
+import { TOOL_WINDOWS, type ToolWindowId } from './panels/panel-registry'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 
 type ActivityItem =

@@ -10,7 +10,7 @@ import { MoveRight, MoveDown, MoveLeft, AppWindow } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { cn } from '../../lib/utils'
-import type { ToolWindowId, DockSide } from './mosaic/panel-registry'
+import type { ToolWindowId, DockSide } from './panels/panel-registry'
 
 export const DockedLocationMenu = ({
   toolWindowId

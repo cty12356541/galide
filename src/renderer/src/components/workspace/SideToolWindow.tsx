@@ -17,7 +17,7 @@ import {
   TOOL_WINDOW_META,
   isMultiSubIsland,
   type ToolWindowId,
-} from './mosaic/panel-registry'
+} from './panels/panel-registry'
 import { DockedLocationMenu } from './DockedLocationMenu'
 import { cn } from '../../lib/utils'
 

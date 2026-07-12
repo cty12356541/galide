@@ -15,7 +15,7 @@ import {
   type ToolWindowId,
   type SubIslandId,
   type DockSide
-} from '../../components/workspace/mosaic/panel-registry'
+} from '../../components/workspace/panels/panel-registry'
 import {
   DEFAULT_EDITOR_CORE_LAYOUT,
   WORKSPACE_PRESET_DEFAULTS,
