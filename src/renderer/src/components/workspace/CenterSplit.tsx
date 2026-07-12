@@ -1,5 +1,5 @@
 /**
- * CenterSplit — 主区分栏(功能即岛 v2:三槽 + 编辑器大陆)
+ * CenterSplit — 主区分栏(功能即岛 v3:三槽 + 编辑器大陆)
  *
  * 布局:
  *   - 左槽(visiblePerSide.left)| 编辑器大陆(mosaic)| 右槽(visiblePerSide.right)

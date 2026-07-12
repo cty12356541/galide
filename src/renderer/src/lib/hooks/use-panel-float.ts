@@ -1,5 +1,5 @@
 /**
- * usePanelFloat — 浮出 panel 通用 hook(功能即岛 v2)
+ * usePanelFloat — 浮出 panel 通用 hook(功能即岛 v3)
  *
  * 统一行为:addFloatingPanel + openPanel(创建独立 BrowserWindow)。
  *   - 主岛:主窗该侧槽由 CenterSplit 据浮出态隐藏

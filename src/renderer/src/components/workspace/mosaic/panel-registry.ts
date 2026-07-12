@@ -1,5 +1,5 @@
 /**
- * Panel Registry — 功能即岛 v2(主岛/子岛二级群岛 + 编辑器大陆)
+ * Panel Registry — 功能即岛 v3(主岛/子岛二级群岛 + 编辑器大陆)
  *
  * 严格分层(PyCharm 风格):
  *   - EditorDocId:中心编辑器大陆(script/flow/preview),进 mosaic 树,非「岛」

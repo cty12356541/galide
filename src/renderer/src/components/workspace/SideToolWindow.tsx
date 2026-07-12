@@ -1,5 +1,5 @@
 /**
- * SideToolWindow — 主岛壳(功能即岛 v2)
+ * SideToolWindow — 主岛壳(功能即岛 v3)
  *
  * PyCharm 风格主岛:统一 header(图标+标题+ dock 菜单 + 浮出 + 关闭)+ 内容区。
  * 多子岛主岛(项目/角色)渲染 tab 条,每个子岛可单独脱离为独立窗;

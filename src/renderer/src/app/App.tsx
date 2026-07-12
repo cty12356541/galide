@@ -1,14 +1,14 @@
 /**
- * App.tsx — Galide 顶层布局(功能即岛 v2:主岛/子岛二级群岛)
+ * App.tsx — Galide 顶层布局(功能即岛 v3:主岛/子岛二级群岛)
  *
  * 设计:
  *   - 3 层顶栏: Menu Bar + Toolbar + Project Tabs
  *   - 主区: ActivityBar | CenterSplit(左槽/编辑器大陆/右槽/底部槽)
  *   - 6 区块 StatusBar
  *
- * 功能即岛 v2(2026-06-19):
- *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 mosaic / 主岛回 dockSide 槽 / 子岛回 tab)
- *   - 状态语义改 dockSide + visiblePerSide + activeSubIsland(见 store)
+ * 功能即岛 v3(2026-07-12):
+ *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 mosaic / 主岛回 dock 侧槽 / 子岛回 tab)
+ *   - 状态语义扁平化为单一 `panelStates`;`visiblePerSide`/`dockSide`/`activeSubIsland` 为派生字段(见 workspace-store.ts)
  */
 import { useEffect } from 'react'
 import { useUiStore } from '../lib/store'

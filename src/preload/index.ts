@@ -438,7 +438,7 @@ workspace: {
       ipcRenderer.on(IPC.workspace.panelClosed, listener)
       return () => ipcRenderer.removeListener(IPC.workspace.panelClosed, listener)
     },
-    /** 功能即岛 v2:从主窗口按 panelId 收回浮出窗口 */
+    /** 功能即岛 v3:从主窗口按 panelId 收回浮出窗口 */
     closePanel: (
       args: {
         panelId:

@@ -1,5 +1,5 @@
 /**
- * FloatingPanelHost — 浮出 BrowserWindow 内容宿主(功能即岛 v2)
+ * FloatingPanelHost — 浮出 BrowserWindow 内容宿主(功能即岛 v3)
  *
  * 触发:URL 含 `?floating=1&panelId=<id>`,按 id 类型分发:
  *   - EditorDoc:文档组件 + 简化 header(标题来自 EDITOR_DOC_META)

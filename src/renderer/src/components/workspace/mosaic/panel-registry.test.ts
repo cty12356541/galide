@@ -1,5 +1,5 @@
 /**
- * panel-registry 一致性测试(功能即岛 v2)
+ * panel-registry 一致性测试(功能即岛 v3)
  *
  * 覆盖:
  *   - 主岛→子岛映射正确(project/character 多子岛;git/outline/ai 单子岛)

@@ -1,12 +1,12 @@
 /**
- * useUiStore — 功能即岛 v2 dock 模型验证
+ * useUiStore — 功能即岛 v3 panelStates 模型验证
  */
 import { describe, expect, it, beforeEach } from 'vitest'
 import { useUiStore, useErrorStore } from './store'
 import { WORKSPACE_PRESET_DEFAULTS } from './workspace-presets'
 import type { ScriptNode } from '../../../shared/dsl/types'
 
-describe('useUiStore — v2 dock 模型', () => {
+describe('useUiStore — v3 panelStates 模型', () => {
   beforeEach(() => {
     useUiStore.setState({
       workspacePreset: 'writing',

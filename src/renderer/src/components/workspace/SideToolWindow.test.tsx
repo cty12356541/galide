@@ -1,5 +1,5 @@
 /**
- * SideToolWindow 主岛壳测试(功能即岛 v2)
+ * SideToolWindow 主岛壳测试(功能即岛 v3)
  *
  * 覆盖:
  *   - 多子岛主岛(project/character)渲染 tab 条;单子岛主岛(git/outline/ai/search)无 tab

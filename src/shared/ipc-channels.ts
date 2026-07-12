@@ -121,7 +121,7 @@ export const IPC = {
     panelClosed: 'workspace:panelClosed',
     /** PR3-B: 浮出窗口请求聚焦主窗口 */
     focusMain: 'workspace:focusMain',
-    /** 功能即岛 v2:从主窗口收回浮出窗口(按 panelId 关闭) */
+    /** 功能即岛 v3:从主窗口收回浮出窗口(按 panelId 关闭) */
     closePanel: 'workspace:closePanel',
   },
   preview: {

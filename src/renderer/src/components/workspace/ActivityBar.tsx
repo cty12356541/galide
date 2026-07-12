@@ -1,5 +1,5 @@
 /**
- * ActivityBar — PyCharm 风格左侧 Activity Bar(功能即岛 v2)
+ * ActivityBar — PyCharm 风格左侧 Activity Bar(功能即岛 v3)
  *
  * 列出非 hidden 的真实主岛;设置直接打开偏好(无死胡同)。
  */

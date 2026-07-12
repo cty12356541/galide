@@ -65,7 +65,7 @@ export const registerWorkspaceHandlers = (): void => {
    }
  )
 
-  // 功能即岛 v2:从主窗口按 panelId 收回浮出窗口(主岛/子岛召回)
+  // 功能即岛 v3:从主窗口按 panelId 收回浮出窗口(主岛/子岛召回)
   ipcMain.handle(
     IPC.workspace.closePanel,
     async (_e, args: unknown): Promise<{ ok: true } | { ok: false; error: string; code?: string }> => {
