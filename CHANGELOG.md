@@ -6,7 +6,7 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ### 新增 — Agent 智能度修复(规划→执行→审查→修复闭环)
 
-- **Agent 编排拓扑(DAG)** — 新增 `topology-dag.ts`:fan-in、fan-out、双轨 Critic、有预算 retry 边;演示例子 `EXAMPLE_ADD_DIALOGUE` / `EXAMPLE_CRITIC_FIX_RETRY` 用 DAG walk 描述(非单链)
+- **Agent 编排拓扑(DAG)** — 设计文档见 `docs/agent-architecture.md`;运行时入口为 `src/main/ai/agent/topology.ts`;fan-in、fan-out、双轨 Critic、有预算 retry 边
 - **Critic 修复环** — 确定性可达性审查发现问题后自动注入修复指令并重入 Executor(`maxCriticFix` 可配,默认 1);修复过程不回滚
 - **Headless 平台工具** — `export_project` / `git_commit` / `create_project` / `open_project`(disk 域,main 直接执行);`runExportJob` 与 IPC 共用;`project:createAtPath` headless 建项
 - **计划步进追踪** — Executor 每轮注入「当前计划步骤 N/M」;新增 `plan_progress` step

@@ -100,7 +100,7 @@ pnpm build:linux  # Linux
 
 ### AI Agent
 
-- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;编排为 DAG(fan-in/fan-out),见 `topology-dag.ts`
+- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;编排为 DAG(fan-in/fan-out),设计见 `docs/agent-architecture.md`
 - **Tool Registry** — list_scenes / read_script / add_dialogue / export_project / git_commit / analyze_reachability 等
 - **Agent 面板** — 步骤流(DAG stage 映射)、计划预览、destructive 确认、autonomy + topology 偏好
 
@@ -151,7 +151,7 @@ pnpm build:linux  # Linux
   `leftPanel` / `aiPanelOpen` / `aiDockedLocation`
 - IPC 边界全部走 zod schema 校验(`IpcSchemaError` 透传 `SCHEMA_FAILED` code)
 - main 端 handler 入口 `tryRegister` 隔离,任一失败不阻断 `createWindow`
-- 共享 hook `usePanelFloat` / `useMosaicPersistence` 统一行为
+- 共享 hook `usePanelFloat` / `useWorkspacePersistence` 统一行为
 
 ### 已知限制
 
