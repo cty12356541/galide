@@ -70,7 +70,7 @@ export const parseToDoc = (
   return { scriptSource: text, scriptAst: result.value, scriptDiagnostics: result.value.errors }
 }
 
-let scriptSaveFlushImpl: (() => Promise<void>) | null = null
+const scriptSaveFlushImpls = new Set<() => Promise<void>>()
 
 export type ScriptState = ScriptSliceState & ScriptSliceActions
 
@@ -236,11 +236,17 @@ export const scriptStore = createStore<ScriptState>((set, get) => ({
   },
 
   registerScriptSaveFlush: (fn) => {
-    scriptSaveFlushImpl = fn
+    if (fn) {
+      scriptSaveFlushImpls.add(fn)
+    } else {
+      scriptSaveFlushImpls.clear()
+    }
   },
 
   flushPendingScriptSave: async () => {
-    if (scriptSaveFlushImpl) await scriptSaveFlushImpl()
+    for (const fn of [...scriptSaveFlushImpls]) {
+      await fn()
+    }
   },
 
   resetScriptState: () =>

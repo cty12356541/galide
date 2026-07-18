@@ -383,6 +383,7 @@ export const parse = (source: string): Result<ScriptNode> => {
         if (existing && existing.type === 'scene') {
           if (scene.background !== undefined) existing.background = scene.background
           if (scene.bgm !== undefined) existing.bgm = scene.bgm
+          existing.children.push(...scene.children)
         }
         ctx.pending.currentScene = existing && existing.type === 'scene' ? existing : null
       }
@@ -395,7 +396,7 @@ export const parse = (source: string): Result<ScriptNode> => {
         message: `[若:] (L${frame.node.line}) 缺少 [若终]`,
         line: frame.node.line,
         column: frame.node.column,
-        severity: 'warning'
+        severity: 'error'
       })
       ctx.ifStack.pop()
       if (ctx.pending.currentScene) {

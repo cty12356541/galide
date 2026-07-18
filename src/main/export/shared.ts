@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import type { SceneNode, ScriptNode } from '../../shared/dsl/types.js'
 import { collectNodes } from '../../shared/dsl/visitor.js'
 import type { AstEntry } from './composer.js'
+import { ExportError } from './composer.js'
+import { parseManifest } from '../../shared/manifest-schema.js'
 
 export type ManifestCharacter = {
   id: string
@@ -73,10 +75,20 @@ export const loadManifestCharacters = async (
 ): Promise<ManifestCharacter[]> => {
   try {
     const raw = await fs.readFile(join(projectPath, '.galproj'), 'utf-8')
-    const parsed = JSON.parse(raw) as { characters?: ManifestCharacter[] }
-    return parsed.characters ?? []
-  } catch {
-    return []
+    const result = parseManifest(raw)
+    if (!result.ok) {
+      throw new ExportError('MANIFEST_INVALID', result.error.message)
+    }
+    return result.value.characters
+  } catch (err) {
+    if (err instanceof ExportError) throw err
+    if (err instanceof Error && 'code' in err && (err as { code: unknown }).code === 'ENOENT') {
+      return []
+    }
+    throw new ExportError(
+      'MANIFEST_READ_FAILED',
+      err instanceof Error ? err.message : String(err)
+    )
   }
 }
 

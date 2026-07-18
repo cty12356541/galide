@@ -15,6 +15,11 @@ import {
 } from '../../../../shared/voice/voice-sidecar.js'
 import { getPreference } from '../../../preferences/preferences-store.js'
 
+export const LineIdSchema = z
+  .string()
+  .min(1)
+  .regex(/^[a-zA-Z0-9_-]+$/, 'lineId 只能包含字母、数字、下划线、连字符')
+
 const readManifestCharacter = async (
   ctx: ToolContext,
   characterId: string
@@ -68,7 +73,7 @@ const generateVoice = defineTool({
   risk: 'destructive',
   domain: 'disk',
   schema: z.object({
-    lineId: z.string().min(1),
+    lineId: LineIdSchema,
     text: z.string().min(1),
     characterId: z.string().min(1)
   }),
@@ -132,7 +137,7 @@ const generateVoiceBatch = defineTool({
   schema: z.object({
     items: z.array(
       z.object({
-        lineId: z.string(),
+        lineId: LineIdSchema,
         text: z.string(),
         characterId: z.string()
       })

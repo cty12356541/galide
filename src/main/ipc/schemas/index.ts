@@ -250,9 +250,24 @@ export const CharacterDeleteSchema = z.object({
 
 // =================== Voice ===================
 
+/** P0: lineId 防路径遍历 — 统一校验规则 */
+export const LineIdSchema = z
+  .string()
+  .min(1, 'lineId must be non-empty')
+  .refine(
+    (id) =>
+      !id.includes('..') &&
+      !id.includes('\\') &&
+      !id.includes('/') &&
+      !id.includes(':') &&
+      !id.includes('%') &&
+      !id.includes('\0'),
+    { message: 'lineId contains path traversal' }
+  )
+
 export const VoiceGenerateSchema = z.object({
   projectPath: z.string().min(1),
-  lineId: z.string().min(1),
+  lineId: LineIdSchema,
   text: z.string().min(1),
   characterId: z.string().min(1)
 })
@@ -269,7 +284,7 @@ export const VoiceListSchema = z.object({
 
 export const VoiceDeleteSchema = z.object({
   projectPath: z.string().min(1),
-  lineId: z.string().min(1)
+  lineId: LineIdSchema
 })
 
 // =================== Git ===================

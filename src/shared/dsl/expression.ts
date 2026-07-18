@@ -20,7 +20,7 @@ export interface ExprUnary {
   arg: Expression
 }
 
-export type BinaryOp = 'and' | 'or' | 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge'
+export type BinaryOp = 'and' | 'or' | 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge' | 'add' | 'sub' | 'mul' | 'div' | 'mod'
 
 export interface ExprBinary {
   kind: 'binary'
@@ -48,7 +48,12 @@ const OP_WORDS: Record<string, BinaryOp> = {
   '<': 'lt',
   '<=': 'le',
   '>': 'gt',
-  '>=': 'ge'
+  '>=': 'ge',
+  '+': 'add',
+  '-': 'sub',
+  '*': 'mul',
+  '/': 'div',
+  '%': 'mod'
 }
 
 const SERIALIZE_OP: Record<BinaryOp, string> = {
@@ -59,7 +64,12 @@ const SERIALIZE_OP: Record<BinaryOp, string> = {
   lt: '<',
   le: '<=',
   gt: '>',
-  ge: '>='
+  ge: '>=',
+  add: '+',
+  sub: '-',
+  mul: '*',
+  div: '/',
+  mod: '%'
 }
 
 const isIdentStart = (c: string): boolean => /[a-zA-Z_]/.test(c)
@@ -139,7 +149,7 @@ const parseUnary = (s: string, i: number): ExprParseResult => {
 const tryParseBinOp = (s: string, i: number): { op: BinaryOp; len: number } | null => {
   i = skipWs(s, i)
   const slice = s.slice(i)
-  const keys = ['>=', '<=', '==', '!=', '>', '<', 'and', 'or']
+  const keys = ['>=', '<=', '==', '!=', '>', '<', 'and', 'or', '+', '-', '*', '/', '%']
   for (const k of keys.sort((a, b) => b.length - a.length)) {
     if (slice.startsWith(k)) {
       const next = slice[k.length] ?? ''
@@ -153,7 +163,7 @@ const tryParseBinOp = (s: string, i: number): { op: BinaryOp; len: number } | nu
   return null
 }
 
-const parseComparison = (s: string, i: number): ExprParseResult => {
+const parseMul = (s: string, i: number): ExprParseResult => {
   const left = parseUnary(s, i)
   if (!left.ok) return left
   let rest = left.rest
@@ -162,8 +172,44 @@ const parseComparison = (s: string, i: number): ExprParseResult => {
     const pos = s.length - rest.length
     const opStart = skipWs(s, pos)
     const opInfo = tryParseBinOp(s, pos)
-    if (!opInfo || (opInfo.op !== 'eq' && opInfo.op !== 'ne' && opInfo.op !== 'lt' && opInfo.op !== 'le' && opInfo.op !== 'gt' && opInfo.op !== 'ge')) break
+    if (!opInfo || (opInfo.op !== 'mul' && opInfo.op !== 'div' && opInfo.op !== 'mod')) break
     const right = parseUnary(s, opStart + opInfo.len)
+    if (!right.ok) return right
+    expr = { kind: 'binary', op: opInfo.op, left: expr, right: right.expr }
+    rest = right.rest
+  }
+  return { ok: true, expr, rest }
+}
+
+const parseAdd = (s: string, i: number): ExprParseResult => {
+  const left = parseMul(s, i)
+  if (!left.ok) return left
+  let rest = left.rest
+  let expr = left.expr
+  for (;;) {
+    const pos = s.length - rest.length
+    const opStart = skipWs(s, pos)
+    const opInfo = tryParseBinOp(s, pos)
+    if (!opInfo || (opInfo.op !== 'add' && opInfo.op !== 'sub')) break
+    const right = parseMul(s, opStart + opInfo.len)
+    if (!right.ok) return right
+    expr = { kind: 'binary', op: opInfo.op, left: expr, right: right.expr }
+    rest = right.rest
+  }
+  return { ok: true, expr, rest }
+}
+
+const parseComparison = (s: string, i: number): ExprParseResult => {
+  const left = parseAdd(s, i)
+  if (!left.ok) return left
+  let rest = left.rest
+  let expr = left.expr
+  for (;;) {
+    const pos = s.length - rest.length
+    const opStart = skipWs(s, pos)
+    const opInfo = tryParseBinOp(s, pos)
+    if (!opInfo || (opInfo.op !== 'eq' && opInfo.op !== 'ne' && opInfo.op !== 'lt' && opInfo.op !== 'le' && opInfo.op !== 'gt' && opInfo.op !== 'ge')) break
+    const right = parseAdd(s, opStart + opInfo.len)
     if (!right.ok) return right
     expr = { kind: 'binary', op: opInfo.op, left: expr, right: right.expr }
     rest = right.rest
@@ -261,6 +307,18 @@ export const evaluateValue = (
       if (expr.op === 'or') return evaluateCondition(expr.left, vars) || evaluateCondition(expr.right, vars)
       const l = evaluateValue(expr.left, vars)
       const r = evaluateValue(expr.right, vars)
+      if (expr.op === 'add' || expr.op === 'sub' || expr.op === 'mul' || expr.op === 'div' || expr.op === 'mod') {
+        const ln = toNumber(l)
+        const rn = toNumber(r)
+        if (ln === null || rn === null) return null
+        switch (expr.op) {
+          case 'add': return ln + rn
+          case 'sub': return ln - rn
+          case 'mul': return ln * rn
+          case 'div': return rn === 0 ? null : ln / rn
+          case 'mod': return rn === 0 ? null : ln % rn
+        }
+      }
       return compare(expr.op, l, r)
     }
     default:
@@ -278,24 +336,50 @@ export const evaluateCondition = (expr: Expression, vars: Record<string, unknown
 }
 
 export const serializeExpression = (expr: Expression): string => {
+  const opPrec = (op: BinaryOp): number => {
+    switch (op) {
+      case 'or': return 1
+      case 'and': return 2
+      case 'eq':
+      case 'ne':
+      case 'lt':
+      case 'le':
+      case 'gt':
+      case 'ge': return 3
+      case 'add':
+      case 'sub': return 4
+      case 'mul':
+      case 'div':
+      case 'mod': return 5
+    }
+  }
   switch (expr.kind) {
     case 'literal':
       if (typeof expr.value === 'string') return `"${expr.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
       return String(expr.value)
     case 'var':
       return expr.name
-    case 'unary':
-      return `not ${serializeExpression(expr.arg)}`
+    case 'unary': {
+      const arg = serializeExpression(expr.arg)
+      const needsParen = expr.arg.kind === 'binary'
+      return `not ${needsParen ? `(${arg})` : arg}`
+    }
     case 'binary': {
       const op = SERIALIZE_OP[expr.op]
-      const needsParen =
+      const lp = opPrec(expr.op)
+      const leftNeedsParen =
         expr.op === 'and' || expr.op === 'or'
           ? expr.left.kind === 'binary' && (expr.left.op === 'or' || expr.left.op === 'and')
-          : false
-      const l = needsParen ? `(${serializeExpression(expr.left)})` : serializeExpression(expr.left)
-      return `${l} ${op} ${serializeExpression(expr.right)}`
+          : expr.left.kind === 'binary' && opPrec(expr.left.op) < lp
+      const l = leftNeedsParen ? `(${serializeExpression(expr.left)})` : serializeExpression(expr.left)
+      const rightNeedsParen =
+        expr.op === 'and' || expr.op === 'or'
+          ? expr.right.kind === 'binary' && (expr.right.op === 'or' || expr.right.op === 'and')
+          : expr.right.kind === 'binary' && opPrec(expr.right.op) <= lp
+      const r = rightNeedsParen ? `(${serializeExpression(expr.right)})` : serializeExpression(expr.right)
+      return `${l} ${op} ${r}`
     }
     default:
-      return ''
+      throw new Error('Unsupported expression: ' + (expr as { kind: string }).kind)
   }
 }

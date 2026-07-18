@@ -249,4 +249,26 @@ describe('gal parser — 场景外节点不再丢弃(方向 B)', () => {
       expect(rootMarkers[0].id).toBe('开场')
     }
   })
+
+  it('unclosed if block returns error severity', () => {
+    const src = `## 场景
+[若: affinity >= 10]
+小雪: "hi"
+`
+    const result = parse(src)
+    expect(result.ok).toBe(false)
+    if (result.ok === false) {
+      expect(result.error.some((e) => e.message.includes('缺少 [若终]') && e.severity === 'error')).toBe(true)
+    }
+  })
+
+  it('merges duplicate scene children instead of dropping them', () => {
+    const src = `## s1\n小雪: "hi"\n## s1\n主角: "bye"\n`
+    const result = parse(src)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const scene = result.value.children.find((c): c is SceneNode => c.type === 'scene')
+    const dialogues = scene?.children.filter((c) => c.type === 'dialogue') ?? []
+    expect(dialogues.length).toBe(2)
+  })
 })

@@ -56,10 +56,13 @@ describe('initKeyStore — safeStorage 可用性', () => {
     expect(() => initKeyStore()).toThrow(/safeStorage 不可用/)
   })
 
-  it('initializes when safeStorage available', async () => {
+  it('falls back to plaintext when allowed and safeStorage unavailable', async () => {
     freshStore()
-    const { initKeyStore } = await import('./key-store.js')
-    expect(() => initKeyStore()).not.toThrow()
+    mockSafeStorage.isEncryptionAvailable.mockReturnValueOnce(false)
+    const { initKeyStore, apiKeyStore } = await import('./key-store.js')
+    expect(() => initKeyStore({ allowFallback: true })).not.toThrow()
+    apiKeyStore.set('openai', 'sk-fallback-123')
+    expect(apiKeyStore.get('openai')).toBe('sk-fallback-123')
   })
 })
 

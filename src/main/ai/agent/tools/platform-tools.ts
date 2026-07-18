@@ -162,7 +162,12 @@ const openProject = defineTool({
   domain: 'disk',
   schema: z.object({ projectPath: z.string().min(1) }),
   handler: async (args, ctx): Promise<ToolHandlerResult> => {
-    const r = await openProjectAtPath(args.projectPath)
+    const resolvedPath = path.resolve(args.projectPath)
+    const resolvedProj = path.resolve(ctx.projectPath)
+    if (!resolvedPath.startsWith(resolvedProj + path.sep)) {
+      return { ok: false, content: `打开路径必须在项目目录内: ${args.projectPath}`, error: { code: 'OUTSIDE_WORKSPACE', message: '路径越界' } }
+    }
+    const r = await openProjectAtPath(resolvedPath)
     if (!r.ok) {
       return {
         ok: false,
@@ -174,7 +179,7 @@ const openProject = defineTool({
       projectPath: r.projectPath!,
       manifest: r.manifest!
     })
-    return { ok: true, content: `已打开项目 ${args.projectPath}` }
+    return { ok: true, content: `已打开项目 ${resolvedPath}` }
   }
 })
 

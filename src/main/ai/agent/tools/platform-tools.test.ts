@@ -25,7 +25,7 @@ vi.mock('../../../ipc/project-handlers.js', () => ({
   projectGitAdapter: {},
   openProjectAtPath: vi.fn(async () => ({
     ok: true,
-    projectPath: '/tmp/existing',
+    projectPath: '/proj/existing',
     manifest: { name: 'Existing' }
   }))
 }))
@@ -90,9 +90,9 @@ describe('platform-tools', () => {
   it('open_project 验证并通知 renderer(legacy notifyProjectOpened)', async () => {
     const notify = vi.fn(async () => undefined)
     const t = getTool('open_project')
-    const r = await t.run({ projectPath: '/tmp/existing' }, { ...ctx, notifyProjectOpened: notify })
+    const r = await t.run({ projectPath: '/proj/existing' }, { ...ctx, notifyProjectOpened: notify })
     expect(r.ok).toBe(true)
-    expect(openProjectAtPath).toHaveBeenCalledWith('/tmp/existing')
+    expect(openProjectAtPath).toHaveBeenCalledWith('/proj/existing')
     expect(notify).toHaveBeenCalled()
   })
 
@@ -102,9 +102,18 @@ describe('platform-tools', () => {
     const runtimeCtx = rt.createToolContext({ fs: ctx.fs })
     const t = getTool('open_project')
     expect(runtimeCtx.projectPath).toBe('/proj')
-    const r = await t.run({ projectPath: '/tmp/existing' }, runtimeCtx)
+    const r = await t.run({ projectPath: '/proj/existing' }, runtimeCtx)
     expect(r.ok).toBe(true)
-    expect(runtimeCtx.projectPath).toBe('/tmp/existing')
+    expect(runtimeCtx.projectPath).toBe('/proj/existing')
+  })
+
+  it('open_project 拒绝项目路径外的路径', async () => {
+    const t = getTool('open_project')
+    const r = await t.run({ projectPath: '/etc/passwd' }, ctx)
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.content).toContain('项目目录内')
+    expect(r.error?.code).toBe('OUTSIDE_WORKSPACE')
   })
 
   it('create_project 成功后 switchProject 切换到新项目', async () => {

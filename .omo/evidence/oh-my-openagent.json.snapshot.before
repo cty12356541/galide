@@ -1,0 +1,57 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "build": {
+      "model": "kimi/kimi-for-coding",
+      "reasoningEffort": "high"
+    },
+    "plan": {
+      "model": "kimi/kimi-for-coding",
+      "reasoningEffort": "xhigh"
+    },
+    "oracle": {
+      "model": "kimi/kimi-for-coding",
+      "reasoningEffort": "xhigh"
+    },
+    "metis": {
+      "model": "kimi/kimi-for-coding",
+      "reasoningEffort": "high"
+    },
+    "momus": {
+      "model": "kimi/kimi-for-coding",
+      "reasoningEffort": "high"
+    },
+    "explore": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "librarian": {
+      "model": "kimi/kimi-for-coding"
+    }
+  },
+  "categories": {
+    "ultrabrain": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "deep": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "visual-engineering": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "artistry": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "writing": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "unspecified-high": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "quick": {
+      "model": "kimi/kimi-for-coding"
+    },
+    "unspecified-low": {
+      "model": "kimi/kimi-for-coding"
+    }
+  }
+}

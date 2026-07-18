@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initKeyStore } from './ai/key-store.js'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { initKeyStore, type SafeStorageLike } from './ai/key-store.js'
 import { warmUpStore } from './store/store.js'
 import { registerProjectHandlers } from './ipc/project-handlers.js'
 import { registerScriptHandlers } from './ipc/script-handlers.js'
@@ -57,18 +57,22 @@ const createWindow = (): void => {
     return { action: 'deny' }
   })
 
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'"
-        ]
-      }
+  // CSP 仅在 production 注入;dev 阶段由 Vite 自管,避免 HMR/eval 被 block 导致白屏
+  if (process.env.NODE_ENV === 'production') {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'"
+          ]
+        }
+      })
     })
-  })
+  }
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+  // dev 阶段用 Vite dev server URL;production 用本地打包文件
+  if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
@@ -78,9 +82,19 @@ const createWindow = (): void => {
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.galide.app')
 
-  // P0-4: 优先初始化 KeyStore(派生 encryptionKey from OS keychain),
-  // 失败立即阻断进程启动,避免静默退化到无加密状态。
-  initKeyStore()
+  // P0-4: 优先初始化 KeyStore(派生 encryptionKey from OS keychain)。
+  // dev 阶段若 keychain 不可访问,允许降级为明文存储,避免进程在开发环境因 keychain 弹窗
+  // 取消而崩溃;production 仍要求 safeStorage 可用,防止静默退化到无加密状态。
+  if (process.env.NODE_ENV === 'production') {
+    initKeyStore()
+  } else {
+    const devPlainTextStorage: SafeStorageLike = {
+      isEncryptionAvailable: () => true,
+      encryptString: (plainText) => Buffer.from(plainText, 'utf-8'),
+      decryptString: (buffer) => buffer.toString('utf-8')
+    }
+    initKeyStore({ safeStorage: devPlainTextStorage })
+  }
 
   // P0-2: 启动期 warm up 通用 store,处理 hot-reload 偶发的 ELIFECYCLE 锁冲突
   await warmUpStore()

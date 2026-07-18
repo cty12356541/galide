@@ -147,8 +147,7 @@ export const WelcomeScreen = (): JSX.Element => {
           </div>
           <h1 className="text-5xl font-semibold tracking-tight mb-4 text-text">Galide</h1>
           <p className="text-lg text-text-muted leading-relaxed mb-8">
-            文字游戏,是语言意义选项的决策树。<br />
-            打开 AI 协作,书写你的故事。
+            打开galide和ai合作书写你的故事
           </p>
           <div className="flex flex-col gap-3 max-w-sm">
             <Button size="lg" onClick={() => setShowNew(true)} disabled={busy} className="justify-start">

@@ -1,6 +1,6 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
+import { join, isAbsolute } from 'node:path'
 import { IPC } from '../../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../../shared/types.js'
 import { getStore } from '../store/store.js'
@@ -55,7 +55,37 @@ const writeManifest = async (projectPath: string, manifest: ProjectManifest): Pr
   await fs.writeFile(join(projectPath, '.galproj'), JSON.stringify(manifest, null, 2))
 }
 
+// =================== tdd-07-security-openproject ===================
+
+const SECURITY_ERROR = {
+  EMPTY_PATH: 'project path must not be empty',
+  PATH_TRAVERSAL: 'project path contains path traversal (..)',
+  CONTROL_CHARACTERS: 'project path contains control characters',
+  NOT_ABSOLUTE: 'project path must be absolute'
+} as const
+
+const validateProjectPath = (projectPath: string): { ok: true } | { ok: false; error: string } => {
+  if (projectPath.length === 0) {
+    return { ok: false, error: SECURITY_ERROR.EMPTY_PATH }
+  }
+  if (projectPath.includes('..')) {
+    return { ok: false, error: SECURITY_ERROR.PATH_TRAVERSAL }
+  }
+  if (/[\x00-\x1f]/.test(projectPath)) {
+    return { ok: false, error: SECURITY_ERROR.CONTROL_CHARACTERS }
+  }
+  if (!isAbsolute(projectPath)) {
+    return { ok: false, error: SECURITY_ERROR.NOT_ABSOLUTE }
+  }
+  return { ok: true }
+}
+
 const openProjectAtPath = async (projectPath: string): Promise<ProjectOpenResult> => {
+  const validation = validateProjectPath(projectPath)
+  if (validation.ok !== true) {
+    return { ok: false, error: `[galide] ${validation.error}` }
+  }
+
   try {
     const manifest = await readManifest(projectPath)
     return { ok: true, projectPath, manifest }
