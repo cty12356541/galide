@@ -10,19 +10,6 @@ import {
 } from '../../components/ui/sheet'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-
-/**
- * P0-10 修复(2026-06-15): STUB_TARGETS 标识 — 老 button-clickability.test.ts
- * (P2 #7) 断言 startExport 按钮在 stub target 下应 disabled 并显示 tooltip。
- * in-flight 之前 T2 review P0-9 已记录 stub composer (electron-desktop)
- * 假实现 → 0 字节输出,UI 需明确提示用户。
- */
-const STUB_TARGETS: ReadonlySet<ExportPreferences['defaultTarget']> = new Set([
-  'electron-desktop'
-])
-
-/** 当前选中的 target 是否是 stub(给按钮 title 用) */
-const isStubTarget = (t: ExportPreferences['defaultTarget']): boolean => STUB_TARGETS.has(t)
 import { useExport } from '../../lib/ipc/use-export'
 import { usePreference } from '../../lib/ipc/use-preferences'
 import { useStore } from '../../lib/ipc/use-store'
@@ -208,7 +195,7 @@ export const ExportDialog = (): JSX.Element => {
               <option value="renpy">Ren'Py</option>
               <option value="ink">Ink</option>
               <option value="json">JSON</option>
-              <option value="electron-desktop">Electron Desktop</option>
+              <option value="electron-desktop">Electron Desktop(壳工程,打包分发待后续)</option>
             </select>
           </div>
 
@@ -272,8 +259,8 @@ export const ExportDialog = (): JSX.Element => {
               </Button>
               <Button
                 onClick={() => void handleStart()}
-                disabled={!outputPath.trim() || isStubTarget(target)}
-                title={isStubTarget(target) ? '该 target 当前是 stub 实现,会生成空文件' : '开始导出'}
+                disabled={!outputPath.trim()}
+                title="开始导出"
               >
                 <Download className="w-3.5 h-3.5 mr-1" />
                 开始导出

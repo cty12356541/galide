@@ -2,7 +2,7 @@
  * export/shared — Ren'Py / Ink composer 共用抽象
  */
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import type { SceneNode, ScriptNode } from '../../shared/dsl/types.js'
 import { collectNodes } from '../../shared/dsl/visitor.js'
 import type { AstEntry } from './composer.js'
@@ -94,6 +94,32 @@ export const loadManifestCharacters = async (
 
 export const toCharacterVar = (displayName: string): string =>
   `char_${sanitizeExportId(displayName, 'n')}`
+
+/**
+ * 读取 .galproj 的项目显示名(供桌面壳 package.json / README 使用)。
+ * - .galproj 不存在 → 回退项目目录 basename
+ * - .galproj 存在但无效 → 抛 ExportError(MANIFEST_INVALID),与 loadManifestCharacters 一致
+ */
+export const loadManifestProjectName = async (projectPath: string): Promise<string> => {
+  const fallback = basename(projectPath) || 'galide-game'
+  try {
+    const raw = await fs.readFile(join(projectPath, '.galproj'), 'utf-8')
+    const result = parseManifest(raw)
+    if (!result.ok) {
+      throw new ExportError('MANIFEST_INVALID', result.error.message)
+    }
+    return result.value.name
+  } catch (err) {
+    if (err instanceof ExportError) throw err
+    if (err instanceof Error && 'code' in err && (err as { code: unknown }).code === 'ENOENT') {
+      return fallback
+    }
+    throw new ExportError(
+      'MANIFEST_READ_FAILED',
+      err instanceof Error ? err.message : String(err)
+    )
+  }
+}
 
 export const countScenesInAsts = (asts: readonly AstEntry[]): number => {
   let count = 0

@@ -3,6 +3,7 @@ import { IPC } from '../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../shared/types'
 import type { ApiKeyProvider } from '../shared/api-key-provider.js'
 import type { Result, ScriptNode, ParseError } from '../shared/dsl/types'
+import type { ScriptReplaceMatch } from '../shared/dsl/replace-in-scripts.js'
 
 type GitStatus = {
   initialized: boolean
@@ -87,6 +88,34 @@ const api = {
       query: string
     ): Promise<{ ok: true; hits: { file: string; line: number; column: number; snippet: string }[] }> =>
       ipcRenderer.invoke(IPC.script.searchProject, projectPath, query),
+    replacePreview: (req: {
+      projectPath: string
+      query: string
+      mode: 'plain' | 'token'
+      regex?: boolean
+    }): Promise<
+      | { ok: true; matches: ScriptReplaceMatch[]; truncated: boolean }
+      | { ok: false; code: string; error: string }
+    > => ipcRenderer.invoke(IPC.script.replacePreview, req),
+    replaceApply: (req: {
+      projectPath: string
+      replacement: string
+      matches: Pick<ScriptReplaceMatch, 'id' | 'file' | 'start' | 'end' | 'matchedText'>[]
+    }): Promise<
+      | {
+          ok: true
+          applied: number
+          conflicts: string[]
+          filesChanged: string[]
+          snapshotRef: string
+        }
+      | { ok: false; code: string; error: string; snapshotRef?: string }
+    > => ipcRenderer.invoke(IPC.script.replaceApply, req),
+    replaceRollback: (req: {
+      projectPath: string
+      snapshotRef: string
+    }): Promise<{ ok: true } | { ok: false; code: string; error: string }> =>
+      ipcRenderer.invoke(IPC.script.replaceRollback, req),
     onChanged: (
       callback: (e: { projectPath: string; fileName: string; source: string }) => void
     ): (() => void) => {

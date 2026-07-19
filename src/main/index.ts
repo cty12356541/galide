@@ -5,6 +5,7 @@ import { initKeyStore, type SafeStorageLike } from './ai/key-store.js'
 import { warmUpStore } from './store/store.js'
 import { registerProjectHandlers } from './ipc/project-handlers.js'
 import { registerScriptHandlers } from './ipc/script-handlers.js'
+import { registerReplaceHandlers } from './ipc/replace-handlers.js'
 import { registerGitHandlers } from './ipc/git-handlers.js'
 import { registerExportHandlers } from './ipc/export-handlers.js'
 import { registerAiHandlers } from './ipc/ai-handlers.js'
@@ -116,6 +117,7 @@ app.whenReady().then(async () => {
   }
   tryRegister('project', registerProjectHandlers)
   tryRegister('script', registerScriptHandlers)
+  tryRegister('replace', registerReplaceHandlers)
   tryRegister('git', registerGitHandlers)
   tryRegister('export', registerExportHandlers)
   tryRegister('ai', registerAiHandlers)

@@ -1,0 +1,20 @@
+# 第一章
+
+## 教室·午后
+背景: assets/backgrounds/classroom.png
+BGM: assets/bgm/gentle_piano.mp3
+
+[角色:小雪 | 立绘:assets/sprites/yuki_smile.png | 位置:左]
+小雪: "SPIKE_OK: 今天的樱花,真漂亮呢。"
+
+[角色:主角 | 立绘:assets/sprites/hero_default.png | 位置:右]
+主角: "……是啊。"
+
+* "邀请她一起看樱花" -> 樱花树下
+* "假装没听到" -> 独自回家
+
+## 樱花树下
+小雪: "诶?!一起吗?"
+
+## 独自回家
+主角: "……回家吧。"

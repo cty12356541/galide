@@ -5,7 +5,7 @@ import globals from 'globals'
 export default [
   // Global ignores (replaces .eslintignore + .eslintrc ignorePatterns)
   {
-    ignores: ['out/**', 'dist/**', 'node_modules/**', 'build/**', '.worktrees/**', '*.cjs'],
+    ignores: ['out/**', 'dist/**', 'node_modules/**', 'build/**', '.worktrees/**', '**/*.cjs'],
   },
 
   // TypeScript ESLint recommended flat config (turns off no-undef etc. for TS files)

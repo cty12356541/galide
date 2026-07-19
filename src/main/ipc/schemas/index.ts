@@ -12,6 +12,7 @@
  * 复用原则: 跨 handler 共享的 schema 集中导出;handler 私有 schema 与 handler 同文件。
  */
 import * as z from 'zod/v4'
+import { MAX_REPLACE_MATCHES } from '../../../shared/dsl/replace-in-scripts.js'
 
 export const IpcSchemaErrorName = 'IpcSchemaError' as const
 
@@ -357,6 +358,40 @@ export const ScriptParseProjectSchema = z.object({
 export const ScriptSearchProjectSchema = z.object({
   projectPath: z.string().min(1),
   query: z.string()
+})
+
+// =================== Script Replace ===================
+
+export const ScriptReplaceModeSchema = z.enum(['plain', 'token'])
+
+export const ScriptReplacePreviewSchema = z.object({
+  projectPath: z.string().min(1),
+  query: z.string().min(1),
+  mode: ScriptReplaceModeSchema,
+  regex: z.boolean().optional()
+})
+
+/**
+ * apply 回传的确认匹配 — 必须是 preview 产物的精确子集:
+ * file 走 .gal 白名单(防路径穿越),区间 int>=0,matchedText 非空(stale 校验依据)。
+ */
+export const ScriptReplaceMatchSchema = z.object({
+  id: z.string().min(1),
+  file: ScriptFileNameSchema,
+  start: z.number().int().min(0),
+  end: z.number().int().min(0),
+  matchedText: z.string().min(1)
+})
+
+export const ScriptReplaceApplySchema = z.object({
+  projectPath: z.string().min(1),
+  replacement: z.string(),
+  matches: z.array(ScriptReplaceMatchSchema).min(1).max(MAX_REPLACE_MATCHES)
+})
+
+export const ScriptReplaceRollbackSchema = z.object({
+  projectPath: z.string().min(1),
+  snapshotRef: z.string().min(1)
 })
 
 export const AssetResolveSchema = z.object({
