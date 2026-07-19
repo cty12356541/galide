@@ -9,6 +9,7 @@
 import { GitBranch, AlertCircle, Bell, Eye, EyeOff, X } from 'lucide-react'
 import { useUiStore, useErrorStore } from '../lib/store'
 import { useGitStatus } from '../lib/ipc/use-git-status'
+import { useAgentActivity, type AgentActivity } from '../lib/ipc/use-agent-activity'
 import { cn } from '../lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
 
@@ -26,7 +27,7 @@ export const StatusBar = (): JSX.Element => {
   const infoCount = infoEntries.length
   const gitStatus = useGitStatus(projectPath)
   const branchLabel = gitStatus.data?.current ?? (projectPath ? '—' : '无项目')
-  const aiStatus: 'idle' | 'error' = errorCount > 0 ? 'error' : 'idle'
+  const aiActivity = useAgentActivity()
 
   return (
     <footer
@@ -110,13 +111,14 @@ export const StatusBar = (): JSX.Element => {
           <span
             className={cn(
               'w-2 h-2 rounded-full',
-              aiStatus === 'error' && 'bg-danger',
-              aiStatus === 'idle' && 'bg-success'
+              aiActivity === 'running' && 'bg-accent animate-pulse',
+              aiActivity === 'error' && 'bg-danger',
+              aiActivity === 'idle' && 'bg-success'
             )}
             data-testid="status-ai-dot"
           />
         }
-        label="AI 空闲"
+        label={AI_ACTIVITY_LABEL[aiActivity]}
         tooltip="AI 任务状态"
         testId="status-ai"
       />
@@ -138,6 +140,12 @@ export const StatusBar = (): JSX.Element => {
       </button>
     </footer>
   )
+}
+
+const AI_ACTIVITY_LABEL: Record<AgentActivity, string> = {
+  running: 'AI 运行中',
+  idle: 'AI 空闲',
+  error: 'AI 错误'
 }
 
 const Block = ({

@@ -23,3 +23,28 @@
 - Lane A (bg_0e4fb858):统一 confirm/prompt dialog + 迁移 6 处原生 prompt/confirm
 - Lane B (bg_c77dcf84):@fontsource 内置字体(unicode-range 分子集)+ accent/字体/reducedMotion 偏好兑现
 - T2-5 Skeleton 等 Lane A 完成后启动(AssetListPanel/VoicePanel 文件重叠)
+
+## Phase 2 ✅ (commit 25aeece, 105 文件/795 测试)
+- Lane A:promise-dialog 系统(zustand pending 槽+replace-resolves-previous 防悬挂;uiStore 订阅 dismissTopModal 实现 ESC 单源);6 处迁移完成,window.prompt/confirm 0 匹配;11 新测试
+- Lane A 发现:Phase 1 重接 CommandPalette 时丢了 close-project 确认,已在 dispatcher closeProject 恢复(原有文案)
+- Lane B:@fontsource 三字体(inter-variable 224K + jbmono-variable 92K + noto-sans-sc 400 unicode-range 2.5M);ACCENT_MAP 四色 light/dark 三件套;--font-sans/mono 经 tailwind var 间接;reduce-motion 类+MotionConfig OR 语义;font-budget 脚本入 build(5.51MB<6MB,其中 woff2 2.87MB,其余为 woff 回退)
+- Lane B 踩坑:车道间 typecheck 互相污染(A 的未提交文件让 B 的 typecheck 红)——并行车道验证应预期此现象,最终以合并后门禁为准
+- T2-5:Skeleton 11 处(PanelSkeleton/FormSkeleton 变体),Loader2 保留给动作内联态;加载中文本 14→3(2 为 aria-label,1 为表单内联)
+
+## Phase 3 进行中(三路并行)
+- T3-1 (bg_7f6bed2a):CM6 编辑器内正则替换
+- T3-2 (bg_2c40f711):跨文件 .gal 替换(token 边界+预览+git snapshot)
+- T3-3 (bg_1e7354a8):桌面导出 spike(自定义协议,GO/NO-GO)
+- 指示:worker 迭代期只跑相关测试文件,全量门禁留到最后,避免并发竞争
+
+## Phase 3 进展
+- T3-1 ✅:CM6 自带 replace UI(search panel 含替换行),补 --cm-* token 主题+4 测试。注意:CM6 API 是 regexp:true 不是 regex:true
+- T3-3 ✅ GO:galgame:// 自定义协议验证通过(404 catch 必须,否则 ERR_UNEXPECTED;localStorage 可用;fetch 200;BGM 未测——Web 导出本身无音频)。证据在 .omo/spike/
+- T3-4 已派出 (bg_2eee4e0e):MVP 边界=壳工程目录(main.cjs+package.json+嵌入 Web 导出+README),不做 electron-builder/签名/安装器;ExportDialog 解锁按钮;smoke 用 repo 的 electron 跑
+- T3-2 跨文件替换仍在进行 (bg_2c40f711)
+
+## T3-2 验收通过(未提交)
+- 前一 worker 超时于收尾,我直接验证:tsc 双 config 0 错;5 个相关测试文件 53 测试全绿
+- 机制确认:apply 先 gitService.snapshot(复用 agent 安全闸),失败带 snapshotRef 可 rollback;token 模式负向测试齐(散文"艾艾子今天去了艾河边"3 处全不命中,plain 对照命中)
+- T3-4 首派超时(疑死于 live Electron smoke),重派 bg_ca8dfbab:收窄为 composer+模板+静态测试,live smoke 改 env-gated(GALIDE_E2E_ELECTRON=1)由我最后跑
+- 教训:让 worker 在 macOS GUI 跑 Electron  smoke 风险高(可能挂起);env-gated + orchestrator 收尾更稳

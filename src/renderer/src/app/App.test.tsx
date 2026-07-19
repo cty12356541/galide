@@ -83,7 +83,8 @@ describe('StatusBar', () => {
 
   beforeEach(() => {
     (window as unknown as { galide: unknown }).galide = {
-      git: { status: () => Promise.resolve({ initialized: true, current: 'main', files: [] }) }
+      git: { status: () => Promise.resolve({ initialized: true, current: 'main', files: [] }) },
+      ai: { agent: { onStatus: () => () => undefined } }
     }
   })
 

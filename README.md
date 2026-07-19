@@ -5,7 +5,7 @@ AI-native galgame 制作 IDE。文字游戏 = 语言意义选项的决策树。
 ## 技术栈
 
 - Electron + Node.js (全栈 TypeScript)
-- React 18 + Vite + Tailwind CSS
+- React 19 + Vite + Tailwind CSS
 - CodeMirror 6 剧本编辑器
 - @xyflow/react 分支预览
 - PixiJS v8 游戏运行时
@@ -155,15 +155,19 @@ pnpm build:linux  # Linux
 
 ### 已知限制
 
-- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink ✅ / Electron-desktop ⏳(stub,UI 标注"即将支持")
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink ✅ / Electron-desktop ✅(壳工程 MVP,可运行;打包分发/签名/安装器待后续)
 - 多窗口 IPC sync:export progress 按发送者路由,其他 IPC 暂用 default focused window
 - e2e 测试需本地有 GUI 环境跑
 
 ## 测试与质量
 
+[![CI](https://github.com/cty12356541/galide/actions/workflows/ci.yml/badge.svg)](https://github.com/cty12356541/galide/actions/workflows/ci.yml)
+
+完整门禁由 CI 与 pre-commit 强制(0 error 为通过条件,非手动声明):
+
 ```bash
-pnpm typecheck    # 0 error
-pnpm lint         # 0 error
-pnpm test         # 80+ 文件 / 530+ 测试
-pnpm build        # 成功
+pnpm typecheck    # tsc,CI 强制 0 error
+pnpm lint         # eslint,CI 强制 0 error
+pnpm test         # vitest,CI 强制全绿
+pnpm build        # electron-vite build + 字体体积预算检查
 ```
