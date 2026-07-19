@@ -20,6 +20,8 @@ export type UiOnlyState = {
   exportDialogOpen: boolean
   commitDialogOpen: boolean
   newProjectDialogOpen: boolean
+  /** Promise 式确认/输入对话框(promise-dialog-store)打开标记:modal guard + ESC 单源共用 */
+  promiseDialogOpen: boolean
   shortcutRecording: boolean
   resolvedShortcuts: Partial<Record<string, string>>
   recentProjects: RecentProject[]
@@ -40,6 +42,8 @@ export type UiOnlyActions = {
   closeCommitDialog: () => void
   openNewProjectDialog: () => void
   closeNewProjectDialog: () => void
+  openPromiseDialog: () => void
+  closePromiseDialog: () => void
   dismissTopModal: () => void
   setShortcutRecording: (recording: boolean) => void
   setResolvedShortcuts: (shortcuts: Partial<Record<string, string>>) => void
@@ -58,6 +62,7 @@ const uiOnlyInitialState: UiOnlyState = {
   exportDialogOpen: false,
   commitDialogOpen: false,
   newProjectDialogOpen: false,
+  promiseDialogOpen: false,
   shortcutRecording: false,
   resolvedShortcuts: {}
 }
@@ -103,8 +108,13 @@ export const uiStore = createStore<UiStoreState>((set, _get) => ({
 
   closeNewProjectDialog: () => set({ newProjectDialogOpen: false }),
 
+  openPromiseDialog: () => set({ promiseDialogOpen: true }),
+
+  closePromiseDialog: () => set({ promiseDialogOpen: false }),
+
   dismissTopModal: () =>
     set((s) => {
+      if (s.promiseDialogOpen) return { promiseDialogOpen: false }
       if (s.commandPaletteOpen) return { commandPaletteOpen: false }
       if (s.exportDialogOpen) return { exportDialogOpen: false }
       if (s.commitDialogOpen) return { commitDialogOpen: false }

@@ -9,6 +9,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { Eye, EyeOff } from 'lucide-react'
 import { SceneRail } from './SceneRail'
 import { EditorSurfaceTabs } from './EditorSurfaceTabs'
+import { PanelSkeleton } from '../ui/skeleton'
 import { useUiStore } from '../../lib/store'
 import { patchEditorCoreLayout } from './editor-core-layout'
 import type { EditorCoreLayout, WorkspacePresetId } from '../../lib/workspace-presets'
@@ -46,7 +47,7 @@ const TopBand = ({
     </Panel>
     <PanelResizeHandle className={handleH} />
     <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={15} maxSize={85}>
-      <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+      <Suspense fallback={<PanelSkeleton />}>
         <FlowView />
       </Suspense>
     </Panel>
@@ -74,7 +75,7 @@ const RightStack = ({
     </Panel>
     <PanelResizeHandle className={handleV} />
     <Panel id="ec-flow-view" order={2} defaultSize={layout.flow} minSize={18} maxSize={82}>
-      <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+      <Suspense fallback={<PanelSkeleton />}>
         <FlowView />
       </Suspense>
     </Panel>
@@ -119,7 +120,7 @@ const RightColumn = ({
       </Panel>
       <PanelResizeHandle className={handleV} />
       <Panel id="ec-preview" order={2} defaultSize={layout.preview} minSize={18} maxSize={65}>
-        <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+        <Suspense fallback={<PanelSkeleton />}>
           <PreviewCanvas />
         </Suspense>
       </Panel>

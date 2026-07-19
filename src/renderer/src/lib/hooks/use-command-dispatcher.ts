@@ -21,6 +21,7 @@ import { useNewScriptFile } from './use-new-script-file'
 import { useProject } from '../ipc/use-project'
 import { useCloseProject } from '../project-coordinator.js'
 import { usePanelFloat } from './use-panel-float'
+import { confirmDialog } from '../promise-dialog-store'
 
 /** 切到源码编辑器并触发 CodeMirror 内置搜索面板(与 MenuBar「查找 ⌘F」同语义) */
 const focusEditorAndSearch = (): void => {
@@ -55,7 +56,15 @@ export const useCommandDispatcher = (): { dispatchCommand: DispatchCommand } => 
       newScriptFile: () => void newScriptFile(),
       newProject: () => useUiStore.getState().openNewProjectDialog(),
       openProject: () => void openProject(),
-      closeProject: () => closeProject(),
+      // 关闭项目统一确认(原原生 confirm,现走 Promise 对话框;确认后才执行)
+      closeProject: () => {
+        void confirmDialog({
+          title: '关闭项目',
+          description: '关闭当前项目?未保存改动请先保存。'
+        }).then((ok) => {
+          if (ok) closeProject()
+        })
+      },
       commit: () => useUiStore.getState().openCommitDialog(),
       export: () => useUiStore.getState().openExportDialog(),
       toggleLeftPanel: () => useUiStore.getState().toggleLeftPanel(),

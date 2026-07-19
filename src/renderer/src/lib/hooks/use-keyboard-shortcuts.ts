@@ -71,7 +71,8 @@ export const useKeyboardShortcuts = (): void => {
         s.preferencesOpen ||
         s.exportDialogOpen ||
         s.commitDialogOpen ||
-        s.newProjectDialogOpen
+        s.newProjectDialogOpen ||
+        s.promiseDialogOpen
 
       // ESC 单源:关最上层 modal;浮出窗关窗(非注册表命令,保持内联)
       if (e.key === 'Escape') {

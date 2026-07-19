@@ -16,12 +16,14 @@ const mocks = vi.hoisted(() => ({
   newScriptFile: vi.fn(),
   openProject: vi.fn(),
   closeProject: vi.fn(),
-  float: vi.fn()
+  float: vi.fn(),
+  confirmDialog: vi.fn<(opts: unknown) => Promise<boolean>>()
 }))
 
 vi.mock('./use-new-script-file.js', () => ({ useNewScriptFile: () => mocks.newScriptFile }))
 vi.mock('../ipc/use-project.js', () => ({ useProject: () => ({ open: mocks.openProject }) }))
 vi.mock('./use-panel-float.js', () => ({ usePanelFloat: () => mocks.float }))
+vi.mock('../promise-dialog-store.js', () => ({ confirmDialog: mocks.confirmDialog }))
 vi.mock('../project-coordinator.js', () => ({
   useCloseProject: () => mocks.closeProject,
   useOpenProject: () => vi.fn(),
@@ -33,6 +35,7 @@ vi.mock('../project-coordinator.js', () => ({
 describe('useCommandDispatcher — T1-2', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.confirmDialog.mockResolvedValue(true)
     useUiStore.setState({
       projectPath: '/tmp/demo',
       commandPaletteOpen: false,
@@ -67,9 +70,16 @@ describe('useCommandDispatcher — T1-2', () => {
     await dispatchCommand('newScriptFile')
     expect(mocks.newScriptFile).toHaveBeenCalled()
     await dispatchCommand('closeProject')
-    expect(mocks.closeProject).toHaveBeenCalled()
+    await vi.waitFor(() => expect(mocks.closeProject).toHaveBeenCalled())
     await dispatchCommand('floatAi')
     expect(mocks.float).toHaveBeenCalledWith('ai')
+  })
+
+  it('closeProject:确认对话框取消时不执行关闭', async () => {
+    mocks.confirmDialog.mockResolvedValue(false)
+    await dispatchCommand('closeProject')
+    await vi.waitFor(() => expect(mocks.confirmDialog).toHaveBeenCalled())
+    expect(mocks.closeProject).not.toHaveBeenCalled()
   })
 
   it('presetReview → 工作区切评审', async () => {

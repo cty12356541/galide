@@ -11,6 +11,12 @@
    * 1 强调边: border-strong (分割线、active 态)
    */
   :root {
+    /* 字体栈 token — appearance 偏好通过 inline style 改写(--font-sans / --font-mono)。
+     * 默认 = 自托管字体(main.tsx 导入 @fontsource):Inter Variable / JetBrains Mono Variable
+     * / Noto Sans SC(unicode-range 分包,浏览器按需下载)。 */
+    --font-sans: 'Inter Variable', 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', Menlo, monospace;
+
     --bg: #f3f4f6;
     --canvas: #f9fafb;
     --surface: #ffffff;
@@ -103,7 +109,7 @@
   }
 
   body {
-    font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -175,6 +181,33 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* 用户偏好「减少动画」(appearance.reducedMotion)— 与上面的媒体查询同策略,
+ * 由 use-appearance-preferences.ts 在 documentElement 上 toggle reduce-motion class。 */
+.reduce-motion .animate-char-fade-in {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+.reduce-motion .prose-ai.prose-ai-streaming > :last-child::after,
+.reduce-motion .ai-cursor {
+  animation: none;
+}
+.reduce-motion .animate-in,
+.reduce-motion .fade-in-0,
+.reduce-motion .zoom-in-95,
+.reduce-motion [class*="slide-in-from-"],
+.reduce-motion [class*="slide-out-to-"] {
+  animation: none !important;
+  transform: none !important;
+}
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 /* ============================================
@@ -297,7 +330,7 @@
   color: var(--text-muted);
 }
 .prose-ai :not(pre) > code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.85em;
   background: var(--bg-elevated);
   border: 1px solid var(--border);

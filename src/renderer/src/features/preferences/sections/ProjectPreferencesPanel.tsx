@@ -1,6 +1,7 @@
 import { usePreference, useSavePreference } from '../../../lib/ipc/use-preferences'
 import { PreferenceEditor } from '../components/PreferenceEditor'
 import { Input } from '../../../components/ui/input'
+import { FormSkeleton } from '../../../components/ui/skeleton'
 import type { ProjectPreferences } from '@shared/preferences'
 
 export const ProjectPreferencesPanel = (): JSX.Element => {
@@ -9,7 +10,7 @@ export const ProjectPreferencesPanel = (): JSX.Element => {
   const draft = query.data as ProjectPreferences | undefined
   const update = (next: ProjectPreferences): Promise<unknown> => save.mutateAsync(next)
 
-  if (!draft) return <div className="text-sm text-text-muted">加载中…</div>
+  if (!draft) return <FormSkeleton />
 
   return (
     <div className="space-y-6 max-w-3xl">

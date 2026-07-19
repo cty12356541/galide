@@ -3,6 +3,7 @@ import React, { Suspense } from 'react'
 import { Send, Sparkles, Square, ArrowDown } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { EmptyState } from '../../components/ui/empty-state'
+import { PanelSkeleton } from '../../components/ui/skeleton'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { useErrorStore } from '../../lib/store'
 import { getGalide } from '../../lib/ipc/galide-safe'
@@ -291,7 +292,7 @@ export const AiPanel = (): JSX.Element => {
         </button>
       </div>
       {mode === 'agent' ? (
-        <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-text-muted">加载中...</div>}>
+        <Suspense fallback={<PanelSkeleton />}>
           <AgentModePanel />
         </Suspense>
       ) : (

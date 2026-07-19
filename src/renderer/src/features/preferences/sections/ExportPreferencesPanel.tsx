@@ -2,6 +2,7 @@ import { usePreference, useSavePreference } from '../../../lib/ipc/use-preferenc
 import { PreferenceEditor } from '../components/PreferenceEditor'
 import { Input } from '../../../components/ui/input'
 import { ToggleEditor } from '../components/ToggleEditor'
+import { FormSkeleton } from '../../../components/ui/skeleton'
 import type { ExportPreferences } from '@shared/preferences'
 
 export const ExportPreferencesPanel = (): JSX.Element => {
@@ -10,7 +11,7 @@ export const ExportPreferencesPanel = (): JSX.Element => {
   const draft = query.data as ExportPreferences | undefined
   const update = (next: ExportPreferences): Promise<unknown> => save.mutateAsync(next)
 
-  if (!draft) return <div className="text-sm text-text-muted">加载中…</div>
+  if (!draft) return <FormSkeleton />
 
   return (
     <div className="space-y-6 max-w-3xl">

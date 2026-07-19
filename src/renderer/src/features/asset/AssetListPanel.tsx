@@ -14,15 +14,17 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Image as ImageIcon, Music, FolderOpen, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Image as ImageIcon, Music, FolderOpen, Plus, Trash2 } from 'lucide-react'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { Button } from '../../components/ui/button'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { EmptyState } from '../../components/ui/empty-state'
+import { PanelSkeleton } from '../../components/ui/skeleton'
 import { useUiStore } from '../../lib/store'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { cn } from '../../lib/utils'
 import { toast } from '../../components/ui/toast'
+import { useConfirmDialog } from '../../components/ui/confirm-dialog'
 
 type AssetKind = 'characters' | 'backgrounds' | 'bgm'
 
@@ -51,6 +53,7 @@ const fileNameOf = (relPath: string): string => {
 
 export const AssetListPanel = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
+  const { confirm, ConfirmDialog } = useConfirmDialog()
   const [activeKind, setActiveKind] = useState<AssetKind>('characters')
   const [entries, setEntries] = useState<AssetEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -96,7 +99,10 @@ export const AssetListPanel = (): JSX.Element => {
 
   const handleDelete = async (relPath: string): Promise<void> => {
     if (!projectPath) return
-    if (!window.confirm(`删除 ${fileNameOf(relPath)}?`)) return
+    if (
+      !(await confirm({ title: '删除资产', description: `删除 ${fileNameOf(relPath)}?`, danger: true }))
+    )
+      return
     const g = getGalide()
     if (!g?.asset?.delete) return
     const r = await g.asset.delete(projectPath, relPath)
@@ -137,9 +143,7 @@ export const AssetListPanel = (): JSX.Element => {
           {!projectPath ? (
             <EmptyState icon={ImageIcon} title="请先打开项目" className="py-6 px-3" />
           ) : loading ? (
-            <div className="flex items-center gap-2 text-[11px] text-text-muted px-2 py-1.5">
-              <Loader2 className="w-3 h-3 animate-spin" /> 加载中…
-            </div>
+            <PanelSkeleton lines={6} className="p-2 space-y-1.5" />
           ) : entries.length === 0 ? (
             <EmptyState
               icon={ImageIcon}
@@ -172,6 +176,7 @@ export const AssetListPanel = (): JSX.Element => {
           )}
         </div>
       </ScrollArea>
+      <ConfirmDialog />
     </div>
   )
 }

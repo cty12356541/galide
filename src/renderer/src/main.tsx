@@ -2,10 +2,17 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MotionConfig } from 'framer-motion'
+import { MotionConfig, useReducedMotion } from 'framer-motion'
 import { TooltipProvider } from './components/ui/tooltip'
 import { Toaster } from './components/ui/toast'
+import { usePreference } from './lib/ipc/use-preferences'
+import type { AppearancePreferences } from '@shared/preferences'
 import { App } from './app/App'
+// 自托管字体(@fontsource)— 运行时零 CDN。Noto Sans SC 走 unicode-range 分包,
+// 浏览器只下载实际用到的区段;Inter / JetBrains Mono 用 variable 版覆盖全字重。
+import '@fontsource-variable/inter'
+import '@fontsource-variable/jetbrains-mono'
+import '@fontsource/noto-sans-sc/400.css'
 import './styles/global.css'
 
 const queryClient = new QueryClient({
@@ -46,9 +53,14 @@ window.addEventListener('error', (e) => handleError('window.error', e.error ?? e
 window.addEventListener('unhandledrejection', (e) => handleError('unhandledrejection', e.reason))
 
 function MotionApp(): JSX.Element {
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  // 系统媒体查询(useReducedMotion 订阅变化)|| 用户偏好「减少动画」 — 任一开启即 always。
+  const systemReduced = useReducedMotion() ?? false
+  const { data } = usePreference('appearance')
+  const prefReduced =
+    (data as AppearancePreferences | null | undefined)?.reducedMotion === true
+  const reduced = systemReduced || prefReduced
   return (
-    <MotionConfig reducedMotion={prefersReduced ? 'always' : 'never'}>
+    <MotionConfig reducedMotion={reduced ? 'always' : 'never'}>
       <App />
     </MotionConfig>
   )

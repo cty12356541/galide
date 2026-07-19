@@ -27,8 +27,12 @@ export default {
         'success-soft': 'var(--success-soft)'
       },
       fontFamily: {
-        sans: ['Inter', '"Noto Sans SC"', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'Menlo', 'monospace']
+        // 经 CSS var 间接引用 — appearance 偏好(fontSans/fontMono)在运行时改写
+        // --font-sans / --font-mono(见 lib/ipc/use-appearance-preferences.ts),
+        // 默认栈在 global.css :root 定义(自托管 Inter Variable / JetBrains Mono Variable /
+        // Noto Sans SC,见 main.tsx 的 @fontsource 导入)。
+        sans: 'var(--font-sans)',
+        mono: 'var(--font-mono)'
       },
       fontSize: {
         '2xs': ['10px', '14px']

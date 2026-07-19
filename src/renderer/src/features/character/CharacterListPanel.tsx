@@ -13,6 +13,7 @@ import { CharacterCardEditor } from './CharacterCardEditor'
 import type { CharacterCard } from '../../../../shared/types'
 import { CharacterAvatar } from './CharacterAvatar'
 import { toast } from '../../components/ui/toast'
+import { useConfirmDialog } from '../../components/ui/confirm-dialog'
 import { cn } from '../../lib/utils'
 
 export const CharacterListPanel = (): JSX.Element => {
@@ -21,6 +22,7 @@ export const CharacterListPanel = (): JSX.Element => {
   const setProject = useUiStore((s) => s.setProject)
   const character = useCharacter()
   const pushError = useErrorStore((s) => s.push)
+  const { confirm, ConfirmDialog } = useConfirmDialog()
   const [editing, setEditing] = useState<CharacterCard | null>(null)
   const [creating, setCreating] = useState(false)
   const characterEditorTargetId = useUiStore((s) => s.characterEditorTargetId)
@@ -56,7 +58,11 @@ export const CharacterListPanel = (): JSX.Element => {
   const handleDelete = async (c: CharacterCard, e: React.MouseEvent): Promise<void> => {
     e.stopPropagation()
     if (!projectPath || !manifest) return
-    const ok = window.confirm(`确认删除角色 "${c.name}"?此操作会写入 .galproj。`)
+    const ok = await confirm({
+      title: '删除角色',
+      description: `确认删除角色 "${c.name}"?此操作会写入 .galproj。`,
+      danger: true
+    })
     if (!ok) return
     const r = await character.delete(projectPath, c.id)
     if (!r?.ok) {
@@ -150,6 +156,7 @@ export const CharacterListPanel = (): JSX.Element => {
           onSave={handleSave}
         />
       )}
+      <ConfirmDialog />
     </div>
   )
 }

@@ -13,6 +13,7 @@
 import { useEffect } from 'react'
 import { useUiStore } from '../lib/store'
 import { useAppearanceEffect } from '../lib/ipc/use-appearance-effect'
+import { useAppearancePreferencesEffect } from '../lib/ipc/use-appearance-preferences'
 import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
 import { ProjectTabs } from './ProjectTabs'
@@ -25,6 +26,8 @@ import { PreferencesDialog } from '../features/preferences/PreferencesDialog'
 import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
 import { NewProjectDialog } from '../features/project/NewProjectDialog'
+import { ConfirmDialogHost } from '../components/ui/confirm-dialog'
+import { PromptDialogHost } from '../components/ui/prompt-dialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useResolvedShortcutsSync } from '../lib/hooks/use-keyboard-shortcuts'
 import { useScriptSync } from '../lib/hooks/use-script-sync'
@@ -50,6 +53,7 @@ export const App = (): JSX.Element => {
   const newProjectDialogOpen = useUiStore((s) => s.newProjectDialogOpen)
 
   useAppearanceEffect()
+  useAppearancePreferencesEffect()
   useKeyboardShortcuts()
   useResolvedShortcutsSync()
   useScriptSync()
@@ -97,6 +101,8 @@ export const App = (): JSX.Element => {
       {projectPath && exportDialogOpen && <ExportDialog />}
       {projectPath && commitDialogOpen && <CommitDialog />}
       {newProjectDialogOpen && <NewProjectDialog />}
+      <ConfirmDialogHost />
+      <PromptDialogHost />
     </div>
   )
 }
