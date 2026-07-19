@@ -25,6 +25,7 @@ import type { PreviewRuntime } from './PreviewRuntime'
 import { usePreviewAudio } from './usePreviewAudio'
 import { SpriteLayer } from './SpriteLayer'
 import { usePreviewSave, type PreviewSlotInfo } from '../../lib/ipc/use-preview-save'
+import { acceleratorLabel, effectiveShortcut } from '../../lib/command-registry'
 import { ProjectParseErrorBanner } from '../../components/ui/project-parse-error-banner'
 import { usePreference } from '../../lib/ipc/use-preferences'
 import { useVoice } from '../../lib/ipc/use-voice'
@@ -44,7 +45,7 @@ const resolveAssetUrl = async (
 }
 
 export const PreviewCanvas = (): JSX.Element => {
-  const { scriptAst, projectMergedAst, projectParseError, manifest, selectedSceneId, projectPath } = useUiStore(
+  const { scriptAst, projectMergedAst, projectParseError, manifest, selectedSceneId, projectPath, resolvedShortcuts } = useUiStore(
     useShallow((s) => ({
       scriptAst: s.scriptAst,
       projectMergedAst: s.projectMergedAst,
@@ -52,9 +53,14 @@ export const PreviewCanvas = (): JSX.Element => {
       manifest: s.manifest,
       selectedSceneId: s.selectedSceneId,
       projectPath: s.projectPath,
+      resolvedShortcuts: s.resolvedShortcuts,
     }))
   )
   const viewAst = projectMergedAst ?? scriptAst
+  // 空场景提示的 ⌘N 展示标签:与菜单/工具条同一消费模式(注册表派生,不硬编码字形)
+  const newScriptFileHint = acceleratorLabel(
+    resolvedShortcuts['newScriptFile'] ?? effectiveShortcut('newScriptFile', undefined)
+  )
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const { resolveAsync } = useAsset()
   const { saveSlot, loadSlot, listSlots } = usePreviewSave(projectPath)
@@ -352,7 +358,7 @@ export const PreviewCanvas = (): JSX.Element => {
           <div className="text-xs text-text-muted">在编辑器中写 [scene ...] 块</div>
           <div className="text-[11px] text-text-muted opacity-70 mt-1">
             或按{' '}
-            <kbd className="px-1.5 py-0.5 bg-bg-elevated border border-border rounded text-[10px] font-mono">⌘N</kbd>{' '}
+            <kbd className="px-1.5 py-0.5 bg-bg-elevated border border-border rounded text-[10px] font-mono">{newScriptFileHint}</kbd>{' '}
             新建脚本文件
           </div>
         </div>

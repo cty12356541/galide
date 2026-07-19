@@ -1,132 +1,111 @@
 /**
- * MenuBar — 应用菜单(File / Edit / View / Run / Help)
+ * MenuBar — 应用菜单(命令注册表驱动)
  *
  * 设计:
- *   - 横向菜单条,点击展开下拉
- *   - 用 Radix Popover 实现下拉(简单 + 已有依赖)
- *   - 暴露核心操作:新建/打开/关闭项目、导出、Git 提交、偏好
- *   - View 菜单:工作区切换 + Tool Window 开关 + AI 移动
+ *   - 菜单组 = 命令注册表分类:顺序经 CATEGORY_ORDER,标题经 CATEGORY_LABELS(单一真相源)
+ *   - 菜单项全部来自 COMMANDS:label/icon 取自注册表;快捷键标签 =
+ *     acceleratorLabel(resolvedShortcuts[id] ?? effectiveShortcut(id, undefined)),
+ *     与 Toolbar 同一消费模式,无任何硬编码快捷键字符串
+ *   - 点击一律经 useCommandDispatcher 的 dispatchCommand(id) 投递,
+ *     与键盘 hook / Toolbar / 命令面板同一条执行路径
+ *   - requiresProject 项在无项目时隐藏(与 CommandPalette 的 projectPath 门控一致)
+ *   - 工作区 preset 项保留 active 高亮(presentation 映射,注册表无此概念)
+ *   - 用 Radix Popover 实现下拉(结构/样式不变)
  */
 import { useState } from 'react'
-import { FileText, Edit3, Eye, Wrench, HelpCircle, Plus, Folder, Settings, Download, GitCommit, Sparkles, ChevronDown } from 'lucide-react'
+import {
+  Folder,
+  FileText,
+  Edit3,
+  Eye,
+  Sparkles,
+  HelpCircle,
+  ChevronDown,
+  type LucideIcon
+} from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
-import { useUiStore } from '../lib/store'
-import { usePanelFloat } from '../lib/hooks/use-panel-float'
-import { useNewScriptFile } from '../lib/hooks/use-new-script-file'
-import { useProject } from '../lib/ipc/use-project'
+import { useUiStore, type WorkspacePresetId } from '../lib/store'
+import { useCommandDispatcher } from '../lib/hooks/use-command-dispatcher'
+import {
+  COMMANDS,
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  acceleratorLabel,
+  effectiveShortcut,
+  type CommandCategory,
+  type CommandId
+} from '../lib/command-registry'
 import { cn } from '../lib/utils'
 
+/** 菜单组标题图标(组级 chrome,注册表只含命令级图标) */
+const GROUP_ICONS: Record<CommandCategory | 'help', LucideIcon> = {
+  project: Folder,
+  file: FileText,
+  edit: Edit3,
+  view: Eye,
+  go: Sparkles,
+  help: HelpCircle
+}
+
+/** preset 命令 → preset id(active 高亮用;注册表不含此展示状态) */
+const PRESET_COMMANDS: Partial<Record<CommandId, WorkspacePresetId>> = {
+  presetWriting: 'writing',
+  presetFlow: 'flow',
+  presetReview: 'review'
+}
+
 type MenuItemSpec = {
+  key: string
   label: string
-  shortcut?: string
-  icon?: typeof Plus
+  shortcut?: string | null
+  icon?: LucideIcon
   onClick: () => void
-  separatorAfter?: boolean
   active?: boolean
 }
 
 type MenuGroup = {
+  key: string
   label: string
-  icon: typeof FileText
+  icon: LucideIcon
   items: MenuItemSpec[]
 }
 
 export const MenuBar = (): JSX.Element => {
-  const toggleCommandPalette = useUiStore((s) => s.toggleCommandPalette)
-  const openPreferences = useUiStore((s) => s.openPreferences)
-  const openNewProjectDialog = useUiStore((s) => s.openNewProjectDialog)
-  const openExportDialog = useUiStore((s) => s.openExportDialog)
-  const openCommitDialog = useUiStore((s) => s.openCommitDialog)
-  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel)
-  const toggleAiPanel = useUiStore((s) => s.toggleAiPanel)
-  const applyWorkspacePreset = useUiStore((s) => s.applyWorkspacePreset)
-  const setPreviewOpen = useUiStore((s) => s.setPreviewOpen)
+  const projectPath = useUiStore((s) => s.projectPath)
   const workspacePreset = useUiStore((s) => s.workspacePreset)
-  const editorSurface = useUiStore((s) => s.editorSurface)
-  const setAiDockedLocation = useUiStore((s) => s.setAiDockedLocation)
-  const float = usePanelFloat()
-  const closeProject = useUiStore((s) => s.closeProject)
-  const openProject = useProject().open
-  const newScriptFile = useNewScriptFile()
-  const undo = useUiStore((s) => s.undo)
-  const redo = useUiStore((s) => s.redo)
+  const resolvedShortcuts = useUiStore((s) => s.resolvedShortcuts)
+  const { dispatchCommand } = useCommandDispatcher()
 
-  /** 聚焦源码编辑器并触发 CodeMirror 内置查找 */
-  const focusEditorAndSearch = (): void => {
-    if (editorSurface !== 'source') {
-      useUiStore.getState().setEditorSurface('source')
-    }
-    requestAnimationFrame(() => {
-      const cm = document.querySelector<HTMLElement>('[data-testid="script-editor-cm-host"] .cm-editor')
-      if (!cm) return
-      cm.focus()
-      const target = cm.querySelector<HTMLElement>('.cm-content') ?? cm
-      target.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'f', metaKey: true, bubbles: true })
-      )
-    })
-  }
+  const groups: MenuGroup[] = CATEGORY_ORDER.map((category) => ({
+    key: category,
+    label: CATEGORY_LABELS[category],
+    icon: GROUP_ICONS[category],
+    items: COMMANDS.filter(
+      (cmd) => cmd.category === category && (!cmd.requiresProject || projectPath)
+    ).map((cmd) => ({
+      key: cmd.id,
+      label: cmd.label,
+      icon: cmd.icon,
+      // resolvedShortcuts 已由 useResolvedShortcutsSync 解析为有效 accelerator;未同步时回退默认
+      shortcut: acceleratorLabel(resolvedShortcuts[cmd.id] ?? effectiveShortcut(cmd.id, undefined)),
+      onClick: () => void dispatchCommand(cmd.id),
+      active: PRESET_COMMANDS[cmd.id] === workspacePreset
+    }))
+  }))
 
-  const runPreview = (): void => {
-    applyWorkspacePreset('review')
-    setPreviewOpen(true)
-  }
-
-  const groups: MenuGroup[] = [
-    {
-      label: 'File',
-      icon: FileText,
-      items: [
-        { label: '新建脚本', shortcut: '⌘N', icon: FileText, onClick: () => void newScriptFile() },
-        { label: '新建项目', shortcut: '⌘⇧N', icon: Plus, onClick: openNewProjectDialog },
-        { label: '打开项目', shortcut: '⌘O', icon: Folder, onClick: () => void openProject() },
-        { label: '关闭项目', icon: Folder, onClick: closeProject, separatorAfter: true },
-        { label: '导出', shortcut: '⌘E', icon: Download, onClick: openExportDialog },
-        { label: 'Git 提交', shortcut: '⌘⇧C', icon: GitCommit, onClick: openCommitDialog, separatorAfter: true },
-        { label: '偏好', shortcut: '⌘,', icon: Settings, onClick: () => openPreferences() }
-      ]
-    },
-    {
-      label: 'Edit',
-      icon: Edit3,
-      items: [
-       { label: '撤销', shortcut: '⌘Z', onClick: undo },
-       { label: '重做', shortcut: '⌘⇧Z', onClick: redo },
-       { label: '查找', shortcut: '⌘F', onClick: () => focusEditorAndSearch() },
-       { label: '命令面板', shortcut: '⌘K', icon: Sparkles, onClick: () => toggleCommandPalette(true) }
-     ]
-    },
-    {
-      label: 'View',
-      icon: Eye,
-      items: [
-        { label: '工作区: 写作', onClick: () => applyWorkspacePreset('writing'), active: workspacePreset === 'writing' },
-        { label: '工作区: 流程', onClick: () => applyWorkspacePreset('flow'), active: workspacePreset === 'flow' },
-        { label: '工作区: 评审', onClick: () => applyWorkspacePreset('review'), active: workspacePreset === 'review', separatorAfter: true },
-        { label: '项目 Tool Window', shortcut: '⌘1', onClick: toggleLeftPanel },
-        { label: 'AI Tool Window', onClick: toggleAiPanel, separatorAfter: true },
-        { label: 'AI 移到右侧', onClick: () => setAiDockedLocation('right') },
-        { label: 'AI 移到底部', onClick: () => setAiDockedLocation('bottom') },
-        { label: 'AI 移到左侧', onClick: () => setAiDockedLocation('left') },
-        { label: 'AI 浮出', onClick: () => float('ai') }
-      ]
-    },
-    {
-      label: 'Run',
-      icon: Wrench,
-      items: [
-        { label: '运行预览', shortcut: 'F5', onClick: runPreview },
-        { label: '导出 Web', onClick: openExportDialog }
-      ]
-    },
-    {
-      label: 'Help',
-      icon: HelpCircle,
-      items: [
-        { label: '关于 Galide', onClick: () => window.open('https://github.com/galide', '_blank') }
-      ]
-    }
-  ]
+  // 帮助组:非注册表内容。「关于 Galide」是外部 URL,刻意不作为注册表命令,保留为普通链接项
+  groups.push({
+    key: 'help',
+    label: '帮助',
+    icon: GROUP_ICONS.help,
+    items: [
+      {
+        key: 'about',
+        label: '关于 Galide',
+        onClick: () => window.open('https://github.com/galide', '_blank')
+      }
+    ]
+  })
 
   return (
     <nav
@@ -134,8 +113,8 @@ export const MenuBar = (): JSX.Element => {
       className="h-9 bg-surface border-b border-border flex items-center px-1.5 gap-0.5 flex-shrink-0"
       data-testid="menu-bar"
     >
-      {groups.map(({ label, icon: Icon, items }) => (
-        <MenuDropdown key={label} label={label} icon={Icon} items={items} />
+      {groups.map(({ key, label, icon: Icon, items }) => (
+        <MenuDropdown key={key} groupKey={key} label={label} icon={Icon} items={items} />
       ))}
       <div className="flex-1" />
       <span className={cn('text-[11px] text-text-muted px-2 font-medium')} data-testid="workspace-preset-label">
@@ -146,12 +125,14 @@ export const MenuBar = (): JSX.Element => {
 }
 
 const MenuDropdown = ({
+  groupKey,
   label,
   icon: Icon,
   items
 }: {
+  groupKey: string
   label: string
-  icon: typeof FileText
+  icon: LucideIcon
   items: MenuItemSpec[]
 }): JSX.Element => {
   const [open, setOpen] = useState(false)
@@ -164,7 +145,7 @@ const MenuDropdown = ({
             'h-7 px-3 text-[13px] font-medium rounded flex items-center gap-1 transition-colors',
             open ? 'bg-bg-elevated text-text' : 'text-text-muted hover:bg-bg-elevated hover:text-text'
           )}
-          data-testid={`menu-${label.toLowerCase()}`}
+          data-testid={`menu-${groupKey}`}
         >
           <Icon className="w-3.5 h-3.5" />
           {label}
@@ -173,25 +154,23 @@ const MenuDropdown = ({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 p-1" sideOffset={4}>
         {items.map((item) => (
-          <div key={item.label}>
-            <button
-              type="button"
-              onClick={() => {
-                item.onClick()
-                setOpen(false)
-              }}
-              className={cn(
-                'w-full px-2.5 py-1.5 rounded text-[13px] flex items-center gap-2 transition-colors text-left',
-                item.active ? 'bg-accent-soft text-accent' : 'text-text hover:bg-bg-elevated'
-              )}
-              data-testid={`menu-item-${label.toLowerCase()}-${item.label}`}
-            >
-              {item.icon ? <item.icon className="w-3.5 h-3.5 flex-shrink-0" /> : <span className="w-3.5" />}
-              <span className="flex-1">{item.label}</span>
-              {item.shortcut ? <span className="text-text-muted text-[11px] font-mono">{item.shortcut}</span> : null}
-            </button>
-            {item.separatorAfter ? <div className="h-px bg-border my-1" /> : null}
-          </div>
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => {
+              item.onClick()
+              setOpen(false)
+            }}
+            className={cn(
+              'w-full px-2.5 py-1.5 rounded text-[13px] flex items-center gap-2 transition-colors text-left',
+              item.active ? 'bg-accent-soft text-accent' : 'text-text hover:bg-bg-elevated'
+            )}
+            data-testid={`menu-item-${groupKey}-${item.key}`}
+          >
+            {item.icon ? <item.icon className="w-3.5 h-3.5 flex-shrink-0" /> : <span className="w-3.5" />}
+            <span className="flex-1">{item.label}</span>
+            {item.shortcut ? <span className="text-text-muted text-[11px] font-mono">{item.shortcut}</span> : null}
+          </button>
         ))}
       </PopoverContent>
     </Popover>

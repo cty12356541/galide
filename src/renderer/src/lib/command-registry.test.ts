@@ -90,4 +90,35 @@ describe('command-registry — P0 录制链路', () => {
     expect(ids).toContain('undo')
     expect(ids).toContain('redo')
   })
+
+  it('T1-1: 菜单/工具条触发的命令全部登记', () => {
+    const ids = COMMANDS.map((c) => c.id)
+    for (const id of [
+      'find',
+      'saveScript',
+      'toggleTheme',
+      'presetWriting',
+      'presetFlow',
+      'presetReview',
+      'aiDockLeft',
+      'aiDockRight',
+      'aiDockBottom',
+      'floatAi'
+    ]) {
+      expect(ids).toContain(id)
+    }
+  })
+
+  it('T1-1: find / saveScript / toggleAi 默认快捷键与菜单宣传一致', () => {
+    expect(DEFAULT_SHORTCUTS.find).toBe('Meta+F')
+    expect(DEFAULT_SHORTCUTS.saveScript).toBe('Meta+S')
+    expect(DEFAULT_SHORTCUTS.toggleAi).toBe('Meta+L')
+  })
+
+  it('T1-1: 每条命令带非空中英 keywords', () => {
+    for (const c of COMMANDS) {
+      expect(Array.isArray(c.keywords), c.id).toBe(true)
+      expect((c.keywords ?? []).length, c.id).toBeGreaterThan(0)
+    }
+  })
 })
