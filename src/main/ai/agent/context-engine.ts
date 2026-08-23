@@ -12,6 +12,7 @@ import { galScriptAbs, isGalScriptFileName, scriptsDirAbs } from '../../../share
 import { parse, collectSceneSummaries, collectScenes, type SceneSummary } from '../../../shared/dsl/parser.js'
 import type { AstNode, Result, SceneNode } from '../../../shared/dsl/types.js'
 import { readGalproj } from '../../manifest/project-manifest.js'
+import { readBrain, formatBrainSummary } from '../../brain/brain-store.js'
 
 export interface ContextFs {
   readFile: (path: string) => Promise<string>
@@ -238,31 +239,37 @@ export const buildContext = async (
     // git diff 失败(未初始化等)不阻断
   }
 
+  const brainRead = await readBrain(req.projectPath, deps.fs)
+  const brainSummary = formatBrainSummary(brainRead.brain)
+
   const sections: Section[] = []
   if (selectedScene) {
     const meta = `${selectedScene.id} [${selectedScene.fileName}] 背景=${selectedScene.background ?? '-'} BGM=${selectedScene.bgm ?? '-'}`
     const body = selectedSceneExcerpt ? `${meta}\n\n对白摘要:\n${selectedSceneExcerpt}` : meta
     sections.push({ title: '当前选中场景', body, priority: 0 })
   }
+  if (brainSummary) {
+    sections.push({ title: '项目大脑(伏笔/关系/知识边界)', body: brainSummary, priority: 1 })
+  }
   if (characters.length > 0) {
     sections.push({
       title: '角色',
       body: characters.map((c) => `- ${c.name}(${c.id}): ${c.personality} — ${c.description}`).join('\n'),
-      priority: 1
+      priority: 2
     })
   }
   if (scenes.length > 0) {
     sections.push({
       title: '场景索引',
       body: scenes.map((s) => `- ${s.id} [${s.fileName}] 背景=${s.background ?? '-'}`).join('\n'),
-      priority: 2
+      priority: 3
     })
   }
   if (gitDiff) {
-    sections.push({ title: '最近改动 (git diff)', body: gitDiff, priority: 3 })
+    sections.push({ title: '最近改动 (git diff)', body: gitDiff, priority: 4 })
   }
   if (req.memoryText) {
-    sections.push({ title: '先前会话(agent 记忆)', body: req.memoryText, priority: 4 })
+    sections.push({ title: '先前会话(agent 记忆)', body: req.memoryText, priority: 5 })
   }
 
   const { text, truncated } = assembleText(sections, budget)

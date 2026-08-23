@@ -8,6 +8,7 @@ import { multimodalTools } from './tools/multimodal-tools.js'
 import { commandTools } from './tools/command-tools.js'
 import { analysisTools } from './tools/analysis-tools.js'
 import { platformTools } from './tools/platform-tools.js'
+import { brainTools } from './tools/brain-tools.js'
 
 export const createDefaultToolRegistry = () =>
   createToolRegistry([
@@ -16,5 +17,6 @@ export const createDefaultToolRegistry = () =>
     ...multimodalTools,
     ...commandTools,
     ...analysisTools,
-    ...platformTools
+    ...platformTools,
+    ...brainTools
   ])

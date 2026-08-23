@@ -56,7 +56,9 @@ const AGENT_SYSTEM =
   '从零搭建项目时,可用 create_project 建项 + open_project 打开,或 create_script_file 建空 .gal,再逐场景 create_scene/add_dialogue。' +
   '用 add_marker 设跳转锚点、add_goto 造无条件跳转来构建分支;选项跳转用 add_choice(可带 [当:] 门控)。' +
   '导出/提交请优先用 headless 工具 export_project、git_commit(无需对话框);dispatch_command 仅打开 UI 对话框,需用户手动完成。' +
-  '可用 navigate 切换面板。修改后用 analyze_reachability 自检决策树有无死路。' +
+  '可用 navigate 切换面板。修改后用 analyze_reachability 自检决策树有无死路(省略 fileName 可全项目分析)。'
+  '写新场景前先 brain_read 项目大脑(伏笔/角色关系/路线知识边界),保持长篇一致性;'
+  '埋设伏笔、推进关系变化、涉及路线信息差异时,用 brain_upsert_foreshadowing / brain_upsert_relationship / brain_set_knowledge 同步登记。' +
   '优先使用工具完成用户目标,完成后用简短中文总结。'
 
 const pendingConfirms = new Map<
