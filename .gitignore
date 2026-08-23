@@ -25,6 +25,7 @@ secrets/
 .mavis/
 .omo/drafts/
 .omo/run-continuation/
+.omo/eval/
 .worktrees/
 bun.lock
 # Agent 跨会话记忆(机器本地状态)
