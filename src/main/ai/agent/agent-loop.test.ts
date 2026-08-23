@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import * as z from 'zod/v4'
-import { runAgent, type AgentGit, type AgentStep } from './agent-loop.js'
+import { runAgent, parseCriticVerdict, type AgentGit, type AgentStep, type CriticReport } from './agent-loop.js'
 import { createToolRegistry, defineTool } from './tool-registry.js'
 import { createAutonomyGate } from './autonomy-gate.js'
 import { TOPOLOGIES } from './topology.js'
@@ -644,5 +644,185 @@ describe('agent-loop — critic-fix 环', () => {
     expect(result.status).toBe('done')
     expect(result.rolledBack).toBeFalsy()
     expect(git.events.some((e) => e.startsWith('rollback'))).toBe(false)
+  })
+})
+
+describe('agent-loop — LLM critic verdict 解析', () => {
+  it('裸 JSON 解析出 pass/issues', () => {
+    expect(parseCriticVerdict('{"pass": false, "issues": ["死路", "伏笔遗漏"]}')).toEqual({
+      pass: false,
+      issues: ['死路', '伏笔遗漏']
+    })
+  })
+
+  it('容忍 markdown 围栏与前后缀文本', () => {
+    expect(parseCriticVerdict('审查结果:\n```json\n{"pass": true, "issues": []}\n```\n以上')).toEqual({
+      pass: true,
+      issues: []
+    })
+  })
+
+  it('非 JSON 或结构不对返回 null', () => {
+    expect(parseCriticVerdict('看起来没问题')).toBeNull()
+    expect(parseCriticVerdict('{"issues": ["x"]}')).toBeNull()
+  })
+})
+
+describe('agent-loop — LLM critic 修复环', () => {
+  it('verdict fail 触发修复重入,修复后 pass 收敛', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      { text: '完成初稿', toolCalls: [] },
+      { text: '```json\n{"pass": false, "issues": ["场景缺少出口"]}\n```', toolCalls: [] },
+      call('do_thing'),
+      { text: '已补上出口', toolCalls: [] },
+      { text: '{"pass": true, "issues": []}', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.planExecuteCritic,
+      toolContext,
+      maxCriticFix: 1,
+      onStep: (s) => steps.push(s)
+    })
+    expect(result.status).toBe('done')
+    const llmCritics = steps.filter(
+      (s) => s.type === 'critic' && s.report.kind === 'llm'
+    ) as Array<{ type: 'critic'; report: CriticReport }>
+    expect(llmCritics).toHaveLength(2)
+    const first = llmCritics[0]!.report as { pass?: boolean; issues?: string[] }
+    expect(first.pass).toBe(false)
+    expect(first.issues).toContain('场景缺少出口')
+    // 修复提示进入对话
+    const fixPrompt = llm.calls.find((c) =>
+      c.messages.some((m) => typeof m.content === 'string' && m.content.includes('场景缺少出口'))
+    )
+    expect(fixPrompt).toBeTruthy()
+    expect(result.warnings).toBeUndefined()
+  })
+
+  it('verdict 无法解析 → parseError 标记,不触发修复', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      { text: '完成', toolCalls: [] },
+      { text: '我觉得还行', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.planExecuteCritic,
+      toolContext,
+      onStep: (s) => steps.push(s)
+    })
+    expect(result.status).toBe('done')
+    const criticStep = steps.find(
+      (s) => s.type === 'critic' && s.report.kind === 'llm'
+    ) as { report: CriticReport } | undefined
+    const report = criticStep!.report as { parseError?: boolean }
+    expect(report.parseError).toBe(true)
+  })
+
+  it('修复预算耗尽仍有问题 → done + warnings,不回滚', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      { text: '完成', toolCalls: [] },
+      { text: '{"pass": false, "issues": ["问题A"]}', toolCalls: [] },
+      call('do_thing'),
+      { text: '再修一版', toolCalls: [] },
+      { text: '{"pass": false, "issues": ["问题B"]}', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.planExecuteCritic,
+      toolContext,
+      maxCriticFix: 1,
+      onStep: (s) => steps.push(s)
+    })
+    expect(result.status).toBe('done')
+    expect(result.rolledBack).toBeFalsy()
+    expect(result.warnings?.join('\n')).toContain('问题B')
+    const doneStep = steps.find((s) => s.type === 'done') as { warnings?: string[] }
+    expect(doneStep.warnings).toBeTruthy()
+  })
+})
+
+describe('agent-loop — critic-fix 步数预算共享', () => {
+  const astWithOrphan: ScriptNode = {
+    type: 'script',
+    line: 1,
+    column: 1,
+    errors: [],
+    children: [
+      { type: 'scene', id: 'start', line: 0, column: 1, children: [] },
+      { type: 'scene', id: 'orphan', line: 0, column: 1, children: [] }
+    ]
+  }
+
+  it('修复轮不重置步数:首轮耗尽预算后进入修复轮再耗尽 → done + warning,不回滚', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      call('do_thing'), // step 1
+      { text: '完成', toolCalls: [] }, // step 2 完成(预算 2 内)
+      // 修复轮:预算已用 2/2 且无重规划额度,首步即触发步数耗尽分支
+      call('do_thing')
+    ])
+    const { registry } = makeTools('read')
+    const git = fakeGit()
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git,
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      maxSteps: 2,
+      maxReplan: 0,
+      maxCriticFix: 1,
+      loadScriptAst: async () => astWithOrphan
+    })
+    expect(result.status).toBe('done')
+    expect(result.warnings?.join('\n')).toContain('步数耗尽')
+    expect(git.events.some((e) => e.startsWith('rollback'))).toBe(false)
+  })
+})
+
+describe('agent-loop — 解析失败进入 critic', () => {
+  it('loadParseFailures 非空触发修复;无法修复时转为 warning', async () => {
+    const llm = fakeLlm([
+      { text: '1. 计划', toolCalls: [] },
+      { text: '完成', toolCalls: [] },
+      { text: '已修复语法', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    const result = await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      loadScriptAst: async () => null,
+      loadParseFailures: async () => '  broken.gal:1:1 语法错误',
+      onStep: (s) => steps.push(s)
+    })
+    // 第一次 critic 发现解析失败 → 修复轮;修复轮后仍失败但预算耗尽 → warning
+    expect(result.status).toBe('done')
+    expect(result.warnings?.join('\n')).toContain('broken.gal')
   })
 })

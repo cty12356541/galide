@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import type { WebContents } from 'electron'
-import { galScriptAbs, isGalScriptFileName, scriptsDirAbs } from '../../../shared/project-layout.js'
+import { scriptsDirAbs } from '../../../shared/project-layout.js'
 import { IPC } from '../../../shared/ipc-channels.js'
 import { runAgent, type AgentStep, type ConfirmRequest } from './agent-loop.js'
 import { createAgentGit } from './agent-git.js'
@@ -22,10 +22,10 @@ import { getPreference } from '../../preferences/preferences-store.js'
 import { aiProxy } from '../ai-proxy.js'
 import { gitService } from '../../git/git-service.js'
 import { createBroadcastingWriteFile } from '../../ipc/script-broadcast.js'
-import { parse } from '../../../shared/dsl/parser.js'
+import { formatParseFailures, parseProjectScripts } from '../../export/parse-project-scripts.js'
+import { mergeScriptAsts } from '../../../shared/dsl/merge-scripts.js'
 import type { AiProvider } from '../types.js'
 import type { ToolDispatch } from './types.js'
-import { resolveActiveGalFile } from './resolve-active-gal.js'
 
 export type AgentTaskStatus = 'pending' | 'running' | 'done' | 'error' | 'cancelled'
 
@@ -44,6 +44,7 @@ type AgentTaskRecord = {
   sender: WebContents
   status: AgentTaskStatus
   error?: string
+  warnings?: string[]
   createdAt: number
   steps: AgentStep[]
 }
@@ -94,21 +95,6 @@ const createDispatch = (sender: WebContents): ToolDispatch => {
       pendingDispatches.set(requestId, { resolve, timer })
       sender.send(IPC.agent.dispatchCommand, { requestId, commandId })
     })
-  }
-}
-
-const readGalScript = async (
-  projectPath: string,
-  activeScriptFile?: string | null
-): Promise<string | null> => {
-  try {
-    const files = (await fs.readdir(scriptsDirAbs(projectPath)))
-      .filter((f) => isGalScriptFileName(f))
-    const target = resolveActiveGalFile(activeScriptFile, files)
-    if (!target) return null
-    return await fs.readFile(galScriptAbs(projectPath, target), 'utf-8')
-  } catch {
-    return null
   }
 }
 
@@ -267,16 +253,34 @@ const drain = async (): Promise<void> => {
             sendStep(item.sender, item.taskId, step)
           },
           loadScriptAst: async () => {
-            const src = await readGalScript(runtime.getProjectPath(), item.req.activeScriptFile)
-            if (!src) return null
-            const parsed = parse(src)
-            return parsed.ok ? parsed.value : null
+            // 全项目 merged AST:跨文件跳转对可达性 critic 可见
+            const projectFs = {
+              readdir: (p: string) => fs.readdir(p),
+              readFile: (p: string) => fs.readFile(p, 'utf-8')
+            }
+            const { asts } = await parseProjectScripts(
+              scriptsDirAbs(runtime.getProjectPath()),
+              projectFs
+            )
+            return asts.length > 0 ? mergeScriptAsts(asts) : null
+          },
+          loadParseFailures: async () => {
+            const projectFs = {
+              readdir: (p: string) => fs.readdir(p),
+              readFile: (p: string) => fs.readFile(p, 'utf-8')
+            }
+            const { failures } = await parseProjectScripts(
+              scriptsDirAbs(runtime.getProjectPath()),
+              projectFs
+            )
+            return failures.length > 0 ? formatParseFailures(failures) : ''
           }
         }
       )
 
      record.status = result.status === 'done' ? 'done' : result.status === 'cancelled' ? 'cancelled' : 'error'
      if (result.error) record.error = result.error
+     if (result.warnings && result.warnings.length > 0) record.warnings = result.warnings
      if (agentPrefs.memoryEnabled && (result.status === 'done' || result.status === 'error')) {
        await appendMemory(
          item.req.projectPath,

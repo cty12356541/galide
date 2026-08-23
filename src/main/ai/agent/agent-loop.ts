@@ -43,9 +43,21 @@ export interface ConfirmRequest {
   diff?: { before: string; after: string }
 }
 
+export interface CriticVerdict {
+  readonly pass: boolean
+  readonly issues: readonly string[]
+}
+
 export type CriticReport =
   | { kind: 'deterministic'; reachability: ReachabilityReport }
-  | { kind: 'llm'; text: string }
+  | {
+      kind: 'llm'
+      text: string
+      pass?: boolean
+      issues?: readonly string[]
+      /** true 表示 critic 回复未能解析为 JSON verdict */
+      parseError?: boolean
+    }
 
 export type AgentStep =
   | { type: 'plan'; plan: AgentPlan }
@@ -55,7 +67,7 @@ export type AgentStep =
   | { type: 'awaiting_confirm'; call: ToolCall; risk: ToolRisk; diff?: { before: string; after: string } }
   | { type: 'tool_result'; result: ToolResult }
   | { type: 'critic'; report: CriticReport }
-  | { type: 'done'; text: string }
+  | { type: 'done'; text: string; warnings?: readonly string[] }
   | { type: 'error'; message: string }
 
 export interface AgentRunRequest {
@@ -71,6 +83,8 @@ export interface AgentRunResult {
   finalText: string
   error?: string
   rolledBack?: boolean
+  /** run 结束为 done 但 critic 仍发现问题(预算耗尽)时记录,不再静默通过 */
+  warnings?: string[]
 }
 
 export interface AgentLoopDeps {
@@ -84,6 +98,8 @@ export interface AgentLoopDeps {
   onStep?: (step: AgentStep) => void
   /** 确定性 critic 读取最终 AST(litePlanExecute);返回 null 跳过 */
   loadScriptAst?: () => Promise<ScriptNode | null>
+  /** 全项目解析失败清单(格式化文本);非空视为需要修复的问题 */
+  loadParseFailures?: () => Promise<string>
   maxSteps?: number
   /** 步数耗尽时的修订重规划次数上限(默认 1);仅 usePlanner 拓扑生效 */
   maxReplan?: number
@@ -139,13 +155,42 @@ const runDeterministicCritic = async (
   return reachability
 }
 
+/** 解析 LLM critic 的 JSON verdict;容忍 markdown 代码围栏与前后缀文本 */
+export const parseCriticVerdict = (text: string): CriticVerdict | null => {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  const candidates = [fenced?.[1], text]
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const start = candidate.indexOf('{')
+    const end = candidate.lastIndexOf('}')
+    if (start < 0 || end <= start) continue
+    try {
+      const raw: unknown = JSON.parse(candidate.slice(start, end + 1))
+      if (
+        typeof raw === 'object' &&
+        raw !== null &&
+        typeof (raw as { pass?: unknown }).pass === 'boolean'
+      ) {
+        const obj = raw as { pass: boolean; issues?: unknown }
+        const issues = Array.isArray(obj.issues)
+          ? obj.issues.filter((i): i is string => typeof i === 'string')
+          : []
+        return { pass: obj.pass, issues }
+      }
+    } catch {
+      // 尝试下一个候选片段
+    }
+  }
+  return null
+}
+
 const runLlmCritic = async (
   req: AgentRunRequest,
   deps: AgentLoopDeps,
   steps: readonly AgentStep[],
   emit: (s: AgentStep) => void,
   chatOpts: { signal?: AbortSignal }
-): Promise<void> => {
+): Promise<CriticVerdict | null> => {
   const criticResp = await deps.llm.chat({
     system: CRITIC_SYSTEM,
     messages: [
@@ -157,7 +202,14 @@ const runLlmCritic = async (
     tools: [],
     ...chatOpts
   })
-  emit({ type: 'critic', report: { kind: 'llm', text: criticResp.text } })
+  const verdict = parseCriticVerdict(criticResp.text)
+  emit({
+    type: 'critic',
+    report: verdict
+      ? { kind: 'llm', text: criticResp.text, pass: verdict.pass, issues: verdict.issues }
+      : { kind: 'llm', text: criticResp.text, parseError: true }
+  })
+  return verdict
 }
 
 export const runAgent = async (
@@ -230,9 +282,12 @@ export const runAgent = async (
     }
 
     // Agent state machine — intentionally infinite loop with explicit break/return exits.
+    // step 跨 critic-fix 轮累计(共享步数预算);仅重规划时重置。
+    let step = 0
+    const warnings: string[] = []
+    let fixRounds = 0
     while (true) {
       let completed = false
-      let step = 0
 
       // ---- Execute stage (ReAct) ----
       while (!completed) {
@@ -344,32 +399,68 @@ export const runAgent = async (
         }
       }
 
-      if (!completed) throw new MaxStepsError()
+      if (!completed) {
+        if (fixRounds > 0) {
+          // 修复轮内步数耗尽:降级为 warning 结束,不回滚已修复内容
+          warnings.push('修复轮内步数耗尽,问题可能未完全修复')
+          emit({ type: 'done', text: finalText || '修复未完全完成', warnings: [...warnings] })
+          return { status: 'done', steps, finalText, warnings: [...warnings] }
+        }
+        throw new MaxStepsError()
+      }
+      fixRounds++
 
       // ---- Critic stage ----
       let needFix = false
+      const criticIssues: string[] = []
+
       if (runDeterministic) {
         const reachability = await runDeterministicCritic(deps, emit)
-        if (reachability && hasReachabilityIssues(reachability) && fixesLeft > 0) {
-          needFix = true
-          convo.push({
-            role: 'user',
-            content: `审查发现可达性问题,请修复:\n${formatReachabilityIssues(reachability)}\n修复后继续,不要重复已完成的工作。`
-          })
+        if (reachability && hasReachabilityIssues(reachability)) {
+          criticIssues.push(`可达性问题:\n${formatReachabilityIssues(reachability)}`)
         }
       }
 
+      if (deps.loadParseFailures) {
+        const failuresText = await deps.loadParseFailures()
+        if (failuresText) criticIssues.push(`以下剧本解析失败:\n${failuresText}`)
+      }
+
       if (runLlm) {
-        await runLlmCritic(req, deps, steps, emit, chatOpts)
+        const verdict = await runLlmCritic(req, deps, steps, emit, chatOpts)
+        if (verdict && !verdict.pass) {
+          criticIssues.push(
+            verdict.issues.length > 0
+              ? `LLM 审查未通过:\n- ${verdict.issues.join('\n- ')}`
+              : 'LLM 审查未通过(未给出具体问题)'
+          )
+        }
+      }
+
+      if (criticIssues.length > 0) {
+        if (fixesLeft > 0) {
+          needFix = true
+          convo.push({
+            role: 'user',
+            content: `审查发现问题,请修复:\n${criticIssues.join('\n\n')}\n修复后继续,不要重复已完成的工作。`
+          })
+        } else {
+          warnings.push(`审查发现问题但修复预算已耗尽:\n${criticIssues.join('\n\n')}`)
+        }
       }
 
       if (!needFix) break
       fixesLeft--
-      // loop continues with fresh executor step budget
+      // fix 重入继续消耗同一份步数预算(step 不重置)
     }
 
-    emit({ type: 'done', text: finalText })
-    return { status: 'done', steps, finalText }
+    emit({ type: 'done', text: finalText, warnings: warnings.length > 0 ? warnings : undefined })
+    return {
+      status: 'done',
+      steps,
+      finalText,
+      warnings: warnings.length > 0 ? warnings : undefined
+    }
   } catch (err) {
     if (err instanceof CancelledError) {
       const rb = await deps.git.rollback(snapRef)
