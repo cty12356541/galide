@@ -84,7 +84,9 @@ const createWindow = (): void => {
   // dev-only 视觉冒烟(GALIDE_VISUAL_SMOKE=1):开项→截屏→合成 Cmd+6 开 brain 面板→再截屏→退出。
   // 用于无辅助权限/无录屏权限环境下的真实 UI 验证;production 打包不受影响(env 不存在)。
   const smokeProject = process.env['GALIDE_OPEN_PROJECT']
-  if (process.env['GALIDE_VISUAL_SMOKE'] === '1') {
+  if (process.env['GALIDE_SMOKE_JS']) {
+    void runJsSmoke(mainWindow, smokeProject, process.env['GALIDE_SMOKE_JS']!)
+  } else if (process.env['GALIDE_VISUAL_SMOKE'] === '1') {
     void runVisualSmoke(mainWindow, smokeProject)
   } else if (smokeProject) {
     // 仅开项不截屏(供其他手动验证用)
@@ -133,6 +135,60 @@ const runVisualSmoke = async (win: BrowserWindow, projectPath?: string): Promise
     console.log('[visual-smoke] captured /tmp/galide-visual-1.png /tmp/galide-visual-2.png')
   } catch (err) {
     console.error('[visual-smoke] failed:', err)
+  } finally {
+    app.quit()
+  }
+}
+
+/** dev-only JS 冒烟:加载后执行 JS 文件,等待后 dump window.__smoke 并退出 */
+const runJsSmoke = async (
+  win: BrowserWindow,
+  projectPath: string | undefined,
+  jsPath: string
+): Promise<void> => {
+  console.log(`[js-smoke] starting (js=${jsPath})`)
+  try {
+    await new Promise<void>((resolve) => {
+      win.webContents.once('did-finish-load', () => resolve())
+      setTimeout(resolve, 10_000)
+    })
+    if (projectPath) await openProjectInRenderer(win, projectPath)
+    await new Promise((r) => setTimeout(r, 1_500))
+    const { readFile } = await import('node:fs/promises')
+    const js = await readFile(jsPath, 'utf-8')
+    await win.webContents.executeJavaScript(js, true)
+    const waitMs = Number(process.env['GALIDE_SMOKE_WAIT'] ?? 25_000)
+    const startedAt = Date.now()
+    let dump: string | null = null
+    while (Date.now() - startedAt < waitMs) {
+      if (win.isDestroyed()) {
+        console.error('[js-smoke] window destroyed during wait')
+        break
+      }
+      await new Promise((r) => setTimeout(r, 4_000))
+      if (win.isDestroyed()) {
+        console.error('[js-smoke] window destroyed during wait')
+        break
+      }
+      const last = await win.webContents.executeJavaScript(
+        "(window.__smoke?.statuses?.at(-1)?.status) ?? (window.__smoke?.generateError ? 'error' : null)"
+      )
+      if (last === 'done' || last === 'error' || last === 'cancelled') {
+        await new Promise((r) => setTimeout(r, 500))
+        dump = await win.webContents.executeJavaScript(
+          'window.__smoke ? JSON.stringify(window.__smoke, null, 2) : "null"'
+        )
+        break
+      }
+    }
+    if (!dump && !win.isDestroyed()) {
+      dump = await win.webContents.executeJavaScript(
+        'window.__smoke ? JSON.stringify(window.__smoke, null, 2) : "null"'
+      )
+    }
+    console.log(`[js-smoke] __smoke = ${dump ?? '(window gone)'}`)
+  } catch (err) {
+    console.error('[js-smoke] failed:', err)
   } finally {
     app.quit()
   }
