@@ -94,3 +94,66 @@ describe('aiTaskQueue — error→done 竞态', () => {
     expect(terminal[0]?.status).toBe('done')
   })
 })
+
+describe('aiTaskQueue — 超时与取消的区分', () => {
+  beforeEach(() => {
+    generateMock.mockReset()
+  })
+
+  it('挂死连接 → 120s 超时 abort,终态 error 且 error 文本为 timeout(非 cancelled)', async () => {
+    vi.useFakeTimers()
+    try {
+      const { aiTaskQueue } = await import('./task-queue.js')
+      // 模拟挂死:请求永不返回,abort 时以 AbortError 拒绝
+      generateMock.mockImplementation(
+        (req) =>
+          new Promise<void>((_, reject) => {
+            req.signal?.addEventListener('abort', () => {
+              const e = new Error('aborted')
+              e.name = 'AbortError'
+              reject(e)
+            })
+          })
+      )
+      const sender = makeSender()
+      aiTaskQueue.enqueue(baseReq, sender)
+      await vi.advanceTimersByTimeAsync(120_500)
+      // 排空微任务队列
+      await vi.advanceTimersByTimeAsync(0)
+
+      const terminal = sender.statuses.filter((s) => s.status === 'error' || s.status === 'done')
+      expect(terminal).toHaveLength(1)
+      expect(terminal[0]?.status).toBe('error')
+      expect(terminal[0]?.error).toBe('timeout')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('用户主动取消 → 终态 error 且 error 文本为 cancelled', async () => {
+    const { aiTaskQueue } = await import('./task-queue.js')
+    let release: ((v: void) => void) | undefined
+    generateMock.mockImplementation(
+      (req) =>
+        new Promise<void>((resolve, reject) => {
+          release = resolve
+          req.signal?.addEventListener('abort', () => {
+            const e = new Error('aborted')
+            e.name = 'AbortError'
+            reject(e)
+          })
+        })
+    )
+    const sender = makeSender()
+    aiTaskQueue.enqueue(baseReq, sender)
+    await new Promise((r) => setTimeout(r, 10))
+    aiTaskQueue.cancel(sender.statuses[0]!.taskId)
+    release?.()
+    await new Promise((r) => setTimeout(r, 30))
+
+    const terminal = sender.statuses.filter((s) => s.status === 'error' || s.status === 'done')
+    expect(terminal).toHaveLength(1)
+    expect(terminal[0]?.status).toBe('error')
+    expect(terminal[0]?.error).toBe('cancelled')
+  })
+})
