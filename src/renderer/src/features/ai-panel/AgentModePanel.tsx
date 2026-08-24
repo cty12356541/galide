@@ -101,15 +101,38 @@ export const StepView = ({ step, highlighted }: { step: AgentStep; highlighted?:
           </div>
         )
       }
+      const badge = r.parseError
+        ? '(verdict 解析失败,仅供参考)'
+        : r.pass === true
+          ? '(通过)'
+          : r.pass === false
+            ? '(未通过)'
+            : ''
       return (
         <div className="text-xs space-y-0.5">
-          <div className="font-medium text-accent">审查</div>
+          <div className="font-medium text-accent">审查 {badge}</div>
+          {r.issues && r.issues.length > 0 ? (
+            <ul className="text-text-muted list-disc pl-4">
+              {r.issues.map((issue, i) => (
+                <li key={i}>{issue}</li>
+              ))}
+            </ul>
+          ) : null}
           <div className="text-text-muted whitespace-pre-wrap">{r.text}</div>
         </div>
       )
     }
     case 'done':
-      return <div className="text-sm whitespace-pre-wrap">{step.text}</div>
+      return (
+        <div className="text-sm space-y-1">
+          <div className="whitespace-pre-wrap">{step.text}</div>
+          {step.warnings && step.warnings.length > 0 ? (
+            <div className="text-xs text-danger whitespace-pre-wrap border-l-2 border-danger pl-2">
+              ⚠ {step.warnings.join('\n')}
+            </div>
+          ) : null}
+        </div>
+      )
     case 'error':
       return <div className="text-xs text-danger">{step.message}</div>
   }

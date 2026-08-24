@@ -18,7 +18,7 @@ export type AgentStep =
     }
   | { type: 'tool_result'; result: { name: string; ok: boolean; content: string } }
   | { type: 'critic'; report: CriticReport }
-  | { type: 'done'; text: string }
+  | { type: 'done'; text: string; warnings?: string[] }
   | { type: 'error'; message: string }
 
 export interface ReachabilityReport {
@@ -30,7 +30,7 @@ export interface ReachabilityReport {
 
 export type CriticReport =
   | { kind: 'deterministic'; reachability: ReachabilityReport }
-  | { kind: 'llm'; text: string }
+  | { kind: 'llm'; text: string; pass?: boolean; issues?: string[]; parseError?: boolean }
 
 export type AgentTaskStatus = 'pending' | 'running' | 'done' | 'error' | 'cancelled'
 

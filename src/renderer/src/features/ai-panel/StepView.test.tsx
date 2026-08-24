@@ -63,3 +63,36 @@ describe('StepView — critic / awaiting_confirm 渲染', () => {
     expect(text).toContain('加对白')
   })
 })
+
+  it('critic llm 未通过时显示徽标与 issues', () => {
+    const step = {
+      type: 'critic',
+      report: { kind: 'llm', text: 'raw', pass: false, issues: ['场景缺少出口'] }
+    } as AgentStep
+    const { container } = render(<StepView step={step} />)
+    const text = container.textContent ?? ''
+    expect(text).toContain('未通过')
+    expect(text).toContain('场景缺少出口')
+  })
+
+  it('critic llm verdict 解析失败时显示提示', () => {
+    const step = {
+      type: 'critic',
+      report: { kind: 'llm', text: '自由文本', parseError: true }
+    } as AgentStep
+    const { container } = render(<StepView step={step} />)
+    expect(container.textContent ?? '').toContain('解析失败')
+  })
+
+  it('done 携带 warnings 时渲染警告块', () => {
+    const step = {
+      type: 'done',
+      text: '完成',
+      warnings: ['审查发现问题但修复预算已耗尽: 可达性问题']
+    } as AgentStep
+    const { container } = render(<StepView step={step} />)
+    const text = container.textContent ?? ''
+    expect(text).toContain('完成')
+    expect(text).toContain('修复预算已耗尽')
+    expect(container.querySelector('.text-danger')).toBeTruthy()
+  })
