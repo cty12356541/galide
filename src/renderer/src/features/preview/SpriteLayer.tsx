@@ -3,9 +3,8 @@
  */
 import { useEffect, useMemo } from 'react'
 import type { SceneNode, ScriptNode } from '../../../../shared/dsl/types'
-import type { PlaybackStep } from '../../../../shared/preview/playback-timeline'
 import type { VmGraph, VmState } from '../../../../shared/preview/runtime-vm'
-import { getCurrentScene, getCurrentStep } from '../../../../shared/preview/runtime-vm'
+import { getCurrentScene, computeStageState } from '../../../../shared/preview/runtime-vm'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type { PreviewRuntime } from './PreviewRuntime'
 
@@ -42,24 +41,41 @@ export const SpriteLayer = ({
   )
 
   const vmScene = vmGraph && vmState ? getCurrentScene(vmGraph, vmState) : null
-  const currentStep: PlaybackStep | null = vmGraph && vmState ? getCurrentStep(vmGraph, vmState) : null
-
   useEffect(() => {
     if (!vmScene || !runtimeRef.current) return
     const astScene = scenes.find((s) => s.id === vmScene.id) ?? null
     void runtimeRef.current.updateScene(astScene)
   }, [vmScene, scenes, runtimeRef])
 
+  // 多角色舞台:从(场景, 位置)确定性推导全员立绘,含说话角色粘性更新
+  const stageEntries = useMemo(() => {
+    if (!vmGraph || !vmState) return []
+    const stage = computeStageState(vmGraph, vmState)
+    return Object.entries(stage).map(([character, slot]) => ({
+      character,
+      sprite: slot.sprite,
+      position: slot.position ?? 'center'
+    }))
+  }, [vmGraph, vmState])
+
   useEffect(() => {
-    if (currentStep?.type !== 'dialogue' || !currentStep.sprite) return
-    const syncSprite = async (): Promise<void> => {
-      const url = await resolveAssetUrl(resolveAsync, projectPath, currentStep.sprite)
-      if (url && runtimeRef.current) {
-        await runtimeRef.current.setCharacter(url, currentStep.position ?? 'center')
+    if (!runtimeRef.current) return
+    const syncStage = async (): Promise<void> => {
+      const entries = await Promise.all(
+        stageEntries.map(async (e) => ({
+          character: e.character,
+          url: await resolveAssetUrl(resolveAsync, projectPath, e.sprite),
+          position: e.position
+        }))
+      )
+      if (runtimeRef.current) {
+        await runtimeRef.current.setStage(
+          entries.filter((e): e is { character: string; url: string; position: 'left' | 'center' | 'right' } => !!e.url)
+        )
       }
     }
-    void syncSprite()
-  }, [currentStep, projectPath, resolveAsync, runtimeRef])
+    void syncStage()
+  }, [stageEntries, projectPath, resolveAsync, runtimeRef])
 
   return (
     <canvas

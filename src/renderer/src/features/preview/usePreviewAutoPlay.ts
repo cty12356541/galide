@@ -8,7 +8,8 @@ export const AUTO_PLAY_SPEEDS: readonly number[] = [1500, 1000, 600]
 export const AUTO_PLAY_SPEED_LABELS: readonly string[] = ['慢', '中', '快']
 
 const isAutoPlayableStep = (step: PlaybackStep | null): boolean =>
-  step !== null && (step.type === 'dialogue' || step.type === 'marker' || step.type === 'set')
+  step !== null &&
+  (step.type === 'dialogue' || step.type === 'marker' || step.type === 'set' || step.type === 'stage')
 
 export interface UsePreviewAutoPlayOptions {
   advance: () => void

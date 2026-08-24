@@ -23,6 +23,9 @@ import {
   SCENE_RE,
   SET_FULL_RE,
   SPRITE_RE
+,
+  STAGE_ENTRY_RE,
+  STAGE_EXIT_RE
 } from './line-rules.js'
 
 type LineRule = {
@@ -94,6 +97,42 @@ const spriteRule: LineRule = {
       tokens.push({ type: 'position', value: position, line: lineNo, column: 1 })
     }
     return tokens
+  }
+}
+
+/**
+ * 登场行: [登场:小雪 | 立绘:a.png | 位置:左]
+ * 发出 stageEntry(角色名) + 可选 sprite/position token
+ */
+const stageEntryRule: LineRule = {
+  test: (line) => STAGE_ENTRY_RE.test(line),
+  tokenize: (line, lineNo) => {
+    const body = line.replace(/^\[(登场|enter):/, '').replace(/\]$/, '')
+    const parts = body.split('|').map((p) => p.trim())
+    const character = parts[0] ?? ''
+    const tokens: Token[] = [
+      { type: 'stageEntry', value: character, line: lineNo, column: 1 }
+    ]
+    const spritePart = parts.find((p) => p.startsWith('立绘:') || p.startsWith('sprite:'))
+    const positionPart = parts.find((p) => p.startsWith('位置:') || p.startsWith('position:'))
+    const sprite = spritePart?.split(':').slice(1).join(':').trim()
+    const position = positionPart?.split(':').slice(1).join(':').trim()
+    if (sprite) {
+      tokens.push({ type: 'sprite', value: sprite, line: lineNo, column: 1 })
+    }
+    if (position) {
+      tokens.push({ type: 'position', value: position, line: lineNo, column: 1 })
+    }
+    return tokens
+  }
+}
+
+/** 退场行: [退场:小雪] */
+const stageExitRule: LineRule = {
+  test: (line) => STAGE_EXIT_RE.test(line),
+  tokenize: (line, lineNo) => {
+    const target = line.replace(/^\[(退场|exit):/, '').replace(/\]$/, '').trim()
+    return [{ type: 'stageExit', value: target, line: lineNo, column: 1 }]
   }
 }
 
@@ -209,6 +248,8 @@ const RULES: LineRule[] = [
   backgroundRule,
   bgmRule,
   spriteRule,
+  stageEntryRule,
+  stageExitRule,
   gotoRule,
   endifRule,
   elifRule,

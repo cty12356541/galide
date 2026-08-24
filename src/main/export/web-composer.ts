@@ -70,7 +70,6 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
     ${saveFunctions}
 
     let vmState = { sceneId: VM_GRAPH.sceneOrder[0] || Object.keys(VM_GRAPH.scenes)[0] || '', stepIndex: 0, variables: {} };
-    let currentSpriteKey = null;
     let errorBanner = null;
     let saveToast = null;
     let autoTimer = null;
@@ -114,7 +113,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
       render();
       return 'end';
     };
-    const isAutoPlayable = (step) => !!step && (step.type === 'dialogue' || step.type === 'marker' || step.type === 'set');
+    const isAutoPlayable = (step) => !!step && (step.type === 'dialogue' || step.type === 'marker' || step.type === 'set' || step.type === 'stage');
     const startAuto = () => {
       stopSkip();
       autoTimer = setInterval(() => {
@@ -248,18 +247,25 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
       }
     };
 
-    const updateSprite = (step) => {
+    let currentStageKey = '';
+    const updateStage = () => {
       const layer = document.getElementById('sprites');
+      const stage = computeStageState(VM_GRAPH, vmState);
+      const names = Object.keys(stage).sort();
+      const key = names.map((n) => n + '>' + (stage[n].sprite || '') + '@' + (stage[n].position || 'center')).join(';');
+      if (key === currentStageKey) return;
+      currentStageKey = key;
       layer.innerHTML = '';
-      if (!step || step.type !== 'dialogue' || !step.sprite) return;
-      const key = step.sprite + '|' + (step.position || 'center');
-      if (currentSpriteKey === key) return;
-      currentSpriteKey = key;
-      const img = document.createElement('img');
-      img.className = 'sprite ' + positionClass(step.position);
-      img.src = assetUrl(step.sprite);
-      img.alt = step.character;
-      layer.appendChild(img);
+      for (const n of names) {
+        const slot = stage[n];
+        if (!slot || !slot.sprite) continue;
+        const img = document.createElement('img');
+        img.className = 'sprite ' + positionClass(slot.position);
+        img.src = assetUrl(slot.sprite);
+        img.alt = n;
+        img.setAttribute('data-stage-character', n);
+        layer.appendChild(img);
+      }
     };
 
     const render = () => {
@@ -283,8 +289,8 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
       // 已读标记:对白展示即记录并持久化
       markCurrentRead(step);
 
-      // set 步不渲染,立即自动推进(与 preview 行为对齐,修复卡死)
-      if (step.type === 'set') {
+      // set / stage(进出场)步不渲染,立即自动推进(与 preview 行为对齐,修复卡死)
+      if (step.type === 'set' || step.type === 'stage') {
         setTimeout(() => {
           const r = advanceVm(VM_GRAPH, vmState);
           // finished 也必须更新状态,否则 render 仍停在 set 步 → 无限重排
@@ -294,7 +300,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         return;
       }
 
-      updateSprite(step);
+      updateStage();
 
       if (step.type === 'dialogue') {
         const d = document.createElement('div');

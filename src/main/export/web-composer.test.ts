@@ -18,8 +18,7 @@ import type {
   MarkerNode
 } from '../../shared/dsl/types.js'
 import type { ExportContext, AstEntry } from './composer.js'
-import {
-  buildVmGraph,
+import {buildVmGraph,
   createVmState,
   jumpToTarget,
   getCurrentStep,
@@ -28,8 +27,8 @@ import {
 ,
   buildBacklog,
   dialogueLineId,
-  markRead
-} from '../../shared/preview/runtime-vm.js'
+  markRead,
+  computeStageState } from '../../shared/preview/runtime-vm.js'
 import { buildWebSaveKey } from '../../shared/preview/vm-save.js'
 
 const base = (line: number): BaseNode => ({ line, column: 1 })
@@ -286,6 +285,42 @@ describe('WebComposer (Batch 3)', () => {
     // set 步自动推进(修复卡死)
     expect(target.html).toContain("step.type === 'set'")
     expect(target.html).toContain('markCurrentRead(step)')
+  })
+
+  it('computeStageState parity between TS and inline player functions', () => {
+    const ast = makeAst([
+      makeScene('s1', [
+        {
+          ...base(1),
+          type: 'stageEntry',
+          character: '小雪',
+          sprite: 'a.png',
+          position: 'left' as const
+        },
+        {
+          ...base(2),
+          type: 'stageEntry',
+          character: '阳',
+          sprite: 'b.png',
+          position: 'right' as const
+        },
+        makeDialogue('小雪', 'hi'),
+        { ...base(4), type: 'stageExit', character: '阳' }
+      ])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    const a1 = advanceVm(graph, state)
+    if (a1.ok) state = a1.state
+    const tsStage = computeStageState(graph, state)
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserStage = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return computeStageState(graph, state);`
+    ) as (g: typeof graph, s: typeof state) => ReturnType<typeof computeStageState>
+    expect(browserStage(graph, state)).toEqual(tsStage)
+    expect(Object.keys(tsStage).sort()).toEqual(['小雪', '阳'])
   })
 
   it('embeds localStorage save key format (web player parity)', async () => {

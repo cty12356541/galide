@@ -179,7 +179,8 @@ export const PreviewCanvas = (): JSX.Element => {
   }, [currentStep, previewTtsEnabled, vmState, sceneId, resolveCharacterId, voiceRef])
 
   useEffect(() => {
-    if (currentStep?.type !== 'set' || !vmGraph || !vmState) return
+    if ((currentStep?.type !== 'set' && currentStep?.type !== 'stage') || !vmGraph || !vmState)
+      return
     const result = advanceVm(vmGraph, vmState)
     if (result.ok) setVmState(result.state)
   }, [currentStep, vmGraph, vmState])

@@ -29,6 +29,7 @@ import {
   stepBack,
   dialogueLineIdImpl,
   buildBacklogImpl,
+  computeStageStateImpl,
   markReadImpl,
   isReadImpl,
   MAX_READ_LINE_IDS
@@ -86,11 +87,12 @@ export {
 export {
   dialogueLineIdImpl as dialogueLineId,
   buildBacklogImpl as buildBacklog,
+  computeStageStateImpl as computeStageState,
   markReadImpl as markRead,
   isReadImpl as isRead,
   MAX_READ_LINE_IDS
 }
-export type { VmBacklogEntry, VmReadState } from './runtime-vm-player.js'
+export type { VmBacklogEntry, VmReadState, VmStageSlot } from './runtime-vm-player.js'
 
 /** Build a framework-agnostic playback graph from Script AST. */
 export const buildVmGraph = (ast: ScriptNode): VmGraph => {

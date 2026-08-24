@@ -83,6 +83,20 @@ export type MarkerNode = BaseNode & {
   id: string
 }
 
+/** 登场: 角色进入舞台(多角色同屏) */
+export type StageEntryNode = BaseNode & {
+  type: 'stageEntry'
+  character: string
+  sprite?: string
+  position?: 'left' | 'right' | 'center'
+}
+
+/** 退场: 角色离开舞台 */
+export type StageExitNode = BaseNode & {
+  type: 'stageExit'
+  character: string
+}
+
 export type CommentNode = BaseNode & { type: 'comment'; text: string }
 
 export type ChapterNode = BaseNode & {
@@ -99,6 +113,8 @@ export type AstNode =
   | IfNode
   | GotoNode
   | MarkerNode
+  | StageEntryNode
+  | StageExitNode
   | CommentNode
   | ChapterNode
 
@@ -117,6 +133,8 @@ export type TokenType =
   | 'dialogue'
   | 'choice'
   | 'marker'
+  | 'stageEntry'
+  | 'stageExit'
   | 'goto'
   | 'set'
   | 'if'

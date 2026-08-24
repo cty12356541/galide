@@ -334,6 +334,69 @@ export function isReadImpl(read: VmReadState, lineId: string): boolean {
   return read.readLineIds.indexOf(lineId) >= 0
 }
 
+/** 舞台槽位:角色 → 立绘/位置(多角色同屏) */
+export interface VmStageSlot {
+  sprite?: string
+  position?: 'left' | 'right' | 'center'
+}
+
+/**
+ * 从场景开头重放到当前位置,推导多角色舞台状态。
+ * 纯函数、确定性:对(场景, 位置)可重算,天然兼容存档/跳转/历史;
+ * 场景切换时舞台清空(与 VN 惯例一致)。
+ */
+export function computeStageStateImpl(
+  graph: VmGraph,
+  state: VmState
+): Record<string, VmStageSlot> {
+  const stage: Record<string, VmStageSlot> = {}
+  const scene = graph.scenes[state.sceneId]
+  if (!scene) return stage
+  const branch = state.branchQueue ?? []
+  const walk = (steps: readonly PlaybackStep[], upto: number): void => {
+    for (let i = 0; i < upto; i++) {
+      const step = steps[i]
+      if (!step) continue
+      if (step.type === 'stage') {
+        if (step.action === 'enter') {
+          stage[step.character] = {
+            ...(step.sprite !== undefined ? { sprite: step.sprite } : {}),
+            ...(step.position !== undefined ? { position: step.position } : {})
+          }
+        } else {
+          delete stage[step.character]
+        }
+      } else if (step.type === 'dialogue' && step.sprite) {
+        // 说话角色的立绘更新自己的槽位(粘性)
+        const prev = stage[step.character]
+        stage[step.character] = {
+          sprite: step.sprite,
+          position: step.position ?? prev?.position
+        }
+      }
+    }
+  }
+  if (branch.length > 0) {
+    // if 分支内:主时间线走到 if 步(其 index 在 branchQueue 之前的边界),
+    // 再叠加分支队列中已消费与当前步之前的 stage 变化
+    const ifIdx = findIfBoundary(scene.steps, state.stepIndex)
+    walk(scene.steps, ifIdx + 1)
+    walk(branch, branch.length)
+  } else {
+    walk(scene.steps, state.stepIndex + 1)
+  }
+  return stage
+}
+
+/** 状态指向 if 分支内部时,定位主时间线上的 if 步索引 */
+function findIfBoundary(steps: readonly PlaybackStep[], stateIndex: number): number {
+  for (let i = 0; i < stateIndex && i < steps.length; i++) {
+    const st = steps[i]
+    if (st && st.type === 'if') return i
+  }
+  return stateIndex
+}
+
 export const resolveTarget = resolveTargetImpl
 export const getCurrentStep = getCurrentStepImpl
 export const jumpToTarget = jumpToTargetImpl
@@ -367,6 +430,8 @@ export function buildPlayerRuntimeFunctions(): string {
     'const advanceVm = advanceVmImpl;',
     dialogueLineIdImpl.toString(),
     buildBacklogImpl.toString(),
+    computeStageStateImpl.toString(),
+    'const computeStageState = computeStageStateImpl;',
     'const dialogueLineId = dialogueLineIdImpl;',
     'const buildBacklog = buildBacklogImpl;',
     `const MAX_READ_LINE_IDS = ${MAX_READ_LINE_IDS};`,

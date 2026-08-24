@@ -136,6 +136,8 @@ export const countByType = (root: AstRoot): Record<NodeType, number> => {
     if: 0,
     goto: 0,
     marker: 0,
+    stageEntry: 0,
+    stageExit: 0,
     comment: 0,
     chapter: 0
   }

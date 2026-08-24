@@ -23,6 +23,9 @@ import type {
   SetNode,
   SetOp,
   Token
+,
+  StageEntryNode,
+  StageExitNode
 } from './types.js'
 import { tokenize } from './lexer.js'
 
@@ -310,6 +313,39 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
         column: first.column
       }
       pushNode(ctx, marker)
+      return
+    }
+    case 'stageEntry': {
+      const spriteToken = line.find((t) => t.type === 'sprite')
+      const positionToken = line.find((t) => t.type === 'position')
+      const pv = positionToken?.value
+      const position =
+        pv === 'left' || pv === '左'
+          ? 'left'
+          : pv === 'right' || pv === '右'
+            ? 'right'
+            : pv === 'center' || pv === '中'
+              ? 'center'
+              : undefined
+      const node: StageEntryNode = {
+        type: 'stageEntry',
+        character: first.value,
+        line: first.line,
+        column: first.column,
+        ...(spriteToken ? { sprite: spriteToken.value } : {}),
+        ...(position ? { position } : {})
+      }
+      pushNode(ctx, node)
+      return
+    }
+    case 'stageExit': {
+      const node: StageExitNode = {
+        type: 'stageExit',
+        character: first.value,
+        line: first.line,
+        column: first.column
+      }
+      pushNode(ctx, node)
       return
     }
     case 'goto': {
