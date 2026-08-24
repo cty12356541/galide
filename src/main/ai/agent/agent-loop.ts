@@ -278,8 +278,14 @@ export const runAgent = async (
     const planStepHint = (): string => {
       if (!plan || planCursor >= plan.steps.length) return ''
       const stepDef = plan.steps[planCursor]!
-      return `\n\n当前计划步骤 ${planCursor + 1}/${plan.steps.length}: ${stepDef.description}`
+      return (
+        `\n\n当前计划步骤 ${planCursor + 1}/${plan.steps.length}: ${stepDef.description}` +
+        '\n完成当前步骤后,在回复末尾单独一行输出 [STEP_DONE];步骤未完成时不要输出该标记。'
+      )
     }
+
+    /** executor 回复中的步骤完成标记;planCursor 据此推进,而非按轮次盲推 */
+    const STEP_DONE_MARK = '[STEP_DONE]'
 
     // Agent state machine — intentionally infinite loop with explicit break/return exits.
     // step 跨 critic-fix 轮累计(共享步数预算);仅重规划时重置。
@@ -345,6 +351,11 @@ export const runAgent = async (
           break
         }
 
+        // 步骤完成标记推进计划游标(完成驱动,非轮次驱动)
+        if (plan && planCursor < plan.steps.length && resp.text.includes(STEP_DONE_MARK)) {
+          planCursor++
+        }
+
         convo.push({
           role: 'assistant',
           content: resp.text || `(调用工具: ${resp.toolCalls.map((c) => c.name).join(', ')})`
@@ -392,10 +403,6 @@ export const runAgent = async (
           const result = await deps.tools.execute(toolCall, deps.toolContext)
           emit({ type: 'tool_result', result })
           convo.push({ role: 'user', content: `工具 ${toolCall.name} 结果: ${result.content}` })
-        }
-
-        if (plan && planCursor < plan.steps.length) {
-          planCursor++
         }
       }
 

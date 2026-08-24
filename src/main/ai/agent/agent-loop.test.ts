@@ -826,3 +826,47 @@ describe('agent-loop — 解析失败进入 critic', () => {
     expect(result.warnings?.join('\n')).toContain('broken.gal')
   })
 })
+
+describe('agent-loop — 计划游标按完成标记推进', () => {
+  it('executor 回复含 [STEP_DONE] 才推进到下一步', async () => {
+    const llm = fakeLlm([
+      { text: '1. 步骤一\n2. 步骤二', toolCalls: [] },
+      { text: '步骤一做完\n[STEP_DONE]', toolCalls: [({ id: 'c1', name: 'do_thing', args: {} }) as never] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    const steps: AgentStep[] = []
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext,
+      onStep: (s) => steps.push(s)
+    })
+    // 第二次 executor 调用(索引 2)应已推进到步骤 2
+    expect(llm.calls[2]?.system).toContain('当前计划步骤 2/2')
+    // plan_progress 出现过 2/2
+    const prog = steps.find((s) => s.type === 'plan_progress' && s.current === 2)
+    expect(prog).toBeTruthy()
+  })
+
+  it('无 [STEP_DONE] 标记时游标不推进', async () => {
+    const llm = fakeLlm([
+      { text: '1. 步骤一\n2. 步骤二', toolCalls: [] },
+      { text: '还在做步骤一', toolCalls: [({ id: 'c1', name: 'do_thing', args: {} }) as never] },
+      { text: '完成', toolCalls: [] }
+    ])
+    const { registry } = makeTools('read')
+    await runAgent(baseReq, {
+      llm,
+      tools: registry,
+      git: fakeGit(),
+      gate: createAutonomyGate('autonomous'),
+      topology: TOPOLOGIES.litePlanExecute,
+      toolContext
+    })
+    expect(llm.calls[2]?.system).toContain('当前计划步骤 1/2')
+  })
+})

@@ -49,9 +49,14 @@
 
 ## 非目标(本期不做)
 
-- Brain 的 renderer UI 面板
 - eval 进 CI / mock 冒烟回归(agent-mock-e2e 已覆盖框架回归)
-- planCursor 按验收条件推进的重构(涉及 planner prompt 协议,单独评估)
+
+## 后续补充(同轮追加)
+
+- Brain 的 renderer 查看面板已落地(BrainPanel,brain:list IPC,右 dock/Meta+6)。
+- planCursor 改为**完成标记驱动**:executor prompt 要求在完成当前计划步骤时于回复末尾
+  输出 `[STEP_DONE]`,loop 据此推进游标;不再按"一轮工具调用=一步"盲推。进度提示从
+  时间性提示变为接近真实的状态机。
 
 ## 触发条件与后续
 
