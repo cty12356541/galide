@@ -65,6 +65,8 @@ const TASKS: readonly EvalTask[] = [
 ]
 
 const parseRuns = (): number => {
+  const env = process.env.GALIDE_EVAL_RUNS
+  if (env) return Number(env) || 5
   const idx = process.argv.indexOf('--runs')
   if (idx >= 0 && process.argv[idx + 1]) return Number(process.argv[idx + 1]) || 5
   return 5
