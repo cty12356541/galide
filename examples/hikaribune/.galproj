@@ -1,0 +1,31 @@
+{
+  "version": "0.1.0",
+  "name": "星灯渡",
+  "createdAt": "2026-08-24T00:00:00Z",
+  "updatedAt": "2026-08-24T00:00:00Z",
+  "characters": [
+    {
+      "id": "wanqing",
+      "name": "苏晚晴",
+      "description": "拾光书屋的现任店主,安静,总在擦拭一只停走的挂钟",
+      "personality": "温柔寡言,对旧物有近乎执念的珍惜",
+      "spriteSet": [
+        { "state": "default", "path": "assets/sprites/wanqing.png" }
+      ]
+    },
+    {
+      "id": "luli",
+      "name": "陆离",
+      "description": "自称旧书回收商的青年,总在打听前店主的下落",
+      "personality": "锋利外向,话里有话",
+      "spriteSet": [
+        { "state": "default", "path": "assets/sprites/luli.png" }
+      ]
+    }
+  ],
+  "assets": {
+    "characters": "assets/sprites",
+    "backgrounds": "assets/backgrounds",
+    "bgm": "assets/bgm"
+  }
+}

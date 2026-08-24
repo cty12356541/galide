@@ -1,0 +1,68 @@
+{
+  "version": "0.1.0",
+  "foreshadowings": [
+    {
+      "id": "f-diary",
+      "description": "无署名日记与那句「他说灯会亮起来的」",
+      "plantedInSceneId": "ch1_diary_open",
+      "plantedInFile": "ch1_bookstore.gal",
+      "expectedPayoff": "第三章揭示前店主与灯塔的约定",
+      "status": "planted",
+      "updatedAt": "2026-08-24T00:00:00Z"
+    },
+    {
+      "id": "f-clock",
+      "description": "挂钟停在七点整——前店主离开的时刻",
+      "plantedInSceneId": "ch1_clock",
+      "plantedInFile": "ch1_bookstore.gal",
+      "expectedPayoff": "终章:七点是被人为停住的,与灯塔点亮时刻对齐",
+      "status": "planted",
+      "updatedAt": "2026-08-24T00:00:00Z"
+    },
+    {
+      "id": "f-ticket",
+      "description": "日记末页开往「星灯渡」的褪色船票",
+      "plantedInSceneId": "ch1_ending",
+      "plantedInFile": "ch1_bookstore.gal",
+      "expectedPayoff": "第二章船票日期即灯塔事件周年",
+      "status": "planted",
+      "updatedAt": "2026-08-24T00:00:00Z"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel-you-wanqing",
+      "characterA": "你",
+      "characterB": "苏晚晴",
+      "description": "初识的店主与客人,因日记产生微妙的信任",
+      "stages": [{ "note": "初识(书屋)" }],
+      "updatedAt": "2026-08-24T00:00:00Z"
+    },
+    {
+      "id": "rel-wanqing-luli",
+      "characterA": "苏晚晴",
+      "characterB": "陆离",
+      "description": "明显相识却互相戒备,陆离在打探与她有关的人",
+      "stages": [{ "note": "旧识重逢(敌意表面化)" }],
+      "updatedAt": "2026-08-24T00:00:00Z"
+    }
+  ],
+  "knowledgeBoundaries": [
+    {
+      "id": "kb-lighthouse",
+      "condition": "trust_wanqing >= 1",
+      "fact": "七月十四晚码头老灯塔亮过一次",
+      "known": true,
+      "note": "仅拦话线(ch1_ask_luli)获知;沉默线不揭示",
+      "updatedAt": "2026-08-24T00:00:00Z"
+    },
+    {
+      "id": "kb-luli-purpose",
+      "condition": "curiosity >= 1",
+      "fact": "陆离与失踪前店主的关系",
+      "known": false,
+      "note": "第一章任何路线都不揭示,第二章起才可解锁",
+      "updatedAt": "2026-08-24T00:00:00Z"
+    }
+  ]
+}

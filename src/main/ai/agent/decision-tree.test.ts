@@ -3,6 +3,7 @@
  *
  * 供 Phase 2 确定性 Critic + Phase 4 决策树分析工具复用。
  */
+import { parse } from '../../../shared/dsl/parser.js'
 import { describe, it, expect } from 'vitest'
 import { analyzeReachability, hasReachabilityIssues, formatReachabilityIssues } from './decision-tree.js'
 import type { ScriptNode, SceneNode, ChoiceNode, GotoNode } from '../../../shared/dsl/types.js'
@@ -85,5 +86,31 @@ describe('hasReachabilityIssues / formatReachabilityIssues', () => {
     const r = analyzeReachability(ast)
     expect(hasReachabilityIssues(r)).toBe(false)
     expect(formatReachabilityIssues(r)).toBe('')
+  })
+})
+
+describe('analyzeReachability — 场景内 marker 目标', () => {
+  it('跳到场景内 marker 的场景及其下游都可达', () => {
+    const src = `## s1
+小雪: "hi"
+[跳转: mid]
+
+## s2
+=== mid ===
+小雪: "middle"
+[跳转: s3]
+
+## s3
+小雪: "end"
+`
+    const r = parse(src)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const report = analyzeReachability(r.value)
+    expect(report.unreachable).toEqual([])
+    expect(report.danglingTargets).toEqual([])
+    expect(report.reachable).toContain('s2')
+    expect(report.reachable).toContain('s3')
+    expect(report.reachable).toContain('mid')
   })
 })

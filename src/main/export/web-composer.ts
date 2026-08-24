@@ -268,6 +268,49 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
       }
     };
 
+
+    const renderBacklog = (stage) => {
+      if (!backlogOpen) return;
+      const entries = buildBacklog(VM_GRAPH, vmState);
+      const panel = document.createElement('div');
+      panel.className = 'backlog';
+      panel.setAttribute('data-testid', 'web-backlog-panel');
+      const h = document.createElement('h3');
+      h.textContent = '回看日志(' + entries.length + ')';
+      panel.appendChild(h);
+      const list = document.createElement('div');
+      list.className = 'backlog-list';
+      if (entries.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'text';
+        empty.style.color = 'rgba(255,255,255,0.5)';
+        empty.style.fontSize = '13px';
+        empty.textContent = '还没有播放过的对白';
+        list.appendChild(empty);
+      }
+      for (const e of entries) {
+        const item = document.createElement('div');
+        item.className = 'backlog-item';
+        const ch = document.createElement('div');
+        ch.className = 'character';
+        ch.textContent = e.character + '  ·  ' + e.sceneId;
+        const tx = document.createElement('div');
+        tx.className = 'text';
+        tx.textContent = e.text;
+        item.appendChild(ch);
+        item.appendChild(tx);
+        list.appendChild(item);
+      }
+      panel.appendChild(list);
+      const close = document.createElement('button');
+      close.className = 'ctrl-btn backlog-close';
+      close.textContent = '关闭';
+      close.setAttribute('data-testid', 'web-backlog-close');
+      close.onclick = () => { backlogOpen = false; render(); };
+      panel.appendChild(close);
+      stage.appendChild(panel);
+    };
+
     const render = () => {
       const stage = document.getElementById('stage');
       stage.querySelectorAll('.dialogue, .choices, .beat-label, .backlog').forEach((el) => el.remove());
@@ -283,6 +326,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         done.className = 'dialogue';
         done.textContent = '场景播放完毕';
         stage.appendChild(done);
+        renderBacklog(stage);
         return;
       }
 
@@ -360,46 +404,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         stage.appendChild(g);
       }
 
-      if (backlogOpen) {
-        const entries = buildBacklog(VM_GRAPH, vmState);
-        const panel = document.createElement('div');
-        panel.className = 'backlog';
-        panel.setAttribute('data-testid', 'web-backlog-panel');
-        const h = document.createElement('h3');
-        h.textContent = '回看日志(' + entries.length + ')';
-        panel.appendChild(h);
-        const list = document.createElement('div');
-        list.className = 'backlog-list';
-        if (entries.length === 0) {
-          const empty = document.createElement('div');
-          empty.className = 'text';
-          empty.style.color = 'rgba(255,255,255,0.5)';
-          empty.style.fontSize = '13px';
-          empty.textContent = '还没有播放过的对白';
-          list.appendChild(empty);
-        }
-        for (const e of entries) {
-          const item = document.createElement('div');
-          item.className = 'backlog-item';
-          const ch = document.createElement('div');
-          ch.className = 'character';
-          ch.textContent = e.character + '  ·  ' + e.sceneId;
-          const tx = document.createElement('div');
-          tx.className = 'text';
-          tx.textContent = e.text;
-          item.appendChild(ch);
-          item.appendChild(tx);
-          list.appendChild(item);
-        }
-        panel.appendChild(list);
-        const close = document.createElement('button');
-        close.className = 'ctrl-btn backlog-close';
-        close.textContent = '关闭';
-        close.setAttribute('data-testid', 'web-backlog-close');
-        close.onclick = () => { backlogOpen = false; render(); };
-        panel.appendChild(close);
-        stage.appendChild(panel);
-      }
+      renderBacklog(stage);
     };
 
     initSaveBar();

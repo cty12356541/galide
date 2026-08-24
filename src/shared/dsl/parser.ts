@@ -370,8 +370,19 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
       }
       return
     }
-    default:
+    default: {
+      // 未知行(如误写成 [设: x = 1] 的括号形式)不静默吞掉 —
+      // 记 warning 诊断,编辑器/critic 可见,创作者能立刻发现
+      if (first.type === 'unknown') {
+        errors.push({
+          message: `无法识别的行(被忽略):「${first.value.slice(0, 40)}」`,
+          line: first.line,
+          column: first.column,
+          severity: 'warning'
+        })
+      }
       return
+    }
   }
 }
 

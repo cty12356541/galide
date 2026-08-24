@@ -323,6 +323,63 @@ describe('WebComposer (Batch 3)', () => {
     expect(Object.keys(tsStage).sort()).toEqual(['小雪', '阳'])
   })
 
+  it('computeStageState parity inside if-branches (serialized helper chain)', () => {
+    const ast = makeAst([
+      makeScene('s1', [
+        {
+          ...base(1),
+          type: 'stageEntry',
+          character: 'A',
+          sprite: 'a.png',
+          position: 'left' as const
+        },
+        {
+          ...base(2),
+          type: 'if',
+          branches: [
+            {
+              kind: 'if',
+              condition: {
+                kind: 'binary',
+                op: 'ge',
+                left: { kind: 'var', name: 'x' },
+                right: { kind: 'literal', value: 1 }
+              },
+              children: [
+                makeDialogue('A', 'in-branch'),
+                {
+                  ...base(3),
+                  type: 'stageEntry',
+                  character: 'B',
+                  sprite: 'b.png',
+                  position: 'right' as const
+                }
+              ]
+            },
+            { kind: 'else', children: [] }
+          ]
+        }
+      ])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    state = { ...state, variables: { x: 1 } }
+    // 进入 if 分支并消费到 B 登场之后
+    const a1 = advanceVm(graph, state)
+    if (a1.ok) state = a1.state
+    const a2 = advanceVm(graph, state)
+    if (a2.ok) state = a2.state
+    const tsStage = computeStageState(graph, state)
+    expect(Object.keys(tsStage).sort()).toEqual(['A', 'B'])
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserStage = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return computeStageState(graph, state);`
+    ) as (g: typeof graph, s: typeof state) => ReturnType<typeof computeStageState>
+    expect(browserStage(graph, state)).toEqual(tsStage)
+  })
+
   it('embeds localStorage save key format (web player parity)', async () => {
     const ast = makeAst([makeScene('s1', [makeDialogue('A', 'hi')])])
     const ctx = makeCtx([{ file: 'a.gal', ast }])

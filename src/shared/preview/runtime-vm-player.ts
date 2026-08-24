@@ -431,6 +431,7 @@ export function buildPlayerRuntimeFunctions(): string {
     dialogueLineIdImpl.toString(),
     buildBacklogImpl.toString(),
     computeStageStateImpl.toString(),
+    findIfBoundary.toString(),
     'const computeStageState = computeStageStateImpl;',
     'const dialogueLineId = dialogueLineIdImpl;',
     'const buildBacklog = buildBacklogImpl;',
