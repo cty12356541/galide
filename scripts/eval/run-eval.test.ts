@@ -25,7 +25,7 @@ import { createDefaultToolRegistry } from '../../src/main/ai/agent/create-defaul
 import { createAgentRuntime } from '../../src/main/ai/agent/agent-runtime.js'
 import { createAutonomyGate } from '../../src/main/ai/agent/autonomy-gate.js'
 import { TOPOLOGIES } from '../../src/main/ai/agent/topology.js'
-import { evalNodeFs } from './eval-harness.js'
+import { evalNodeFs, loadMergedAst } from './eval-harness.js'
 
 const FIXTURES_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
@@ -123,6 +123,14 @@ describe('agent eval — 真实模型基线', { timeout: 3_600_000 }, () => {
                 toolContext,
                 maxSteps: 30,
                 maxCriticFix: 1,
+                // 环内确定性 critic 与 agent-service 同源:全项目 merged AST + 解析失败
+                loadScriptAst: async () => (await loadMergedAst(projectPath)).ast,
+                loadParseFailures: async () => {
+                  const { failures } = await loadMergedAst(projectPath)
+                  return failures.length > 0
+                    ? failures.map((f) => `${f.file}: parse failed`).join('\n')
+                    : ''
+                },
                 onStep: (s) => {
                   if (s.type !== 'plan' && s.type !== 'plan_progress') stepCount++
                   if (s.type === 'done' && s.warnings) warnings = [...s.warnings]
