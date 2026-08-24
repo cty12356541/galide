@@ -23,7 +23,7 @@ const FORESHADOWING_STATUS_LABEL: Record<string, string> = {
 export const BrainPanel = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
   const projectName = useUiStore((s) => s.projectName)
-  const brainApi = useBrain()
+  const { list: listBrain } = useBrain()
   const [brain, setBrain] = useState<ProjectBrain | null>(null)
   const [invalid, setInvalid] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -32,17 +32,26 @@ export const BrainPanel = (): JSX.Element => {
     if (!projectPath) return
     setLoading(true)
     try {
-      const r = await brainApi.list(projectPath)
+      const r = await listBrain(projectPath)
       setBrain(r?.brain ?? null)
       setInvalid(r?.invalid ?? false)
     } finally {
       setLoading(false)
     }
-  }, [projectPath, brainApi])
+  }, [projectPath, listBrain])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  useEffect(() => {
+    // agent 写入 project-brain.json 后自动刷新(测试环境无 preload 时跳过)
+    const subscribe = window.galide?.brain?.onBrainChanged
+    if (!subscribe) return
+    return subscribe((payload) => {
+      if (payload.projectPath === projectPath) void refresh()
+    })
+  }, [projectPath, refresh])
 
   if (!projectPath) {
     return (

@@ -39,9 +39,20 @@ vi.mock('../../lib/store', () => ({
 }))
 
 const listMock = vi.fn()
+let brainChangedCb: ((payload: { projectPath: string }) => void) | null = null
 
+;(window as unknown as { galide: unknown }).galide = {
+  brain: {
+    onBrainChanged: (cb: (payload: { projectPath: string }) => void): (() => void) => {
+      brainChangedCb = cb
+      return () => { brainChangedCb = null }
+    }
+  }
+}
+
+const stableList = (...a: unknown[]): unknown => listMock(...a)
 vi.mock('../../lib/ipc/use-brain', () => ({
-  useBrain: () => ({ list: (...a: unknown[]) => listMock(...a) })
+  useBrain: () => ({ list: stableList })
 }))
 
 describe('BrainPanel', () => {
@@ -73,6 +84,36 @@ describe('BrainPanel', () => {
     await vi.waitFor(() => {
       expect(container.textContent ?? '').toContain('项目大脑为空')
     })
+  })
+
+  it('brain:changed 事件(同项目)触发自动刷新', async () => {
+    listMock.mockResolvedValue({
+      ok: true,
+      brain: { version: '0.1.0', foreshadowings: [], relationships: [], knowledgeBoundaries: [] }
+    })
+    const { container } = render(<BrainPanel />)
+    await vi.waitFor(() => {
+      expect(container.textContent ?? '').toContain('项目大脑为空')
+    })
+    expect(listMock).toHaveBeenCalledTimes(1)
+    brainChangedCb?.({ projectPath: '/proj' })
+    await vi.waitFor(() => {
+      expect(listMock).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('其他项目的 brain:changed 不触发刷新', async () => {
+    listMock.mockResolvedValue({
+      ok: true,
+      brain: { version: '0.1.0', foreshadowings: [], relationships: [], knowledgeBoundaries: [] }
+    })
+    const { container } = render(<BrainPanel />)
+    await vi.waitFor(() => {
+      expect(container.textContent ?? '').toContain('项目大脑为空')
+    })
+    brainChangedCb?.({ projectPath: '/other' })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(listMock).toHaveBeenCalledTimes(1)
   })
 
   it('invalid 标记显示损坏提示', async () => {

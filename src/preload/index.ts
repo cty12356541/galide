@@ -330,7 +330,12 @@ const api = {
   },
   brain: {
     list: (projectPath: string): Promise<{ ok: boolean; brain?: ProjectBrain; invalid?: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.brain.list, { projectPath })
+      ipcRenderer.invoke(IPC.brain.list, { projectPath }),
+    onBrainChanged: (callback: (payload: { projectPath: string }) => void): (() => void) => {
+      const listener = (_e: unknown, payload: { projectPath: string }): void => callback(payload)
+      ipcRenderer.on(IPC.brain.changed, listener)
+      return () => ipcRenderer.removeListener(IPC.brain.changed, listener)
+    }
   },
   voice: {
     generate: (projectPath: string, lineId: string, text: string, characterId: string): Promise<{ ok: boolean; path?: string; error?: string }> =>

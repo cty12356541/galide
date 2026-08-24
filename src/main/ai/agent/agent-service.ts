@@ -22,6 +22,10 @@ import { getPreference } from '../../preferences/preferences-store.js'
 import { aiProxy } from '../ai-proxy.js'
 import { gitService } from '../../git/git-service.js'
 import { createBroadcastingWriteFile } from '../../ipc/script-broadcast.js'
+import {
+  createBrainBroadcastingWriteFile,
+  createBrainNotifier
+} from '../../ipc/brain-broadcast.js'
 import { formatParseFailures, parseProjectScripts } from '../../export/parse-project-scripts.js'
 import { mergeScriptAsts } from '../../../shared/dsl/merge-scripts.js'
 import type { AiProvider } from '../types.js'
@@ -219,8 +223,12 @@ const drain = async (): Promise<void> => {
       const toolContext = runtime.createToolContext({
         fs: {
           readFile: (p: string) => fs.readFile(p, 'utf-8'),
-          writeFile: createBroadcastingWriteFile(() => runtime.getProjectPath(), (p, c) =>
-            fs.writeFile(p, c, 'utf-8')
+          writeFile: createBrainBroadcastingWriteFile(
+            () => runtime.getProjectPath(),
+            createBroadcastingWriteFile(() => runtime.getProjectPath(), (p, c) =>
+              fs.writeFile(p, c, 'utf-8')
+            ),
+            createBrainNotifier(item.sender)
           ),
           readdir: (p: string) => fs.readdir(p)
         },

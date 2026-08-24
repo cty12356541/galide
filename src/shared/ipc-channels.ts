@@ -94,7 +94,8 @@ export const IPC = {
     delete: 'character:delete'
   },
   brain: {
-    list: 'brain:list'
+    list: 'brain:list',
+    changed: 'brain:changed'
   },
   voice: {
     generate: 'voice:generate',
