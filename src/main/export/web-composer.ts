@@ -45,11 +45,23 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
     .save-btn { background: rgba(0,0,0,0.6); border: 1px solid rgba(167,139,250,0.4); color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
     .save-btn:hover { background: rgba(167,139,250,0.3); }
     .save-toast { position: absolute; top: 44px; right: 12px; background: rgba(6,78,59,0.85); padding: 6px 10px; border-radius: 4px; font-size: 11px; z-index: 4; }
+    .ctrl-bar { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 4; }
+    .ctrl-btn { background: rgba(0,0,0,0.6); border: 1px solid rgba(167,139,250,0.4); color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+    .ctrl-btn:hover { background: rgba(167,139,250,0.3); }
+    .ctrl-btn.on { background: rgba(167,139,250,0.55); border-color: #a78bfa; }
+    .backlog { position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 5; display: flex; flex-direction: column; padding: 24px; box-sizing: border-box; }
+    .backlog h3 { margin: 0 0 12px; font-size: 14px; color: #ddd; font-weight: 600; }
+    .backlog-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 8px; }
+    .backlog-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 12px; }
+    .backlog-item .character { margin-bottom: 2px; font-size: 12px; }
+    .backlog-item .text { font-size: 15px; }
+    .backlog-close { position: absolute; top: 20px; right: 20px; }
   </style>
 </head>
 <body>
   <div id="app"><div id="stage"><div id="bg"></div><div id="sprites"></div>
     <div class="save-bar" id="save-bar"></div>
+    <div class="ctrl-bar" id="ctrl-bar"></div>
   </div></div>
   <script>
     const VM_GRAPH = ${graphJson};
@@ -61,6 +73,92 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
     let currentSpriteKey = null;
     let errorBanner = null;
     let saveToast = null;
+    let autoTimer = null;
+    let autoSpeedIdx = 0;
+    const AUTO_SPEEDS = [1500, 1000, 600];
+    const AUTO_LABELS = ['慢', '中', '快'];
+    let skipTimer = null;
+    let backlogOpen = false;
+    const READ_KEY = 'galide-read-' + PROJECT_ID;
+    let readState = { readLineIds: [] };
+    try {
+      const raw = localStorage.getItem(READ_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.readLineIds)) readState = parsed;
+      }
+    } catch (e) { /* 损坏的已读记录按空处理 */ }
+    const persistReadState = () => {
+      try { localStorage.setItem(READ_KEY, JSON.stringify(readState)); } catch (e) { /* 忽略配额错误 */ }
+    };
+    const markCurrentRead = (step) => {
+      if (!step || step.type !== 'dialogue') return;
+      const id = dialogueLineId(vmState.sceneId, step.character, step.text);
+      readState = markRead(readState, id);
+      persistReadState();
+    };
+    const stopAuto = () => { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } };
+    const stopSkip = () => { if (skipTimer) { clearInterval(skipTimer); skipTimer = null; } };
+    const advanceOnce = () => {
+      const step = getCurrentStep(VM_GRAPH, vmState);
+      if (!step) return 'end';
+      if (step.type === 'choice') return 'choice';
+      if (step.type === 'goto') {
+        const j = executeGotoStep(VM_GRAPH, vmState, step);
+        if (j.ok) { vmState = j.state; render(); return 'ok'; }
+        showError(j.error);
+        return 'end';
+      }
+      const r = advanceVm(VM_GRAPH, vmState);
+      if (r.ok && !r.finished) { vmState = r.state; render(); return 'ok'; }
+      render();
+      return 'end';
+    };
+    const isAutoPlayable = (step) => !!step && (step.type === 'dialogue' || step.type === 'marker' || step.type === 'set');
+    const startAuto = () => {
+      stopSkip();
+      autoTimer = setInterval(() => {
+        const step = getCurrentStep(VM_GRAPH, vmState);
+        if (!isAutoPlayable(step)) { stopAuto(); syncCtrlBar(); return; }
+        advanceOnce();
+      }, AUTO_SPEEDS[autoSpeedIdx]);
+    };
+    const startSkip = () => {
+      stopAuto();
+      skipTimer = setInterval(() => {
+        const step = getCurrentStep(VM_GRAPH, vmState);
+        if (!step || step.type === 'choice') { stopSkip(); syncCtrlBar(); return; }
+        if (step.type === 'dialogue' && !isRead(readState, dialogueLineId(vmState.sceneId, step.character, step.text))) {
+          stopSkip(); syncCtrlBar(); return;
+        }
+        advanceOnce();
+      }, 150);
+    };
+    const syncCtrlBar = () => {
+      const bar = document.getElementById('ctrl-bar');
+      if (!bar) return;
+      bar.innerHTML = '';
+      const mkBtn = (label, title, on, fn, testId) => {
+        const b = document.createElement('button');
+        b.className = 'ctrl-btn' + (on ? ' on' : '');
+        b.textContent = label;
+        b.title = title;
+        if (testId) b.setAttribute('data-testid', testId);
+        b.onclick = fn;
+        bar.appendChild(b);
+      };
+      mkBtn(autoTimer ? '自动' + AUTO_LABELS[autoSpeedIdx] : '自动', '自动播放(循环速度)', !!autoTimer, () => {
+        if (autoTimer) { autoSpeedIdx = (autoSpeedIdx + 1) % AUTO_SPEEDS.length; stopAuto(); startAuto(); }
+        else startAuto();
+        syncCtrlBar();
+      }, 'web-auto');
+      mkBtn('跳过', '跳过已读(至未读或选项)', !!skipTimer, () => {
+        if (skipTimer) stopSkip();
+        else startSkip();
+        syncCtrlBar();
+      }, 'web-skip-read');
+      mkBtn('回看', '回看日志', backlogOpen, () => { backlogOpen = !backlogOpen; render(); }, 'web-backlog');
+    };
 
     const showSaveToast = (msg) => {
       const stage = document.getElementById('stage');
@@ -182,6 +280,19 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         return;
       }
 
+      // 已读标记:对白展示即记录并持久化
+      markCurrentRead(step);
+
+      // set 步不渲染,立即自动推进(与 preview 行为对齐,修复卡死)
+      if (step.type === 'set') {
+        setTimeout(() => {
+          const r = advanceVm(VM_GRAPH, vmState);
+          if (r.ok && !r.finished) { vmState = r.state; }
+          render();
+        }, 0);
+        return;
+      }
+
       updateSprite(step);
 
       if (step.type === 'dialogue') {
@@ -241,9 +352,51 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         };
         stage.appendChild(g);
       }
+
+      if (backlogOpen) {
+        const entries = buildBacklog(VM_GRAPH, vmState);
+        const panel = document.createElement('div');
+        panel.className = 'backlog';
+        panel.setAttribute('data-testid', 'web-backlog-panel');
+        const h = document.createElement('h3');
+        h.textContent = '回看日志(' + entries.length + ')';
+        panel.appendChild(h);
+        const list = document.createElement('div');
+        list.className = 'backlog-list';
+        if (entries.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'text';
+          empty.style.color = 'rgba(255,255,255,0.5)';
+          empty.style.fontSize = '13px';
+          empty.textContent = '还没有播放过的对白';
+          list.appendChild(empty);
+        }
+        for (const e of entries) {
+          const item = document.createElement('div');
+          item.className = 'backlog-item';
+          const ch = document.createElement('div');
+          ch.className = 'character';
+          ch.textContent = e.character + '  ·  ' + e.sceneId;
+          const tx = document.createElement('div');
+          tx.className = 'text';
+          tx.textContent = e.text;
+          item.appendChild(ch);
+          item.appendChild(tx);
+          list.appendChild(item);
+        }
+        panel.appendChild(list);
+        const close = document.createElement('button');
+        close.className = 'ctrl-btn backlog-close';
+        close.textContent = '关闭';
+        close.setAttribute('data-testid', 'web-backlog-close');
+        close.onclick = () => { backlogOpen = false; render(); };
+        panel.appendChild(close);
+        stage.appendChild(panel);
+      }
     };
 
     initSaveBar();
+    syncCtrlBar();
     render();
   </script>
 </body>

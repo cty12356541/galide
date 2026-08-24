@@ -25,6 +25,10 @@ import {
   getCurrentStep,
   advanceVm,
   buildPlayerRuntimeFunctions
+,
+  buildBacklog,
+  dialogueLineId,
+  markRead
 } from '../../shared/preview/runtime-vm.js'
 import { buildWebSaveKey } from '../../shared/preview/vm-save.js'
 
@@ -230,6 +234,58 @@ describe('WebComposer (Batch 3)', () => {
       state: ReturnType<typeof createVmState>
     ) => ReturnType<typeof getCurrentStep>
     expect(browserGet(graph, state)).toEqual(tsStep)
+  })
+
+  it('backlog/read-state functions match TS semantics (player parity)', () => {
+    const ast = makeAst([
+      makeScene('s1', [makeDialogue('A', '一'), makeDialogue('B', '二')]),
+      makeScene('s2', [makeDialogue('A', '三')])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    const a1 = advanceVm(graph, state)
+    if (!a1.ok) throw new Error('advance failed')
+    state = a1.state
+    const jmp = jumpToTarget(graph, state, 's2')
+    if (!jmp.ok) throw new Error('jump failed')
+    state = jmp.state
+    const a2 = advanceVm(graph, state)
+    if (!a2.ok) throw new Error('advance failed')
+    state = a2.state
+
+    const tsBacklog = buildBacklog(graph, state)
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserBacklog = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return buildBacklog(graph, state);`
+    ) as (g: typeof graph, s: typeof state) => ReturnType<typeof buildBacklog>
+    expect(browserBacklog(graph, state)).toEqual(tsBacklog)
+    expect(tsBacklog.map((b) => b.text)).toEqual(['一', '二', '三'])
+
+    const id = dialogueLineId('s1', 'A', '一')
+    const read = markRead({ readLineIds: [] }, id)
+    const browserRead = new Function(
+      'read',
+      'id',
+      `${fnBlock}; return { marked: markRead(read, id), hit: isRead(read, id) };`
+    ) as (r: { readLineIds: string[] }, i: string) => { marked: ReturnType<typeof markRead>; hit: boolean }
+    const out = browserRead({ readLineIds: [] }, id)
+    expect(out).toEqual({ marked: read, hit: false })
+  })
+
+  it('web player embeds trio controls and set auto-advance fix', async () => {
+    const ast = makeAst([makeScene('s1', [makeDialogue('A', 'hi')])])
+    const ctx = makeCtx([{ file: 'a.gal', ast }])
+    const composer = new WebComposer()
+    const target = await composer.transform(ctx)
+    expect(target.html).toContain("'web-auto'")
+    expect(target.html).toContain("'web-skip-read'")
+    expect(target.html).toContain("'web-backlog'")
+    expect(target.html).toContain("galide-read-' + PROJECT_ID")
+    // set 步自动推进(修复卡死)
+    expect(target.html).toContain("step.type === 'set'")
+    expect(target.html).toContain('markCurrentRead(step)')
   })
 
   it('embeds localStorage save key format (web player parity)', async () => {
