@@ -264,7 +264,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
 
     const render = () => {
       const stage = document.getElementById('stage');
-      stage.querySelectorAll('.dialogue, .choices, .beat-label').forEach((el) => el.remove());
+      stage.querySelectorAll('.dialogue, .choices, .beat-label, .backlog').forEach((el) => el.remove());
       clearError();
 
       const scene = VM_GRAPH.scenes[vmState.sceneId];
@@ -287,7 +287,8 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
       if (step.type === 'set') {
         setTimeout(() => {
           const r = advanceVm(VM_GRAPH, vmState);
-          if (r.ok && !r.finished) { vmState = r.state; }
+          // finished 也必须更新状态,否则 render 仍停在 set 步 → 无限重排
+          if (r.ok) { vmState = r.state; }
           render();
         }, 0);
         return;
@@ -308,7 +309,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         d.appendChild(tx);
         d.onclick = () => {
           const r = advanceVm(VM_GRAPH, vmState);
-          if (r.ok && !r.finished) { vmState = r.state; render(); }
+          if (r.ok) { vmState = r.state; render(); }
         };
         stage.appendChild(d);
       }
@@ -336,7 +337,7 @@ const buildHtmlShell = (graphJson: string, vmFunctions: string, saveFunctions: s
         m.textContent = '标记: ' + step.id + ' (点击继续)';
         m.onclick = () => {
           const r = advanceVm(VM_GRAPH, vmState);
-          if (r.ok && !r.finished) { vmState = r.state; render(); }
+          if (r.ok) { vmState = r.state; render(); }
         };
         stage.appendChild(m);
       }

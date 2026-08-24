@@ -208,7 +208,8 @@ export const PreviewCanvas = (): JSX.Element => {
       return
     }
     const result = advanceVm(vmGraph, vmState)
-    if (result.ok && !result.finished) {
+    if (result.ok) {
+      // finished 也更新:最后一步点完显示"场景播放完毕",而非卡在最后一帧
       setVmState(result.state)
     }
   }, [vmGraph, vmState])
