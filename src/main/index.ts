@@ -1,9 +1,10 @@
 import { app, BrowserWindow, shell } from 'electron'
+import { IPC } from '../shared/ipc-channels.js'
 import { join } from 'node:path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { initKeyStore, type SafeStorageLike } from './ai/key-store.js'
 import { warmUpStore } from './store/store.js'
-import { registerProjectHandlers } from './ipc/project-handlers.js'
+import {registerProjectHandlers, openProjectAtPath } from './ipc/project-handlers.js'
 import { registerScriptHandlers } from './ipc/script-handlers.js'
 import { registerReplaceHandlers } from './ipc/replace-handlers.js'
 import { registerGitHandlers } from './ipc/git-handlers.js'
@@ -79,6 +80,68 @@ const createWindow = (): void => {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // dev-only 视觉冒烟(GALIDE_VISUAL_SMOKE=1):开项→截屏→合成 Cmd+6 开 brain 面板→再截屏→退出。
+  // 用于无辅助权限/无录屏权限环境下的真实 UI 验证;production 打包不受影响(env 不存在)。
+  const smokeProject = process.env['GALIDE_OPEN_PROJECT']
+  if (process.env['GALIDE_VISUAL_SMOKE'] === '1') {
+    void runVisualSmoke(mainWindow, smokeProject)
+  } else if (smokeProject) {
+    // 仅开项不截屏(供其他手动验证用)
+    mainWindow.webContents.once('did-finish-load', () => {
+      void openProjectInRenderer(mainWindow, smokeProject)
+    })
+  }
+}
+
+const openProjectInRenderer = async (
+  win: BrowserWindow,
+  projectPath: string
+): Promise<void> => {
+  const r = await openProjectAtPath(projectPath)
+  if (r.ok === true) {
+    win.webContents.send(IPC.project.opened, {
+      projectPath: r.projectPath,
+      manifest: r.manifest
+    })
+  } else {
+    console.error(`[visual-smoke] open project failed: ${r.error}`)
+  }
+}
+
+const runVisualSmoke = async (win: BrowserWindow, projectPath?: string): Promise<void> => {
+  try {
+    await new Promise<void>((resolve) => {
+      win.webContents.once('did-finish-load', () => resolve())
+      // did-finish-load 可能已触发过,超时兜底
+      setTimeout(resolve, 10_000)
+    })
+    // 绕过本机窗口管理器的迷你吸附,给截屏一个可用视口
+    win.setSize(1280, 860)
+    win.center()
+    if (projectPath) await openProjectInRenderer(win, projectPath)
+    await new Promise((r) => setTimeout(r, 3_000))
+    await captureToFile(win, '/tmp/galide-visual-1.png')
+
+    // 合成 Cmd+6(showBrain) — use-keyboard-shortcuts 不校验 isTrusted
+    await win.webContents.executeJavaScript(
+      `window.dispatchEvent(new KeyboardEvent('keydown', { key: '6', code: 'Digit6', metaKey: true, bubbles: true }))`,
+      true
+    )
+    await new Promise((r) => setTimeout(r, 1_500))
+    await captureToFile(win, '/tmp/galide-visual-2.png')
+    console.log('[visual-smoke] captured /tmp/galide-visual-1.png /tmp/galide-visual-2.png')
+  } catch (err) {
+    console.error('[visual-smoke] failed:', err)
+  } finally {
+    app.quit()
+  }
+}
+
+const captureToFile = async (win: BrowserWindow, path: string): Promise<void> => {
+  const image = await win.webContents.capturePage()
+  const { writeFile } = await import('node:fs/promises')
+  await writeFile(path, image.toPNG())
 }
 
 app.whenReady().then(async () => {
