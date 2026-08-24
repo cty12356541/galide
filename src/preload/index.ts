@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../shared/types'
 import type { ApiKeyProvider } from '../shared/api-key-provider.js'
+import type { ProjectBrain } from '../shared/brain/schema.js'
 import type { Result, ScriptNode, ParseError } from '../shared/dsl/types'
 import type { ScriptReplaceMatch } from '../shared/dsl/replace-in-scripts.js'
 
@@ -327,6 +328,10 @@ const api = {
     delete: (projectPath: string, id: string): Promise<{ ok: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC.character.delete, { projectPath, id })
   },
+  brain: {
+    list: (projectPath: string): Promise<{ ok: boolean; brain?: ProjectBrain; invalid?: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.brain.list, { projectPath })
+  },
   voice: {
     generate: (projectPath: string, lineId: string, text: string, characterId: string): Promise<{ ok: boolean; path?: string; error?: string }> =>
       ipcRenderer.invoke(IPC.voice.generate, projectPath, lineId, text, characterId),
@@ -418,6 +423,7 @@ workspace: {
           | 'character'
           | 'ai'
           | 'search'
+          | 'brain'
           | 'scripts'
           | 'assets'
           | 'profiles'
@@ -439,6 +445,7 @@ workspace: {
             | 'outline'
             | 'character'
             | 'ai'
+            | 'brain'
             | 'scripts'
             | 'assets'
             | 'profiles'
@@ -458,6 +465,7 @@ workspace: {
             | 'outline'
             | 'character'
             | 'ai'
+            | 'brain'
             | 'scripts'
             | 'assets'
             | 'profiles'
@@ -480,6 +488,7 @@ workspace: {
           | 'character'
           | 'ai'
           | 'search'
+          | 'brain'
           | 'scripts'
           | 'assets'
           | 'profiles'

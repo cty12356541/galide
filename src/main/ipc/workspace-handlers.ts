@@ -135,6 +135,7 @@ type FloatablePanelId =
   | 'character'
   | 'ai'
   | 'search'
+  | 'brain'
   | 'scripts'
   | 'assets'
   | 'profiles'

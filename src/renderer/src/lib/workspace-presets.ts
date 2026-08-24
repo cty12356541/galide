@@ -60,7 +60,8 @@ const BASE_PANEL_STATES: Record<ToolWindowId, PanelState> = {
   outline: { visible: false, dock: 'left', activeSub: 'outline' },
   character: { visible: false, dock: 'left', activeSub: 'profiles' },
   ai: { visible: false, dock: 'right', activeSub: 'ai' },
-  search: { visible: false, dock: 'left', activeSub: 'search' }
+  search: { visible: false, dock: 'left', activeSub: 'search' },
+  brain: { visible: false, dock: 'right', activeSub: 'brain' }
 }
 
 const makeSnapshot = (

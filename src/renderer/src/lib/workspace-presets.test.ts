@@ -48,7 +48,8 @@ describe('captureWorkspaceSnapshot', () => {
       outline: { visible: false, dock: 'left' as const, activeSub: 'outline' as const },
       character: { visible: false, dock: 'left' as const, activeSub: 'profiles' as const },
       ai: { visible: true, dock: 'bottom' as const, activeSub: 'ai' as const },
-      search: { visible: false, dock: 'left' as const, activeSub: 'search' as const }
+      search: { visible: false, dock: 'left' as const, activeSub: 'search' as const },
+      brain: { visible: false, dock: 'right' as const, activeSub: 'brain' as const }
     }
     const snap = captureWorkspaceSnapshot({
       panelStates,

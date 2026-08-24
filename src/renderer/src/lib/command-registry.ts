@@ -23,6 +23,7 @@ import {
   GitBranch,
   List,
   Users,
+  Brain,
   MessageSquare,
   Undo2,
   Redo2,
@@ -62,6 +63,7 @@ export type CommandId =
   | 'toggleLeftPanel'
   | 'showGit'
   | 'showOutline'
+  | 'showBrain'
   | 'showCharacter'
   | 'showAi'
   | 'toggleAi'
@@ -184,6 +186,14 @@ export const COMMANDS: readonly CommandDef[] = [
     category: 'view',
     icon: GitBranch,
     keywords: ['git', 'git 面板', '版本控制', 'source control']
+  },
+  {
+    id: 'showBrain',
+    label: '显示项目大脑面板',
+    default: 'Meta+6',
+    category: 'view',
+    icon: Brain,
+    keywords: ['大脑', '伏笔', 'brain', 'foreshadowing', '一致性']
   },
   {
     id: 'showOutline',

@@ -93,6 +93,9 @@ export const IPC = {
     list: 'character:list',
     delete: 'character:delete'
   },
+  brain: {
+    list: 'brain:list'
+  },
   voice: {
     generate: 'voice:generate',
     preview: 'voice:preview',
@@ -145,6 +148,7 @@ export type IpcChannel =
   | (typeof IPC)['preferences'][keyof (typeof IPC)['preferences']]
   | (typeof IPC)['shortcuts'][keyof (typeof IPC)['shortcuts']]
   | (typeof IPC)['character'][keyof (typeof IPC)['character']]
+  | (typeof IPC)['brain'][keyof (typeof IPC)['brain']]
   | (typeof IPC)['voice'][keyof (typeof IPC)['voice']]
   | (typeof IPC)['store'][keyof (typeof IPC)['store']]
   | (typeof IPC)['dialog'][keyof (typeof IPC)['dialog']]

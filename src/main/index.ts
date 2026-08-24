@@ -11,6 +11,7 @@ import { registerExportHandlers } from './ipc/export-handlers.js'
 import { registerAiHandlers } from './ipc/ai-handlers.js'
 import { registerAgentHandlers } from './ipc/agent-handlers.js'
 import { registerCharacterHandlers } from './ipc/character-handlers.js'
+import { registerBrainHandlers } from './ipc/brain-handlers.js'
 import { registerVoiceHandlers } from './ipc/voice-handlers.js'
 import { registerImageHandlers } from './ipc/image-handlers.js'
 import { registerAssetHandlers } from './ipc/asset-handlers.js'
@@ -123,6 +124,7 @@ app.whenReady().then(async () => {
   tryRegister('ai', registerAiHandlers)
   tryRegister('agent', registerAgentHandlers)
   tryRegister('character', registerCharacterHandlers)
+  tryRegister('brain', registerBrainHandlers)
   tryRegister('voice', registerVoiceHandlers)
   tryRegister('image', registerImageHandlers)
   tryRegister('asset', registerAssetHandlers)

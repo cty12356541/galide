@@ -244,6 +244,10 @@ export const CharacterListSchema = z.object({
   projectPath: z.string().min(1)
 })
 
+export const BrainListSchema = z.object({
+  projectPath: z.string().min(1)
+})
+
 export const CharacterDeleteSchema = z.object({
   projectPath: z.string().min(1),
   id: z.string().min(1)
@@ -459,6 +463,7 @@ export const OpenPanelIdSchema = z.enum([
   'character',
   'ai',
   'search',
+  'brain',
   'scripts',
   'assets',
   'profiles',

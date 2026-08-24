@@ -29,6 +29,8 @@ import { VoicePanel } from '../../../features/voice/VoicePanel'
 import { AssetListPanel } from '../../../features/asset/AssetListPanel'
 import { AiPanel } from '../../../features/ai-panel/AiPanel'
 import { ScriptSearchPanel } from '../../../features/search/ScriptSearchPanel'
+import { BrainPanel } from '../../../features/brain/BrainPanel'
+import { Brain as BrainIcon } from 'lucide-react'
 
 // =================== 三类 id ===================
 
@@ -36,10 +38,10 @@ import { ScriptSearchPanel } from '../../../features/search/ScriptSearchPanel'
 export type EditorDocId = 'script-editor' | 'flow-view' | 'preview-canvas'
 
 /** 主岛:可 dock/浮出的工具窗 */
-export type ToolWindowId = 'project' | 'git' | 'outline' | 'character' | 'ai' | 'search'
+export type ToolWindowId = 'project' | 'git' | 'outline' | 'character' | 'ai' | 'search' | 'brain'
 
 /** 子岛:主岛内 tab(单子岛主岛的子岛 id 与主岛同名,不单独浮出) */
-export type SubIslandId = 'scripts' | 'assets' | 'git' | 'outline' | 'profiles' | 'voice' | 'ai' | 'search'
+export type SubIslandId = 'scripts' | 'assets' | 'git' | 'outline' | 'profiles' | 'voice' | 'ai' | 'search' | 'brain'
 
 /** dock 侧 */
 export type DockSide = 'left' | 'right' | 'bottom'
@@ -132,6 +134,13 @@ export const TOOL_WINDOWS: readonly ToolWindowMeta[] = [
     defaultDock: 'left',
     hidden: true,
     subIslands: [{ id: 'search', label: '搜索', icon: Search, component: ScriptSearchPanel }]
+  },
+  {
+    id: 'brain',
+    title: '项目大脑',
+    icon: BrainIcon,
+    defaultDock: 'right',
+    subIslands: [{ id: 'brain', label: '项目大脑', icon: BrainIcon, component: BrainPanel }]
   }
 ]
 

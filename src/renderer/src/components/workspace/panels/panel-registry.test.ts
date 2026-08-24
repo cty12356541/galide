@@ -28,8 +28,8 @@ import {
 } from './panel-registry'
 
 describe('panel-registry — 主岛/子岛映射', () => {
-  it('6 个主岛:project/git/outline/character/ai/search', () => {
-    expect(TOOL_WINDOW_IDS).toEqual(['project', 'git', 'outline', 'character', 'ai', 'search'])
+  it('7 个主岛:project/git/outline/character/ai/search/brain', () => {
+    expect(TOOL_WINDOW_IDS).toEqual(['project', 'git', 'outline', 'character', 'ai', 'search', 'brain'])
   })
 
   it('project 与 character 是多子岛主岛;git/outline/ai/search 单子岛', () => {
@@ -75,8 +75,8 @@ describe('panel-registry — 浮出 id 分发', () => {
     expect(isFloatableSubIsland('search')).toBe(false)
   })
 
-  it('FLOATABLE_IDS 含 3 编辑器大陆 + 6 主岛 + 4 可脱离子岛 = 13', () => {
-    expect(FLOATABLE_IDS).toHaveLength(13)
+  it('FLOATABLE_IDS 含 3 编辑器大陆 + 7 主岛 + 4 可脱离子岛 = 14', () => {
+    expect(FLOATABLE_IDS).toHaveLength(14)
     for (const d of EDITOR_DOCS) expect(FLOATABLE_IDS).toContain(d)
     for (const t of TOOL_WINDOW_IDS) expect(FLOATABLE_IDS).toContain(t)
     for (const s of ['scripts', 'assets', 'profiles', 'voice']) expect(FLOATABLE_IDS).toContain(s)
@@ -104,9 +104,9 @@ describe('panel-registry — 浮出 id 分发', () => {
     expect(EDITOR_DOC_IDS).toEqual(['script-editor', 'flow-view', 'preview-canvas'])
   })
 
-  it('SUB_ISLANDS 含全部 8 子岛', () => {
+  it('SUB_ISLANDS 含全部 9 子岛', () => {
     expect(Object.keys(SUB_ISLANDS).sort()).toEqual(
-      ['ai', 'assets', 'git', 'outline', 'profiles', 'scripts', 'search', 'voice'].sort()
+      ['ai', 'assets', 'brain', 'git', 'outline', 'profiles', 'scripts', 'search', 'voice'].sort()
     )
   })
 

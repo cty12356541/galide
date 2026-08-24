@@ -70,6 +70,7 @@ export const useCommandDispatcher = (): { dispatchCommand: DispatchCommand } => 
       toggleLeftPanel: () => useUiStore.getState().toggleLeftPanel(),
       showGit: () => useUiStore.getState().showToolWindow('git'),
       showOutline: () => useUiStore.getState().showToolWindow('outline'),
+      showBrain: () => useUiStore.getState().showToolWindow('brain'),
       showCharacter: () => useUiStore.getState().showToolWindow('character'),
       showAi: () => useUiStore.getState().showToolWindow('ai'),
       toggleAi: () => useUiStore.getState().toggleAiPanel(),
