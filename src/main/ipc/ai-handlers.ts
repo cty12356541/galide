@@ -63,8 +63,15 @@ export const registerAiHandlers = (): void => {
     IPC.ai.generate,
     async (e, raw: unknown): Promise<{ taskId: string; status: 'pending' }> => {
       const req = parseIpcArgs('ai:generate', AiGenerateSchema, raw)
-      const effectiveBaseUrl = req.baseUrl ?? aiProxy.getConfig().baseUrl
-      const taskId = aiTaskQueue.enqueue({ ...req, baseUrl: effectiveBaseUrl }, e.sender)
+      const cfg = aiProxy.getConfig()
+      // baseUrl 与 model 同规则:请求未显式指定时回退到全局 AI 配置
+      // (否则 OpenAI 兼容端点会收到工厂默认 gpt-4o-mini → 404)
+      const effectiveBaseUrl = req.baseUrl ?? cfg.baseUrl
+      const effectiveModel = req.model ?? cfg.model
+      const taskId = aiTaskQueue.enqueue(
+        { ...req, baseUrl: effectiveBaseUrl, ...(effectiveModel ? { model: effectiveModel } : {}) },
+        e.sender
+      )
       return { taskId, status: 'pending' }
     }
   )
