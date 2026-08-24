@@ -134,7 +134,9 @@ export const IPC = {
   preview: {
     saveSlot: 'preview:saveSlot',
     loadSlot: 'preview:loadSlot',
-    listSlots: 'preview:listSlots'
+    listSlots: 'preview:listSlots',
+    loadReadState: 'preview:readState:load',
+    saveReadState: 'preview:readState:save'
   }
 } as const
 

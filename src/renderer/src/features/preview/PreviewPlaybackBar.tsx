@@ -1,4 +1,4 @@
-import { Play, Square, Volume2, VolumeX, Undo2, Pause } from 'lucide-react'
+import { Play, Square, Volume2, VolumeX, Undo2, Pause, ScrollText, FastForward } from 'lucide-react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { PreviewState } from './PreviewRuntime'
 
@@ -14,6 +14,14 @@ interface PreviewPlaybackBarProps {
   autoPlay: boolean
   setAutoPlay: (value: boolean) => void
   canAutoPlay: boolean
+  speedLabel: string
+  onCycleSpeed: () => void
+  backlogOpen: boolean
+  onToggleBacklog: () => void
+  hasBacklog: boolean
+  skipRead: boolean
+  setSkipRead: (value: boolean) => void
+  canSkipRead: boolean
 }
 
 export const PreviewPlaybackBar = ({
@@ -27,7 +35,15 @@ export const PreviewPlaybackBar = ({
   onStepBack,
   autoPlay,
   setAutoPlay,
-  canAutoPlay
+  canAutoPlay,
+  speedLabel,
+  onCycleSpeed,
+  backlogOpen,
+  onToggleBacklog,
+  hasBacklog,
+  skipRead,
+  setSkipRead,
+  canSkipRead
 }: PreviewPlaybackBarProps): JSX.Element => (
   <div className="flex items-center gap-1">
     <button
@@ -47,6 +63,42 @@ export const PreviewPlaybackBar = ({
       data-testid="preview-auto-play"
     >
       {autoPlay ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+    </button>
+    {autoPlay ? (
+      <button
+        onClick={onCycleSpeed}
+        className="px-1.5 h-7 bg-surface/80 backdrop-blur rounded-md hover:bg-surface text-text-muted hover:text-text border border-border text-[11px]"
+        title="切换自动播放速度"
+        data-testid="preview-auto-speed"
+      >
+        {speedLabel}
+      </button>
+    ) : null}
+    <button
+      onClick={() => setSkipRead(!skipRead)}
+      disabled={!canSkipRead && !skipRead}
+      className={
+        skipRead
+          ? 'p-1.5 bg-accent/80 backdrop-blur rounded-md text-white border border-accent'
+          : 'p-1.5 bg-surface/80 backdrop-blur rounded-md hover:bg-surface text-text-muted hover:text-text border border-border disabled:opacity-40 disabled:cursor-not-allowed'
+      }
+      title={skipRead ? '停止跳过已读' : '跳过已读(快进至未读)'}
+      data-testid="preview-skip-read"
+    >
+      <FastForward className="w-4 h-4" />
+    </button>
+    <button
+      onClick={onToggleBacklog}
+      disabled={!hasBacklog && !backlogOpen}
+      className={
+        backlogOpen
+          ? 'p-1.5 bg-accent/80 backdrop-blur rounded-md text-white border border-accent'
+          : 'p-1.5 bg-surface/80 backdrop-blur rounded-md hover:bg-surface text-text-muted hover:text-text border border-border disabled:opacity-40 disabled:cursor-not-allowed'
+      }
+      title="回看日志"
+      data-testid="preview-backlog-toggle"
+    >
+      <ScrollText className="w-4 h-4" />
     </button>
     <button
       onClick={() => setMuted(!muted)}

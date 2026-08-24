@@ -279,6 +279,61 @@ export function advanceVmImpl(graph: VmGraph, state: VmState): VmAdvanceResult {
   }
 }
 
+// =================== 回看日志(backlog)与已读状态(read state) ===================
+// 同样为浏览器可嵌入实现:仅操作 plain 对象,经 buildPlayerRuntimeFunctions()
+// 序列化进 Web 导出;preview 与 web 共享同一语义。
+
+export interface VmBacklogEntry {
+  sceneId: string
+  character: string
+  text: string
+}
+
+/** 对话稳定 id:场景 + 角色 + 文本(内容编辑后失效,属预期) */
+export function dialogueLineIdImpl(sceneId: string, character: string, text: string): string {
+  return `${sceneId}\u0000${character}\u0000${text}`
+}
+
+/** 从 undo 历史推导对白回看列表(过滤非 dialogue 步) */
+export function buildBacklogImpl(graph: VmGraph, state: VmState): VmBacklogEntry[] {
+  const out: VmBacklogEntry[] = []
+  const hist = state.history ?? []
+  for (const h of hist) {
+    let step: PlaybackStep | undefined
+    if (h.branchQueue && h.branchQueue.length > 0) {
+      step = h.branchQueue[0]
+    } else {
+      const scene = graph.scenes[h.sceneId]
+      const steps = scene ? scene.steps : undefined
+      step = steps ? steps[h.stepIndex] : undefined
+    }
+    if (step && step.type === 'dialogue') {
+      out.push({ sceneId: h.sceneId, character: step.character, text: step.text })
+    }
+  }
+  return out
+}
+
+/** 全局已读记录(跨存档槽,序列化为 JSON 数组) */
+export interface VmReadState {
+  readLineIds: string[]
+}
+
+export const MAX_READ_LINE_IDS = 20000
+
+export function markReadImpl(read: VmReadState, lineId: string): VmReadState {
+  if (read.readLineIds.indexOf(lineId) >= 0) return read
+  const next = [...read.readLineIds, lineId]
+  if (next.length > MAX_READ_LINE_IDS) {
+    next.splice(0, next.length - MAX_READ_LINE_IDS)
+  }
+  return { readLineIds: next }
+}
+
+export function isReadImpl(read: VmReadState, lineId: string): boolean {
+  return read.readLineIds.indexOf(lineId) >= 0
+}
+
 export const resolveTarget = resolveTargetImpl
 export const getCurrentStep = getCurrentStepImpl
 export const jumpToTarget = jumpToTargetImpl
@@ -309,6 +364,15 @@ export function buildPlayerRuntimeFunctions(): string {
     'const getCurrentStep = getCurrentStepImpl;',
     'const jumpToTarget = jumpToTargetImpl;',
     'const executeGotoStep = executeGotoStepImpl;',
-    'const advanceVm = advanceVmImpl;'
+    'const advanceVm = advanceVmImpl;',
+    dialogueLineIdImpl.toString(),
+    buildBacklogImpl.toString(),
+    'const dialogueLineId = dialogueLineIdImpl;',
+    'const buildBacklog = buildBacklogImpl;',
+    `const MAX_READ_LINE_IDS = ${MAX_READ_LINE_IDS};`,
+    markReadImpl.toString(),
+    isReadImpl.toString(),
+    'const markRead = markReadImpl;',
+    'const isRead = isReadImpl;'
   ].join('\n\n')
 }

@@ -26,7 +26,12 @@ import {
   pushHistory,
   resolveIfStep,
   resolveTarget,
-  stepBack
+  stepBack,
+  dialogueLineIdImpl,
+  buildBacklogImpl,
+  markReadImpl,
+  isReadImpl,
+  MAX_READ_LINE_IDS
 } from './runtime-vm-player'
 
 export interface VmScene {
@@ -78,6 +83,14 @@ export {
   resolveIfStep,
   buildPlayerRuntimeFunctions
 }
+export {
+  dialogueLineIdImpl as dialogueLineId,
+  buildBacklogImpl as buildBacklog,
+  markReadImpl as markRead,
+  isReadImpl as isRead,
+  MAX_READ_LINE_IDS
+}
+export type { VmBacklogEntry, VmReadState } from './runtime-vm-player.js'
 
 /** Build a framework-agnostic playback graph from Script AST. */
 export const buildVmGraph = (ast: ScriptNode): VmGraph => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { usePreviewAutoPlay, AUTO_PLAY_INTERVAL_MS } from './usePreviewAutoPlay'
+import { usePreviewAutoPlay, AUTO_PLAY_INTERVAL_MS , AUTO_PLAY_SPEEDS } from './usePreviewAutoPlay'
 import type { PlaybackStep } from '../../../../shared/preview/playback-timeline'
 
 describe('usePreviewAutoPlay', () => {
@@ -61,5 +61,20 @@ describe('usePreviewAutoPlay', () => {
     unmount()
     act(() => vi.advanceTimersByTime(AUTO_PLAY_INTERVAL_MS * 2))
     expect(advance).toHaveBeenCalledTimes(0)
+  })
+})
+
+describe('usePreviewAutoPlay — 速度档', () => {
+  it('cycleSpeed 循环 慢→中→快→慢', () => {
+    const { result } = renderHook(() =>
+      usePreviewAutoPlay({ advance: () => {}, currentStep: null })
+    )
+    expect(AUTO_PLAY_SPEEDS[result.current.speedIndex]).toBe(1500)
+    act(() => result.current.cycleSpeed())
+    expect(AUTO_PLAY_SPEEDS[result.current.speedIndex]).toBe(1000)
+    act(() => result.current.cycleSpeed())
+    expect(AUTO_PLAY_SPEEDS[result.current.speedIndex]).toBe(600)
+    act(() => result.current.cycleSpeed())
+    expect(AUTO_PLAY_SPEEDS[result.current.speedIndex]).toBe(1500)
   })
 })

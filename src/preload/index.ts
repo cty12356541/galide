@@ -523,7 +523,14 @@ workspace: {
     ): Promise<
       | { ok: true; slots: { slot: number; timestamp: string | null; sceneId: string | null; occupied: boolean }[] }
       | { ok: false; error: string }
-    > => ipcRenderer.invoke(IPC.preview.listSlots, projectPath)
+    > => ipcRenderer.invoke(IPC.preview.listSlots, projectPath),
+    loadReadState: (projectPath: string): Promise<{ readLineIds: string[] }> =>
+      ipcRenderer.invoke(IPC.preview.loadReadState, { projectPath }),
+    saveReadState: (
+      projectPath: string,
+      readState: { readLineIds: string[] }
+    ): Promise<{ ok: true } | { ok: false; error: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.preview.saveReadState, { projectPath, readState })
   }
 }
 

@@ -9,14 +9,19 @@ import type { PlaybackStep } from '../../../../shared/preview/playback-timeline'
 import {
   advanceVm,
   buildVmGraph,
+  buildBacklog,
   createVmState,
+  dialogueLineId,
   executeGotoStep,
   getCurrentStep,
   getCurrentScene,
+  isRead,
   jumpToTarget,
+  markRead,
   stepBack,
   type VmGraph,
-  type VmState
+  type VmState,
+  type VmReadState
 } from '../../../../shared/preview/runtime-vm'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type { PreviewState } from './PreviewRuntime'
@@ -25,12 +30,15 @@ import type { PreviewRuntime } from './PreviewRuntime'
 import { usePreviewAudio } from './usePreviewAudio'
 import { SpriteLayer } from './SpriteLayer'
 import { usePreviewSave, type PreviewSlotInfo } from '../../lib/ipc/use-preview-save'
+import { usePreviewRead } from '../../lib/ipc/use-preview-read'
 import { acceleratorLabel, effectiveShortcut } from '../../lib/command-registry'
 import { ProjectParseErrorBanner } from '../../components/ui/project-parse-error-banner'
 import { usePreference } from '../../lib/ipc/use-preferences'
 import { useVoice } from '../../lib/ipc/use-voice'
 import { usePreviewRuntime } from './use-preview-runtime'
-import { usePreviewAutoPlay } from './usePreviewAutoPlay'
+import { usePreviewAutoPlay, AUTO_PLAY_SPEED_LABELS } from './usePreviewAutoPlay'
+import { usePreviewSkipRead } from './usePreviewSkipRead'
+import { PreviewBacklogPanel } from './PreviewBacklogPanel'
 import { PreviewSlotBar } from './PreviewSlotBar'
 import { PreviewPlaybackBar } from './PreviewPlaybackBar'
 
@@ -70,12 +78,18 @@ export const PreviewCanvas = (): JSX.Element => {
   const previewTtsEnabled = (voicePrefsQuery.data as { previewEnabled?: boolean } | null | undefined)?.previewEnabled === true
 
   const [saveNote, setSaveNote] = useState<string | null>(null)
+  const [backlogOpen, setBacklogOpen] = useState(false)
   const [vmState, setVmState] = useState<VmState | null>(null)
   const [runtimeState, setRuntimeState] = useState<PreviewState>('idle')
   const [unsupportedNote, setUnsupportedNote] = useState<string | null>(null)
   const [slots, setSlots] = useState<PreviewSlotInfo[]>([])
 
   const { audioRef, voiceRef, muted, setMuted, volume, setVolume } = usePreviewAudio()
+  const { readState: loadedReadState, saveReadState } = usePreviewRead(projectPath)
+  const [readState, setReadStateLocal] = useState<VmReadState>({ readLineIds: [] })
+  useEffect(() => {
+    setReadStateLocal(loadedReadState)
+  }, [loadedReadState])
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const runtimeRef = useRef<PreviewRuntime | null>(null)
   const sceneRef = useRef<SceneNode | null>(null)
@@ -169,6 +183,16 @@ export const PreviewCanvas = (): JSX.Element => {
     const result = advanceVm(vmGraph, vmState)
     if (result.ok) setVmState(result.state)
   }, [currentStep, vmGraph, vmState])
+
+  // 已读标记:对白展示即记为已读并持久化(全局,跨存档槽)
+  useEffect(() => {
+    if (currentStep?.type !== 'dialogue' || !sceneId) return
+    const lineId = dialogueLineId(sceneId, currentStep.character, currentStep.text)
+    if (isRead(readState, lineId)) return
+    const next = markRead(readState, lineId)
+    setReadStateLocal(next)
+    void saveReadState(next)
+  }, [currentStep, sceneId, readState, saveReadState])
 
   const advance = useCallback((): void => {
     if (!vmGraph || !vmState) return
@@ -265,7 +289,27 @@ export const PreviewCanvas = (): JSX.Element => {
     void refreshSlots()
   }, [projectPath, refreshSlots])
 
-  const { autoPlay, setAutoPlay, canAutoPlay } = usePreviewAutoPlay({ advance, currentStep })
+  const { autoPlay, setAutoPlay, canAutoPlay, speedIndex, cycleSpeed } = usePreviewAutoPlay({
+    advance,
+    currentStep
+  })
+  const { skipRead, setSkipRead } = usePreviewSkipRead({
+    advance,
+    currentStep,
+    readState,
+    sceneId
+  })
+  const backlogEntries = useMemo(
+    () => (vmGraph && vmState ? buildBacklog(vmGraph, vmState) : []),
+    [vmGraph, vmState]
+  )
+  // 互斥:开启跳过已读时关闭自动播放,反之亦然
+  useEffect(() => {
+    if (skipRead && autoPlay) setAutoPlay(false)
+  }, [skipRead, autoPlay, setAutoPlay])
+  useEffect(() => {
+    if (autoPlay && skipRead) setSkipRead(false)
+  }, [autoPlay, skipRead, setSkipRead])
 
   const renderStepOverlay = (): JSX.Element | null => {
     if (!currentStep) {
@@ -391,6 +435,14 @@ export const PreviewCanvas = (): JSX.Element => {
                 autoPlay={autoPlay}
                 setAutoPlay={setAutoPlay}
                 canAutoPlay={canAutoPlay}
+                speedLabel={AUTO_PLAY_SPEED_LABELS[speedIndex] ?? '中'}
+                onCycleSpeed={cycleSpeed}
+                backlogOpen={backlogOpen}
+                onToggleBacklog={() => setBacklogOpen((v) => !v)}
+                hasBacklog={backlogEntries.length > 0}
+                skipRead={skipRead}
+                setSkipRead={setSkipRead}
+                canSkipRead={backlogEntries.length > 0}
               />
             </div>
             {saveNote && (
@@ -400,6 +452,9 @@ export const PreviewCanvas = (): JSX.Element => {
               <div className="absolute top-12 left-3 right-3 px-2 py-1 bg-red-900/70 text-red-100 text-[11px] rounded z-10">{unsupportedNote}</div>
             )}
             {renderStepOverlay()}
+            {backlogOpen ? (
+              <PreviewBacklogPanel entries={backlogEntries} onClose={() => setBacklogOpen(false)} />
+            ) : null}
           </div>
         </div>
       )}
