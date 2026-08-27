@@ -412,7 +412,18 @@ const api = {
       seed?: number
       baseUrl?: string
     }): Promise<{ ok: boolean; path?: string; seed?: number; code?: string; error?: string }> =>
-      ipcRenderer.invoke(IPC.image.generate, req)
+      ipcRenderer.invoke(IPC.image.generate, req),
+    generateBackground: (req: {
+      projectPath: string
+      name: string
+      prompt: string
+      negativePrompt?: string
+      provider?: 'sd' | 'dalle' | 'comfyui'
+      seed?: number
+      width?: number
+      height?: number
+    }): Promise<{ ok: boolean; path?: string; seed?: number; code?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC.image.generateBackground, req)
   },
 workspace: {
     /** 浮出 panel 到独立 BrowserWindow(编辑器大陆/主岛/可脱离子岛) */

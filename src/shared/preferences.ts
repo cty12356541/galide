@@ -11,6 +11,18 @@ export type VoicePreferences = {
   previewEnabled: boolean
 }
 
+/** 图像生成偏好(本地 ComfyUI / SD WebUI / DALL-E) */
+export type ImagePreferences = {
+  defaultProvider: 'sd' | 'dalle' | 'comfyui'
+  /** SD WebUI / ComfyUI 端点 */
+  baseUrl: string
+  /** 默认出图尺寸 */
+  width: number
+  height: number
+  /** 生成轮询总预算(ms) — 本地模型冷启动加载需数分钟 */
+  pollTimeoutMs: number
+}
+
 /** AI agent 自主平台偏好(autonomy 模式 + 循环拓扑) */
 export type AgentPreferences = {
   /** 自主模式:copilot(逐步确认)/ hybrid(安全写自动)/ autonomous(全自动) */

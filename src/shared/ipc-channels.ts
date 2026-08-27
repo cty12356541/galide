@@ -119,7 +119,8 @@ export const IPC = {
     delete: 'asset:delete'
   },
   image: {
-    generate: 'image:generate'
+    generate: 'image:generate',
+    generateBackground: 'image:generateBackground'
   },
   workspace: {
     /** PR2: 在独立 BrowserWindow 中浮出 panel(走 main 端 createWindow) */

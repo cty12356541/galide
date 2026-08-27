@@ -9,6 +9,7 @@ import type {
   EditorPreferences,
   ExportPreferences,
   GitPreferences,
+  ImagePreferences,
   ProjectPreferences,
   Shortcuts,
   VoicePreferences
@@ -27,6 +28,7 @@ type PreferencesShape = {
   export: ExportPreferences
   git: GitPreferences
   project: ProjectPreferences
+  image: ImagePreferences
   advanced: AdvancedPreferences
 }
 
@@ -36,6 +38,13 @@ const DEFAULTS: PreferencesShape = {
     defaultVoiceId: 'zh-CN-XiaoxiaoNeural',
     batchConcurrency: 4,
     previewEnabled: false
+  },
+  image: {
+    defaultProvider: 'comfyui',
+    baseUrl: 'http://127.0.0.1:8188',
+    width: 1344,
+    height: 768,
+    pollTimeoutMs: 600_000
   },
   agent: {
     autonomy: 'hybrid',

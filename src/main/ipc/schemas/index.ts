@@ -355,6 +355,20 @@ export const ImageGenerateSchema = z.object({
   baseUrl: z.string().optional()
 })
 
+export const ImageGenerateBackgroundSchema = z.object({
+  projectPath: z.string().min(1),
+  name: z
+    .string()
+    .min(1)
+    .regex(/^[a-zA-Z0-9_-]+$/, 'name 只能包含字母、数字、下划线、连字符'),
+  prompt: z.string().min(1),
+  negativePrompt: z.string().optional(),
+  provider: z.enum(['sd', 'dalle', 'comfyui']).optional(),
+  seed: z.number().int().optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional()
+})
+
 export const ScriptParseProjectSchema = z.object({
   projectPath: z.string().min(1)
 })
