@@ -8,6 +8,7 @@ import { useScript } from '../../lib/ipc/use-script'
 import { useErrorStore } from '../../lib/store'
 import { cn } from '../../lib/utils'
 import { toast } from '../../components/ui/toast'
+import { usePromptDialog } from '../../components/ui/prompt-dialog'
 
 /**
  * 剧本文件树(项目根 scripts/ 下列出所有 .gal)
@@ -21,6 +22,7 @@ export const ScriptFileTree = (): JSX.Element => {
   const setActiveScript = useUiStore((s) => s.setActiveScript)
   const script = useScript()
   const pushError = useErrorStore((s) => s.push)
+  const { prompt, PromptDialog } = usePromptDialog()
   const [files, setFiles] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -77,7 +79,8 @@ export const ScriptFileTree = (): JSX.Element => {
 
   const handleRename = async (oldName: string): Promise<void> => {
     setContextMenu(null)
-    const newName = window.prompt('重命名文件', oldName)
+    if (!projectPath) return
+    const newName = await prompt({ title: '重命名文件', defaultValue: oldName })
     if (!newName || newName === oldName) return
     const fileName = newName.endsWith('.gal') ? newName : `${newName}.gal`
     if (files.includes(fileName)) {
@@ -105,7 +108,7 @@ export const ScriptFileTree = (): JSX.Element => {
 
   const handleNew = async (): Promise<void> => {
     if (!projectPath) return
-    const name = window.prompt('新建剧本文件名', 'chapter2.gal')
+    const name = await prompt({ title: '新建剧本文件名', defaultValue: 'chapter2.gal' })
     if (!name) return
     const fileName = name.endsWith('.gal') ? name : `${name}.gal`
     if (files.includes(fileName)) {
@@ -213,6 +216,7 @@ export const ScriptFileTree = (): JSX.Element => {
           </button>
         </div>
       ) : null}
+      <PromptDialog />
     </div>
   )
 }

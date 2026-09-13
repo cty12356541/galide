@@ -5,7 +5,7 @@ AI-native galgame 制作 IDE。文字游戏 = 语言意义选项的决策树。
 ## 技术栈
 
 - Electron + Node.js (全栈 TypeScript)
-- React 18 + Vite + Tailwind CSS
+- React 19 + Vite + Tailwind CSS
 - CodeMirror 6 剧本编辑器
 - @xyflow/react 分支预览
 - PixiJS v8 游戏运行时
@@ -100,9 +100,9 @@ pnpm build:linux  # Linux
 
 ### AI Agent
 
-- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;写盘后 `script:changed` 广播
-- **Tool Registry** — list_scenes / read_script / add_dialogue / analyze_reachability / generate_sprite / dispatch_command 等
-- **Agent 面板** — 步骤流、计划预览、destructive 确认、autonomy + topology 偏好
+- **main 中心执行** — agent 循环与工具在 main 进程,读写 `scripts/*.gal` + git;编排为 DAG(fan-in/fan-out),设计见 `docs/agent-architecture.md`
+- **Tool Registry** — list_scenes / read_script / add_dialogue / export_project / git_commit / analyze_reachability 等
+- **Agent 面板** — 步骤流(DAG stage 映射)、计划预览、destructive 确认、autonomy + topology 偏好
 
 ### 预览 (Preview Fidelity)
 
@@ -142,27 +142,32 @@ pnpm build:linux  # Linux
 
 ### 架构升级
 
-> **注(2026-06-19):** UI 状态模型已迁移至「功能即岛 v2」(`dockSide` / `visiblePerSide` /
-> `activeSubIsland` / `floatingPanels`)。下文 v0.4 的 `leftPanelOpen` 等字段已废弃,详见 `store.ts`。
+> **注(2026-07-12):** UI 状态模型已迁移至「功能即岛 v3」:单一 `panelStates` map 作为 source of truth,
+> `visiblePerSide` / `dockSide` / `activeSubIsland` 为派生字段,`floatingPanels` 保留数组形式。旧版 `dockSide` /
+> `visiblePerSide` / `activeSubIsland` 仍可被持久化层读取并迁移,详见 `workspace-store.ts` / `use-workspace-persistence.ts`。
 
 - 删 `workspaceLayout` 嵌套对象(治本,代码腐化主因)
 - 简化 `useUiStore` 5 个标量字段:`workspacePreset` / `leftPanelOpen` /
   `leftPanel` / `aiPanelOpen` / `aiDockedLocation`
 - IPC 边界全部走 zod schema 校验(`IpcSchemaError` 透传 `SCHEMA_FAILED` code)
 - main 端 handler 入口 `tryRegister` 隔离,任一失败不阻断 `createWindow`
-- 共享 hook `usePanelFloat` / `useMosaicPersistence` 统一行为
+- 共享 hook `usePanelFloat` / `useWorkspacePersistence` 统一行为
 
 ### 已知限制
 
-- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink ✅ / Electron-desktop ⏳(stub,UI 标注"即将支持")
+- 导出目标:Web ✅ / JSON ✅ / Ren'Py ✅ / Ink ✅ / Electron-desktop ✅(壳工程 MVP,可运行;打包分发/签名/安装器待后续)
 - 多窗口 IPC sync:export progress 按发送者路由,其他 IPC 暂用 default focused window
 - e2e 测试需本地有 GUI 环境跑
 
 ## 测试与质量
 
+[![CI](https://github.com/cty12356541/galide/actions/workflows/ci.yml/badge.svg)](https://github.com/cty12356541/galide/actions/workflows/ci.yml)
+
+完整门禁由 CI 与 pre-commit 强制(0 error 为通过条件,非手动声明):
+
 ```bash
-pnpm typecheck    # 0 error
-pnpm lint         # 0 error
-pnpm test         # 80+ 文件 / 530+ 测试
-pnpm build        # 成功
+pnpm typecheck    # tsc,CI 强制 0 error
+pnpm lint         # eslint,CI 强制 0 error
+pnpm test         # vitest,CI 强制全绿
+pnpm build        # electron-vite build + 字体体积预算检查
 ```

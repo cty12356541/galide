@@ -2,6 +2,7 @@ import { usePreference, useSavePreference } from '../../../lib/ipc/use-preferenc
 import { PreferenceEditor } from '../components/PreferenceEditor'
 import { Input } from '../../../components/ui/input'
 import { ToggleEditor } from '../components/ToggleEditor'
+import { FormSkeleton } from '../../../components/ui/skeleton'
 import { useUiStore } from '../../../lib/store'
 import type { AppearancePreferences } from '@shared/preferences'
 
@@ -14,7 +15,7 @@ export const AppearancePreferencesPanel = (): JSX.Element => {
   const update = (next: AppearancePreferences): Promise<unknown> => save.mutateAsync(next)
   const setTheme = useUiStore((s) => s.setTheme)
 
-  if (!draft) return <div className="text-sm text-text-muted">加载中…</div>
+  if (!draft) return <FormSkeleton />
 
   return (
     <div className="space-y-6 max-w-3xl">

@@ -57,12 +57,26 @@ const createStore = (): Store => {
 
 /**
  * 初始化 KeyStore。必须在 app ready 之后、所有 IPC handler 注册之前调用一次。
- * safeStorage 不可用 → throw 阻断启动(不静默退化到无加密)。
+ * safeStorage 不可用时:
+ * - 默认 throw 阻断启动,防止静默退化到无加密状态(生产环境)。
+ * - dev 可通过 opts.allowFallback 降级到明文存储,以便在无 keychain 的终端/CI 中启动。
  */
-export const initKeyStore = (opts?: { safeStorage?: SafeStorageLike }): void => {
+export const initKeyStore = (opts?: {
+  safeStorage?: SafeStorageLike
+  allowFallback?: boolean
+}): void => {
   if (keyStore) return
-  crypto = opts?.safeStorage ?? electronSafeStorage
-  if (!crypto.isEncryptionAvailable()) {
+  const storage = opts?.safeStorage ?? electronSafeStorage
+  if (storage.isEncryptionAvailable()) {
+    crypto = storage
+  } else if (opts?.allowFallback) {
+    console.warn('[galide] safeStorage 不可用,dev 模式降级为明文存储 API Key。')
+    crypto = {
+      isEncryptionAvailable: () => false,
+      encryptString: (plainText: string) => Buffer.from(plainText, 'utf-8'),
+      decryptString: (buffer: Buffer) => buffer.toString('utf-8')
+    }
+  } else {
     throw new Error(
       '[galide] safeStorage 不可用(OS keychain 缺失)。API Key 加密存储无法初始化,拒绝启动。'
     )

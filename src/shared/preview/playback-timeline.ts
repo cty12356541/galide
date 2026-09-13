@@ -11,6 +11,9 @@ import type {
   SceneNode,
   SetNode,
   SetOp
+,
+  StageEntryNode,
+  StageExitNode
 } from '../dsl/types'
 
 export interface PlaybackDialogueStep {
@@ -42,6 +45,14 @@ export interface PlaybackMarkerStep {
   id: string
 }
 
+export interface PlaybackStageStep {
+  type: 'stage'
+  action: 'enter' | 'exit'
+  character: string
+  sprite?: string
+  position?: 'left' | 'right' | 'center'
+}
+
 export interface PlaybackSetStep {
   type: 'set'
   name: string
@@ -65,6 +76,7 @@ export type PlaybackStep =
   | PlaybackChoiceStep
   | PlaybackGotoStep
   | PlaybackMarkerStep
+  | PlaybackStageStep
   | PlaybackSetStep
   | PlaybackIfStep
 
@@ -143,6 +155,20 @@ const appendNodeStep = (node: AstNode, steps: PlaybackStep[]): void => {
       break
     case 'marker':
       steps.push({ type: 'marker', id: (node as MarkerNode).id })
+      break
+    case 'stageEntry': {
+      const n = node as StageEntryNode
+      steps.push({
+        type: 'stage',
+        action: 'enter',
+        character: n.character,
+        ...(n.sprite !== undefined ? { sprite: n.sprite } : {}),
+        ...(n.position !== undefined ? { position: n.position } : {})
+      })
+      break
+    }
+    case 'stageExit':
+      steps.push({ type: 'stage', action: 'exit', character: (node as StageExitNode).character })
       break
     default:
       break

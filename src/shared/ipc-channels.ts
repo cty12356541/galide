@@ -9,14 +9,19 @@ export const IPC = {
     openPath: 'project:openPath',
     save: 'project:save',
     create: 'project:create',
+    createAtPath: 'project:createAtPath',
     close: 'project:close',
     recent: 'project:recent',
-    listRecent: 'project:listRecent'
+    listRecent: 'project:listRecent',
+    opened: 'project:opened'
   },
   script: {
     parse: 'script:parse',
     parseProject: 'script:parseProject',
     searchProject: 'script:searchProject',
+    replacePreview: 'script:replacePreview',
+    replaceApply: 'script:replaceApply',
+    replaceRollback: 'script:replaceRollback',
     read: 'script:read',
     write: 'script:write',
     list: 'script:list',
@@ -88,6 +93,10 @@ export const IPC = {
     list: 'character:list',
     delete: 'character:delete'
   },
+  brain: {
+    list: 'brain:list',
+    changed: 'brain:changed'
+  },
   voice: {
     generate: 'voice:generate',
     preview: 'voice:preview',
@@ -110,7 +119,8 @@ export const IPC = {
     delete: 'asset:delete'
   },
   image: {
-    generate: 'image:generate'
+    generate: 'image:generate',
+    generateBackground: 'image:generateBackground'
   },
   workspace: {
     /** PR2: 在独立 BrowserWindow 中浮出 panel(走 main 端 createWindow) */
@@ -119,13 +129,15 @@ export const IPC = {
     panelClosed: 'workspace:panelClosed',
     /** PR3-B: 浮出窗口请求聚焦主窗口 */
     focusMain: 'workspace:focusMain',
-    /** 功能即岛 v2:从主窗口收回浮出窗口(按 panelId 关闭) */
+    /** 功能即岛 v3:从主窗口收回浮出窗口(按 panelId 关闭) */
     closePanel: 'workspace:closePanel',
   },
   preview: {
     saveSlot: 'preview:saveSlot',
     loadSlot: 'preview:loadSlot',
-    listSlots: 'preview:listSlots'
+    listSlots: 'preview:listSlots',
+    loadReadState: 'preview:readState:load',
+    saveReadState: 'preview:readState:save'
   }
 } as const
 
@@ -140,6 +152,7 @@ export type IpcChannel =
   | (typeof IPC)['preferences'][keyof (typeof IPC)['preferences']]
   | (typeof IPC)['shortcuts'][keyof (typeof IPC)['shortcuts']]
   | (typeof IPC)['character'][keyof (typeof IPC)['character']]
+  | (typeof IPC)['brain'][keyof (typeof IPC)['brain']]
   | (typeof IPC)['voice'][keyof (typeof IPC)['voice']]
   | (typeof IPC)['store'][keyof (typeof IPC)['store']]
   | (typeof IPC)['dialog'][keyof (typeof IPC)['dialog']]

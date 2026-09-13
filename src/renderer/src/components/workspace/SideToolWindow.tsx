@@ -1,5 +1,5 @@
 /**
- * SideToolWindow — 主岛壳(功能即岛 v2)
+ * SideToolWindow — 主岛壳(功能即岛 v3)
  *
  * PyCharm 风格主岛:统一 header(图标+标题+ dock 菜单 + 浮出 + 关闭)+ 内容区。
  * 多子岛主岛(项目/角色)渲染 tab 条,每个子岛可单独脱离为独立窗;
@@ -17,7 +17,7 @@ import {
   TOOL_WINDOW_META,
   isMultiSubIsland,
   type ToolWindowId,
-} from './mosaic/panel-registry'
+} from './panels/panel-registry'
 import { DockedLocationMenu } from './DockedLocationMenu'
 import { cn } from '../../lib/utils'
 
@@ -38,7 +38,7 @@ export const SideToolWindow = ({
   const float = usePanelFloat()
 
   const multi = isMultiSubIsland(toolWindowId)
-  const ActiveComp = meta.subIslands.find((s) => s.id === activeSub)?.component ?? meta.subIslands[0].component
+  const ActiveComp = meta.subIslands.find((s) => s.id === activeSub)?.component ?? meta.subIslands[0]!.component
 
   const close = (): void => {
     if (floating) {

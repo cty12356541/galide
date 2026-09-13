@@ -50,7 +50,8 @@ export const deserializeVmSave = (file: VmSaveFile): VmState | null => {
 }
 
 /** @internal Browser-embeddable */
-export function serializeVmSaveImpl(state, slot) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function serializeVmSaveImpl(state: any, slot: any): any {
   return {
     version: VM_SAVE_VERSION,
     slot,
@@ -63,7 +64,8 @@ export function serializeVmSaveImpl(state, slot) {
 }
 
 /** @internal Browser-embeddable */
-export function deserializeVmSaveImpl(file) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function deserializeVmSaveImpl(file: any): any {
   if (file.version !== VM_SAVE_VERSION) return null
   if (!file.currentSceneId || typeof file.stepIndex !== 'number') return null
   return {
@@ -75,7 +77,8 @@ export function deserializeVmSaveImpl(file) {
 }
 
 /** @internal Browser-embeddable */
-export function buildWebSaveKeyImpl(projectId, slot) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function buildWebSaveKeyImpl(projectId: any, slot: any): any {
   return slot !== undefined ? 'galide-save-' + projectId + '-slot-' + slot : 'galide-save-' + projectId
 }
 

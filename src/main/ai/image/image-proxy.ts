@@ -173,7 +173,7 @@ const generateComfyUI = async (
     const hist = (await histResp.json()) as Record<string, ComfyHistoryEntry>
     const images = extractComfyImages(hist[promptId])
     if (images.length > 0) {
-      const img = images[0]
+      const img = images[0]!
       const viewUrl =
         `${base}/view?filename=${encodeURIComponent(img.filename)}` +
         `&subfolder=${encodeURIComponent(img.subfolder ?? '')}` +

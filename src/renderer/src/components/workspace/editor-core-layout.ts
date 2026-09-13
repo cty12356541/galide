@@ -7,7 +7,8 @@ export const shouldPatchHorizontalLayout = (
   sizes: number[]
 ): boolean => {
   if (sizes.length < 2) return false
-  return panelSizesChanged(cur.beat, sizes[0]) || panelSizesChanged(cur.right, sizes[1])
+  const [s0, s1] = sizes as [number, number]
+  return panelSizesChanged(cur.beat, s0) || panelSizesChanged(cur.right, s1)
 }
 
 /** 通用 EditorCore layout patch:两键映射到 sizes[0]/sizes[1] */
@@ -17,9 +18,10 @@ export const patchEditorCoreLayout = <K1 extends string, K2 extends string>(
   cur: Record<K1 | K2, number>
 ): Partial<Record<K1 | K2, number>> | null => {
   if (sizes.length < 2) return null
+  const [s0, s1] = sizes as [number, number]
   const [k0, k1] = keys
-  if (!panelSizesChanged(cur[k0], sizes[0]) && !panelSizesChanged(cur[k1], sizes[1])) {
+  if (!panelSizesChanged(cur[k0], s0) && !panelSizesChanged(cur[k1], s1)) {
     return null
   }
-  return { [k0]: sizes[0], [k1]: sizes[1] } as Partial<Record<K1 | K2, number>>
+  return { [k0]: s0, [k1]: s1 } as Partial<Record<K1 | K2, number>>
 }

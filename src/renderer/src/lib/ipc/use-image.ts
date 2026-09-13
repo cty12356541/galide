@@ -11,11 +11,27 @@ export type ImageGenerateParams = {
   baseUrl?: string
 }
 
+export type ImageGenerateBackgroundParams = {
+  projectPath: string
+  name: string
+  prompt: string
+  negativePrompt?: string
+  provider?: 'sd' | 'dalle' | 'comfyui'
+  seed?: number
+  width?: number
+  height?: number
+}
+
 export const useImage = () => {
   return {
     generate: useCallback(
       (req: ImageGenerateParams) =>
         wrap('image:generate', () => window.galide.image.generate(req)),
+      []
+    ),
+    generateBackground: useCallback(
+      (req: ImageGenerateBackgroundParams) =>
+        wrap('image:generateBackground', () => window.galide.image.generateBackground(req)),
       []
     )
   }

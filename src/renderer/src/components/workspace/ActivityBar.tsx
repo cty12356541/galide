@@ -1,13 +1,13 @@
 /**
- * ActivityBar — PyCharm 风格左侧 Activity Bar(功能即岛 v2)
+ * ActivityBar — PyCharm 风格左侧 Activity Bar(功能即岛 v3)
  *
- * 列出 5 个真实主岛;search/debug 占位已隐藏;设置直接打开偏好(无死胡同)。
+ * 列出非 hidden 的真实主岛;设置直接打开偏好(无死胡同)。
  */
 import { Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { cn } from '../../lib/utils'
-import { TOOL_WINDOWS, type ToolWindowId } from './mosaic/panel-registry'
+import { TOOL_WINDOWS, type ToolWindowId } from './panels/panel-registry'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
 
 type ActivityItem =
@@ -15,7 +15,7 @@ type ActivityItem =
   | { kind: 'settings'; icon: LucideIcon; label: string }
 
 const ITEMS: readonly ActivityItem[] = [
-  ...TOOL_WINDOWS.map((t) => ({ kind: 'tw' as const, id: t.id, icon: t.icon, label: t.title })),
+  ...TOOL_WINDOWS.filter((t) => !t.hidden).map((t) => ({ kind: 'tw' as const, id: t.id, icon: t.icon, label: t.title })),
   { kind: 'settings', icon: Settings, label: '设置' }
 ]
 
@@ -66,7 +66,7 @@ export const ActivityBar = (): JSX.Element => {
                   aria-pressed={isActive}
                   data-testid={testId}
                   className={cn(
-                    'relative w-9 h-9 rounded-md flex items-center justify-center transition-colors',
+                    'relative w-9 h-9 rounded-lg flex items-center justify-center transition-colors',
                     isActive
                       ? 'bg-accent-soft text-accent'
                       : 'text-text-muted hover:text-text hover:bg-surface',

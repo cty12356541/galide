@@ -84,6 +84,8 @@ export const AiInlineEdit = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       className="absolute top-3 right-3 w-80 bg-surface border border-border rounded-2xl shadow-lg overflow-hidden z-10"
+      data-testid="ai-inline-edit"
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-bg-elevated">
         <div className="flex items-center gap-2">

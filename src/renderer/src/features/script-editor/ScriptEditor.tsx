@@ -12,7 +12,7 @@ import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { toast } from '../../components/ui/toast'
 import { DiagnosticsPanel } from './DiagnosticsPanel'
 import { AiInlineEdit } from './AiInlineEdit'
-import { galLanguage } from '../../lib/codemirror/gal-language'
+import { galLanguage, galAutocomplete, galDiagnostics, setGalDiagnostics } from '../../lib/codemirror/gal-language'
 import { cn } from '../../lib/utils'
 
 interface ScriptEditorProps {
@@ -69,6 +69,8 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
       search({ top: true }),
       highlightSelectionMatches(),
       galLanguage(),
+      galAutocomplete(),
+      galDiagnostics(),
       EditorView.lineWrapping,
       EditorView.theme(
         {
@@ -85,7 +87,49 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
           },
           '.cm-activeLine': { backgroundColor: 'var(--cm-active-line)' },
           '.cm-cursor': { borderLeftColor: 'var(--cm-cursor)' },
-          '.cm-selectionBackground, ::selection': { backgroundColor: 'var(--cm-selection)' }
+          '.cm-selectionBackground, ::selection': { backgroundColor: 'var(--cm-selection)' },
+          // 搜索/替换面板 chrome —— 复用 --cm-* 与应用表面 token,不写死颜色
+          '.cm-panels': {
+            backgroundColor: 'var(--bg-elevated)',
+            color: 'var(--text)',
+            borderTop: '1px solid var(--border)'
+          },
+          '.cm-panel.cm-search': {
+            padding: '6px 8px',
+            fontFamily: 'var(--font-sans)'
+          },
+          '.cm-panel.cm-search input[type=text]': {
+            backgroundColor: 'var(--surface)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            padding: '2px 6px'
+          },
+          '.cm-panel.cm-search button': {
+            backgroundImage: 'none',
+            backgroundColor: 'var(--surface)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            textTransform: 'capitalize',
+            cursor: 'pointer'
+          },
+          '.cm-panel.cm-search button:hover': {
+            backgroundColor: 'var(--cm-active-line)'
+          },
+          '.cm-panel.cm-search input:focus, .cm-panel.cm-search button:focus': {
+            outline: '1px solid var(--cm-active-line-gutter)'
+          },
+          '.cm-panel.cm-search [name=close]': {
+            color: 'var(--text-muted)'
+          },
+          '.cm-searchMatch': {
+            backgroundColor: 'var(--cm-selection)',
+            outline: '1px solid var(--cm-active-line-gutter)'
+          },
+          '.cm-searchMatch-selected': {
+            backgroundColor: 'var(--cm-active-line)'
+          }
         },
         { dark: false }
       ),
@@ -96,6 +140,7 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
     const state = EditorState.create({ doc: useUiStore.getState().scriptSource, extensions })
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+    setGalDiagnostics(view, useUiStore.getState().scriptDiagnostics)
     return () => {
       view.destroy()
       viewRef.current = null
@@ -130,6 +175,12 @@ export const ScriptEditor = ({ embedded = false }: ScriptEditorProps): JSX.Eleme
     })
     setScriptEditorScrollTarget(null)
   }, [scriptEditorScrollTarget, scriptSource, setScriptEditorScrollTarget])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    setGalDiagnostics(view, scriptDiagnostics)
+  }, [scriptDiagnostics])
 
   const handleSave = async (): Promise<void> => {
     if (!projectPath || !activeScript) return

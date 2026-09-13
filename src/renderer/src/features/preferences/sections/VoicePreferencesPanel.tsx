@@ -7,6 +7,7 @@ import { PreferenceEditor } from '../components/PreferenceEditor'
 import { ApiKeyEditor } from '../components/ApiKeyEditor'
 import { Input } from '../../../components/ui/input'
 import { Button } from '../../../components/ui/button'
+import { FormSkeleton } from '../../../components/ui/skeleton'
 import { useAiConfigForm } from '../../../lib/ipc/use-ai-config-form'
 import { toast } from '../../../components/ui/toast'
 import { isTtsUnavailable } from '../../voice/tts-availability'
@@ -67,7 +68,7 @@ export const VoicePreferencesPanel = (): JSX.Element => {
     return ok
   }
 
-  if (!draft) return <div className="text-sm text-text-muted">加载中…</div>
+  if (!draft) return <FormSkeleton />
 
   return (
     <div className="space-y-6 max-w-3xl">

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import {
   ReactFlow,
   Background,
@@ -12,6 +12,7 @@ import { GitBranch, AppWindow } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { Button } from '../../components/ui/button'
 import { useUiStore } from '../../lib/store'
+import { useShallow } from 'zustand/react/shallow'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type {
@@ -63,6 +64,7 @@ const buildFlow = (ast: ScriptNode): FlowResult => {
     const idx = ast.children.indexOf(node)
     for (let i = idx - 1; i >= 0; i--) {
       const prev = ast.children[i]
+      if (!prev) continue
       if (prev.type === 'scene') return prev
     }
     return undefined
@@ -123,11 +125,15 @@ const buildFlow = (ast: ScriptNode): FlowResult => {
   return { nodes, edges }
 }
 
-export const FlowView = (): JSX.Element => {
-  const scriptAst = useUiStore((s) => s.scriptAst)
-  const projectMergedAst = useUiStore((s) => s.projectMergedAst)
+const FlowView = (): JSX.Element => {
+  const { scriptAst, projectMergedAst, selectedSceneId } = useUiStore(
+    useShallow((s) => ({
+      scriptAst: s.scriptAst,
+      projectMergedAst: s.projectMergedAst,
+      selectedSceneId: s.selectedSceneId,
+    }))
+  )
   const viewAst = projectMergedAst ?? scriptAst
-  const selectedSceneId = useUiStore((s) => s.selectedSceneId)
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const setSelectedNode = useUiStore((s) => s.setSelectedNode)
   const float = usePanelFloat()
@@ -206,3 +212,6 @@ export const FlowView = (): JSX.Element => {
     </div>
   )
 }
+
+export default React.memo(FlowView)
+export { FlowView }

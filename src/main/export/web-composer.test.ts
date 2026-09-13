@@ -18,14 +18,17 @@ import type {
   MarkerNode
 } from '../../shared/dsl/types.js'
 import type { ExportContext, AstEntry } from './composer.js'
-import {
-  buildVmGraph,
+import {buildVmGraph,
   createVmState,
   jumpToTarget,
   getCurrentStep,
   advanceVm,
   buildPlayerRuntimeFunctions
-} from '../../shared/preview/runtime-vm.js'
+,
+  buildBacklog,
+  dialogueLineId,
+  markRead,
+  computeStageState } from '../../shared/preview/runtime-vm.js'
 import { buildWebSaveKey } from '../../shared/preview/vm-save.js'
 
 const base = (line: number): BaseNode => ({ line, column: 1 })
@@ -230,6 +233,151 @@ describe('WebComposer (Batch 3)', () => {
       state: ReturnType<typeof createVmState>
     ) => ReturnType<typeof getCurrentStep>
     expect(browserGet(graph, state)).toEqual(tsStep)
+  })
+
+  it('backlog/read-state functions match TS semantics (player parity)', () => {
+    const ast = makeAst([
+      makeScene('s1', [makeDialogue('A', '一'), makeDialogue('B', '二')]),
+      makeScene('s2', [makeDialogue('A', '三')])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    const a1 = advanceVm(graph, state)
+    if (!a1.ok) throw new Error('advance failed')
+    state = a1.state
+    const jmp = jumpToTarget(graph, state, 's2')
+    if (!jmp.ok) throw new Error('jump failed')
+    state = jmp.state
+    const a2 = advanceVm(graph, state)
+    if (!a2.ok) throw new Error('advance failed')
+    state = a2.state
+
+    const tsBacklog = buildBacklog(graph, state)
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserBacklog = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return buildBacklog(graph, state);`
+    ) as (g: typeof graph, s: typeof state) => ReturnType<typeof buildBacklog>
+    expect(browserBacklog(graph, state)).toEqual(tsBacklog)
+    expect(tsBacklog.map((b) => b.text)).toEqual(['一', '二', '三'])
+
+    const id = dialogueLineId('s1', 'A', '一')
+    const read = markRead({ readLineIds: [] }, id)
+    const browserRead = new Function(
+      'read',
+      'id',
+      `${fnBlock}; return { marked: markRead(read, id), hit: isRead(read, id) };`
+    ) as (r: { readLineIds: string[] }, i: string) => { marked: ReturnType<typeof markRead>; hit: boolean }
+    const out = browserRead({ readLineIds: [] }, id)
+    expect(out).toEqual({ marked: read, hit: false })
+  })
+
+  it('web player embeds trio controls and set auto-advance fix', async () => {
+    const ast = makeAst([makeScene('s1', [makeDialogue('A', 'hi')])])
+    const ctx = makeCtx([{ file: 'a.gal', ast }])
+    const composer = new WebComposer()
+    const target = await composer.transform(ctx)
+    expect(target.html).toContain("'web-auto'")
+    expect(target.html).toContain("'web-skip-read'")
+    expect(target.html).toContain("'web-backlog'")
+    expect(target.html).toContain("galide-read-' + PROJECT_ID")
+    // set 步自动推进(修复卡死)
+    expect(target.html).toContain("step.type === 'set'")
+    expect(target.html).toContain('markCurrentRead(step)')
+  })
+
+  it('computeStageState parity between TS and inline player functions', () => {
+    const ast = makeAst([
+      makeScene('s1', [
+        {
+          ...base(1),
+          type: 'stageEntry',
+          character: '小雪',
+          sprite: 'a.png',
+          position: 'left' as const
+        },
+        {
+          ...base(2),
+          type: 'stageEntry',
+          character: '阳',
+          sprite: 'b.png',
+          position: 'right' as const
+        },
+        makeDialogue('小雪', 'hi'),
+        { ...base(4), type: 'stageExit', character: '阳' }
+      ])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    const a1 = advanceVm(graph, state)
+    if (a1.ok) state = a1.state
+    const tsStage = computeStageState(graph, state)
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserStage = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return computeStageState(graph, state);`
+    ) as (g: typeof graph, s: typeof state) => ReturnType<typeof computeStageState>
+    expect(browserStage(graph, state)).toEqual(tsStage)
+    expect(Object.keys(tsStage).sort()).toEqual(['小雪', '阳'])
+  })
+
+  it('computeStageState parity inside if-branches (serialized helper chain)', () => {
+    const ast = makeAst([
+      makeScene('s1', [
+        {
+          ...base(1),
+          type: 'stageEntry',
+          character: 'A',
+          sprite: 'a.png',
+          position: 'left' as const
+        },
+        {
+          ...base(2),
+          type: 'if',
+          branches: [
+            {
+              kind: 'if',
+              condition: {
+                kind: 'binary',
+                op: 'ge',
+                left: { kind: 'var', name: 'x' },
+                right: { kind: 'literal', value: 1 }
+              },
+              children: [
+                makeDialogue('A', 'in-branch'),
+                {
+                  ...base(3),
+                  type: 'stageEntry',
+                  character: 'B',
+                  sprite: 'b.png',
+                  position: 'right' as const
+                }
+              ]
+            },
+            { kind: 'else', children: [] }
+          ]
+        }
+      ])
+    ])
+    const graph = buildVmGraph(ast)
+    let state = createVmState(graph, 's1')
+    state = { ...state, variables: { x: 1 } }
+    // 进入 if 分支并消费到 B 登场之后
+    const a1 = advanceVm(graph, state)
+    if (a1.ok) state = a1.state
+    const a2 = advanceVm(graph, state)
+    if (a2.ok) state = a2.state
+    const tsStage = computeStageState(graph, state)
+    expect(Object.keys(tsStage).sort()).toEqual(['A', 'B'])
+    const fnBlock = buildPlayerRuntimeFunctions()
+    const browserStage = new Function(
+      'graph',
+      'state',
+      `${fnBlock}; return computeStageState(graph, state);`
+    ) as (g: typeof graph, s: typeof state) => ReturnType<typeof computeStageState>
+    expect(browserStage(graph, state)).toEqual(tsStage)
   })
 
   it('embeds localStorage save key format (web player parity)', async () => {

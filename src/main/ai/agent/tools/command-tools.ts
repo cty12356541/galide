@@ -23,17 +23,8 @@ const NAVIGATE_COMMAND_IDS = [
   'togglePreview'
 ] as const
 
-/** 改变项目 / 编辑器状态的命令(新建 / 打开项目 / 提交 / 导出 / 撤销重做) */
-const STATE_COMMAND_IDS = [
-  'newScriptFile',
-  'newProject',
-  'openProject',
-  'closeProject',
-  'commit',
-  'export',
-  'undo',
-  'redo'
-] as const
+/** 改变编辑器状态的命令(不含 platform headless 已覆盖的建项/开项/导出/提交) */
+const STATE_COMMAND_IDS = ['newScriptFile', 'closeProject', 'undo', 'redo'] as const
 
 const runDispatch = async (
   commandId: string,
@@ -68,7 +59,8 @@ const navigate = defineTool({
 
 const dispatchCommand = defineTool({
   name: 'dispatch_command',
-  description: '执行改变项目状态的命令(新建剧本/项目、打开/关闭项目、Git 提交、导出、撤销重做)。',
+  description:
+    '执行改变编辑器状态的命令(新建剧本、关闭项目、撤销重做)。建项/开项/导出/提交请用 platform headless 工具。',
   risk: 'destructive',
   domain: 'renderer',
   schema: z.object({ commandId: z.enum(STATE_COMMAND_IDS) }),

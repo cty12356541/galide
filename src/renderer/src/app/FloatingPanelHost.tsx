@@ -1,5 +1,5 @@
 /**
- * FloatingPanelHost — 浮出 BrowserWindow 内容宿主(功能即岛 v2)
+ * FloatingPanelHost — 浮出 BrowserWindow 内容宿主(功能即岛 v3)
  *
  * 触发:URL 含 `?floating=1&panelId=<id>`,按 id 类型分发:
  *   - EditorDoc:文档组件 + 简化 header(标题来自 EDITOR_DOC_META)
@@ -13,7 +13,7 @@ import { X, ArrowLeft } from 'lucide-react'
 import {
   getFloatingContent,
   FLOATABLE_IDS
-} from '../components/workspace/mosaic/panel-registry'
+} from '../components/workspace/panels/panel-registry'
 import { SideToolWindow } from '../components/workspace/SideToolWindow'
 
 type FloatingMode = { enabled: true; panelId: string } | { enabled: false }

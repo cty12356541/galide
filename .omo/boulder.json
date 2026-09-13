@@ -1,0 +1,35 @@
+{
+  "schema_version": 2,
+  "active_work_id": "v06-hardening-authoring-power-ba446cc2",
+  "works": {
+    "v06-hardening-authoring-power-ba446cc2": {
+      "work_id": "v06-hardening-authoring-power-ba446cc2",
+      "active_plan": "/Users/lipunima/projects/galide/.omo/plans/v06-hardening-authoring-power.md",
+      "plan_name": "v06-hardening-authoring-power",
+      "status": "active",
+      "started_at": "2026-07-18T04:13:31.402Z",
+      "updated_at": "2026-07-18T04:13:31.402Z",
+      "session_ids": [
+        "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa"
+      ],
+      "session_origins": {
+        "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa": "direct"
+      },
+      "agent": "sisyphus",
+      "task_sessions": {}
+    }
+  },
+  "active_plan": "/Users/lipunima/projects/galide/.omo/plans/v06-hardening-authoring-power.md",
+  "started_at": "2026-07-18T04:13:31.402Z",
+  "status": "active",
+  "updated_at": "2026-07-18T04:13:31.402Z",
+  "session_ids": [
+    "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa"
+  ],
+  "session_origins": {
+    "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa": "direct"
+  },
+  "plan_name": "v06-hardening-authoring-power",
+  "task_sessions": {},
+  "agent": "sisyphus"
+}

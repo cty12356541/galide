@@ -7,13 +7,30 @@ import type { AiProvider } from './use-ai'
 
 export type AgentStep =
   | { type: 'plan'; plan: { steps: Array<{ index: number; description: string }>; raw: string } }
+  | { type: 'plan_progress'; current: number; total: number; description: string }
   | { type: 'thought'; text: string }
   | { type: 'tool_call'; call: { id: string; name: string; args: unknown }; risk: string; decision: string }
-  | { type: 'awaiting_confirm'; call: { id: string; name: string; args: unknown } }
+  | {
+      type: 'awaiting_confirm'
+      call: { id: string; name: string; args: unknown }
+      risk: string
+      diff?: { before: string; after: string }
+    }
   | { type: 'tool_result'; result: { name: string; ok: boolean; content: string } }
-  | { type: 'critic'; report: unknown }
-  | { type: 'done'; text: string }
+  | { type: 'critic'; report: CriticReport }
+  | { type: 'done'; text: string; warnings?: string[] }
   | { type: 'error'; message: string }
+
+export interface ReachabilityReport {
+  entry: string | null
+  reachable: string[]
+  unreachable: string[]
+  danglingTargets: Array<{ from: string; target: string }>
+}
+
+export type CriticReport =
+  | { kind: 'deterministic'; reachability: ReachabilityReport }
+  | { kind: 'llm'; text: string; pass?: boolean; issues?: string[]; parseError?: boolean }
 
 export type AgentTaskStatus = 'pending' | 'running' | 'done' | 'error' | 'cancelled'
 

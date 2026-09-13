@@ -38,16 +38,19 @@ export const broadcastScriptChanged: ScriptChangedBroadcaster = (payload, option
 
 /** agent toolContext 写 .gal 后广播;非 .gal 或路径不在 projectPath 下则静默 */
 export const createBroadcastingWriteFile = (
-  projectPath: string,
+  projectPath: string | (() => string),
   writeFile: (path: string, content: string) => Promise<void>,
   broadcast: ScriptChangedBroadcaster = broadcastScriptChanged
 ): ((path: string, content: string) => Promise<void>) => {
-  const prefix = projectPath.endsWith('/') ? projectPath : `${projectPath}/`
+  const resolveProjectPath = (): string =>
+    typeof projectPath === 'function' ? projectPath() : projectPath
   return async (filePath, content) => {
     await writeFile(filePath, content)
+    const root = resolveProjectPath()
+    const prefix = root.endsWith('/') ? root : `${root}/`
     if (!filePath.endsWith('.gal')) return
     if (!filePath.startsWith(prefix)) return
     const fileName = basename(filePath)
-    broadcast({ projectPath, fileName, source: content }, { notifyAll: true })
+    broadcast({ projectPath: root, fileName, source: content }, { notifyAll: true })
   }
 }

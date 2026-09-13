@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "kimi/kimi-for-coding",
+  "provider": {
+    "kimi": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Kimi",
+      "options": {
+        "baseURL": "https://api.kimi.com/coding/v1"
+      },
+      "models": {
+        "kimi-for-coding": {
+          "name": "Kimi for Coding",
+          "limit": {
+            "context": 262144,
+            "output": 8000
+          }
+        }
+      }
+    }
+  },
+  "plugin": [
+    "oh-my-openagent@latest"
+  ]
+}

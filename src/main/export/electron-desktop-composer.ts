@@ -1,32 +1,56 @@
 /**
- * Electron Desktop Composer (stub)
+ * Electron Desktop Composer — T3-4 MVP
  *
- * TODO: 实现 Electron 桌面端打包配置
- * 目标格式: 完整 Electron 项目(目录)
- *   package.json
- *   main.js
- *   preload.js
- *   renderer/index.html  ← 复用 WebComposer 的输出
- *   renderer/scripts/    ← 复制 .gal
- *   renderer/assets/     ← 复制 assets
+ * 输出 = Web 导出产物(index.html + assets/,复用 WebComposer)+ shell/ 桌面壳:
+ *   shell/main.cjs      Electron 主进程(galgame:// 协议映射,404 catch,路径穿越防护)
+ *   shell/package.json  壳工程清单(name 来自 .galproj manifest,electron 锁 major)
+ *   shell/README.md     中文说明(诚实声明:壳工程可运行,打包分发待 electron-builder)
  *
- * 拒绝式语义:未实装,emit 抛 ExportError('NOT_IMPLEMENTED'),
- * 不静默写空文件。前端据 code 显示「该导出目标尚未实现」。
+ * 与 WebComposer 是组合关系:transform/emit 委托,壳文件作为额外产物追加。
  */
 
-import type { Composer, ExportContext } from './composer.js'
-import { ExportError } from './composer.js'
+import type { Composer, ExportContext, MultiFileOutput } from './composer.js'
+import { WebComposer, type WebAst } from './web-composer.js'
+import { loadManifestProjectName } from './shared.js'
+import {
+  buildShellMainCjs,
+  buildShellPackageJson,
+  buildShellReadme,
+  toNpmPackageName
+} from './electron-desktop-shell-template.js'
 
-export class ElectronDesktopComposer implements Composer<null, string> {
+export interface ElectronDesktopAst {
+  readonly web: WebAst
+  readonly shellMainCjs: string
+  readonly shellPackageJson: string
+  readonly shellReadme: string
+}
+
+export class ElectronDesktopComposer implements Composer<ElectronDesktopAst, MultiFileOutput> {
   readonly name = 'electron-desktop' as const
-  readonly defaultFilename = 'package.json'
+  private readonly webComposer = new WebComposer()
 
-  transform(_ctx: ExportContext): null {
-    // TODO: 复用 WebComposer 产物 + 包装成 Electron app
-    return null
+  async transform(ctx: ExportContext): Promise<ElectronDesktopAst> {
+    const web = await this.webComposer.transform(ctx)
+    const projectName = await loadManifestProjectName(ctx.request.projectPath)
+    return {
+      web,
+      shellMainCjs: buildShellMainCjs(),
+      shellPackageJson: buildShellPackageJson(toNpmPackageName(projectName)),
+      shellReadme: buildShellReadme(projectName)
+    }
   }
 
-  emit(_target: null, _ctx: ExportContext): string {
-    throw new ExportError('NOT_IMPLEMENTED', `[${this.name}] export target "${this.name}" 尚未实现`)
+  emit(target: ElectronDesktopAst, ctx: ExportContext): MultiFileOutput {
+    const webOut = this.webComposer.emit(target.web, ctx)
+    return {
+      kind: 'multi',
+      files: [
+        ...webOut.files,
+        { path: 'shell/main.cjs', content: target.shellMainCjs },
+        { path: 'shell/package.json', content: target.shellPackageJson },
+        { path: 'shell/README.md', content: target.shellReadme }
+      ]
+    }
   }
 }

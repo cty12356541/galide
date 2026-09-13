@@ -11,6 +11,18 @@ export type VoicePreferences = {
   previewEnabled: boolean
 }
 
+/** 图像生成偏好(本地 ComfyUI / SD WebUI / DALL-E) */
+export type ImagePreferences = {
+  defaultProvider: 'sd' | 'dalle' | 'comfyui'
+  /** SD WebUI / ComfyUI 端点 */
+  baseUrl: string
+  /** 默认出图尺寸 */
+  width: number
+  height: number
+  /** 生成轮询总预算(ms) — 本地模型冷启动加载需数分钟 */
+  pollTimeoutMs: number
+}
+
 /** AI agent 自主平台偏好(autonomy 模式 + 循环拓扑) */
 export type AgentPreferences = {
   /** 自主模式:copilot(逐步确认)/ hybrid(安全写自动)/ autonomous(全自动) */
@@ -23,6 +35,10 @@ export type AgentPreferences = {
   memoryEnabled: boolean
   /** 记忆容量(保留最近 N 条运行记录) */
   memoryEntries: number
+  /** 步数耗尽时的重规划次数上限 */
+  maxReplan: number
+  /** Critic 发现可达性问题后的修复重试次数上限 */
+  maxCriticFix: number
 }
 
 export type EditorPreferences = {

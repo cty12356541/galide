@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { promises as fs } from 'node:fs'
 import * as z from 'zod/v4'
 import { generateSpriteService } from '../../../image/generate-sprite-service.js'
+import { generateBackgroundService } from '../../../image/generate-background-service.js'
 import { readGalproj } from '../../../manifest/project-manifest.js'
 import { defineTool, type RegisteredTool } from '../tool-registry.js'
 import type { ToolContext, ToolHandlerResult } from '../types.js'
@@ -14,6 +15,11 @@ import {
   voiceSidecarAbsPath
 } from '../../../../shared/voice/voice-sidecar.js'
 import { getPreference } from '../../../preferences/preferences-store.js'
+
+export const LineIdSchema = z
+  .string()
+  .min(1)
+  .regex(/^[a-zA-Z0-9_-]+$/, 'lineId 只能包含字母、数字、下划线、连字符')
 
 const readManifestCharacter = async (
   ctx: ToolContext,
@@ -26,14 +32,15 @@ const readManifestCharacter = async (
 
 const generateSprite = defineTool({
   name: 'generate_sprite',
-  description: '为角色生成立绘并写入 assets/characters/。使用 manifest 中的 sdPrompt(若有)。',
+  description:
+    '为角色生成立绘并写入 assets/characters/。使用 manifest 中的 sdPrompt(若有)。provider/端点默认取图像偏好(本地 ComfyUI)。',
   risk: 'destructive',
   domain: 'disk',
   schema: z.object({
     characterId: z.string().min(1),
     state: z.string().min(1),
     prompt: z.string().optional(),
-    provider: z.enum(['sd', 'dalle', 'comfyui']).default('sd'),
+    provider: z.enum(['sd', 'dalle', 'comfyui']).optional(),
     seed: z.number().int().optional(),
     baseUrl: z.string().optional()
   }),
@@ -62,13 +69,55 @@ const generateSprite = defineTool({
   }
 })
 
+const generateBackground = defineTool({
+  name: 'generate_background',
+  description:
+    '生成场景背景图并写入 assets/backgrounds/<name>.png(name 用 a-z0-9_- slug)。prompt 建议加 no humans;provider/端点默认取图像偏好。',
+  risk: 'destructive',
+  domain: 'disk',
+  schema: z.object({
+    name: z
+      .string()
+      .min(1)
+      .regex(/^[a-zA-Z0-9_-]+$/, 'name 只能包含字母、数字、下划线、连字符'),
+    prompt: z.string().min(1),
+    negativePrompt: z.string().optional(),
+    seed: z.number().int().optional(),
+    width: z.number().int().optional(),
+    height: z.number().int().optional()
+  }),
+  handler: async (args, ctx): Promise<ToolHandlerResult> => {
+    const result = await generateBackgroundService({
+      projectPath: ctx.projectPath,
+      name: args.name,
+      prompt: args.prompt,
+      negativePrompt: args.negativePrompt,
+      seed: args.seed,
+      width: args.width,
+      height: args.height
+    })
+    if (result.ok === false) {
+      return {
+        ok: false,
+        content: result.error,
+        error: { code: result.code, message: result.error }
+      }
+    }
+    return {
+      ok: true,
+      content: `已生成背景 ${result.path}(seed=${result.seed ?? 'n/a'});在剧本中用「背景: ${result.path}」引用`,
+      data: { path: result.path, seed: result.seed }
+    }
+  }
+})
+
 const generateVoice = defineTool({
   name: 'generate_voice',
   description: '为一句对白生成语音 mp3 并写入 assets/voice/。',
   risk: 'destructive',
   domain: 'disk',
   schema: z.object({
-    lineId: z.string().min(1),
+    lineId: LineIdSchema,
     text: z.string().min(1),
     characterId: z.string().min(1)
   }),
@@ -132,7 +181,7 @@ const generateVoiceBatch = defineTool({
   schema: z.object({
     items: z.array(
       z.object({
-        lineId: z.string(),
+        lineId: LineIdSchema,
         text: z.string(),
         characterId: z.string()
       })
@@ -149,6 +198,7 @@ const generateVoiceBatch = defineTool({
 })
 
 export const multimodalTools: readonly RegisteredTool[] = [
+  generateBackground,
   generateSprite,
   generateVoice,
   generateSpriteBatch,

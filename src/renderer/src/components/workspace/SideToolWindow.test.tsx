@@ -1,8 +1,8 @@
 /**
- * SideToolWindow 主岛壳测试(功能即岛 v2)
+ * SideToolWindow 主岛壳测试(功能即岛 v3)
  *
  * 覆盖:
- *   - 多子岛主岛(project/character)渲染 tab 条;单子岛主岛(git/outline/ai)无 tab
+ *   - 多子岛主岛(project/character)渲染 tab 条;单子岛主岛(git/outline/ai/search)无 tab
  *   - 切 tab → setActiveSubIsland
  *   - 浮出主岛按钮 → openPanel + addFloatingPanel
  *   - 子岛脱离 → tab 浮出态;点击浮出 tab → closePanel 召回
@@ -12,10 +12,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { SideToolWindow } from './SideToolWindow.js'
 import { useUiStore } from '../../lib/store.js'
-import { TOOL_WINDOWS, TOOL_WINDOW_META, isMultiSubIsland } from './mosaic/panel-registry.js'
+import { WORKSPACE_PRESET_DEFAULTS } from '../../lib/workspace-presets.js'
+import { TOOL_WINDOWS, TOOL_WINDOW_META, isMultiSubIsland } from './panels/panel-registry.js'
 
 vi.mock('@renderer/features/script-editor/ScriptEditor', () => ({ ScriptEditor: () => <div data-testid="editor-stub" /> }))
-vi.mock('@renderer/features/flow-view/FlowView', () => ({ FlowView: () => <div data-testid="flow-stub" /> }))
+vi.mock('@renderer/features/flow-view/FlowView', () => ({
+  default: () => <div data-testid="flow-stub" />,
+  FlowView: () => <div data-testid="flow-stub" />
+}))
 vi.mock('@renderer/features/preview/PreviewCanvas', () => ({ PreviewCanvas: () => <div data-testid="preview-stub" /> }))
 vi.mock('@renderer/features/script-editor/ScriptFileTree', () => ({ ScriptFileTree: () => <div data-testid="project-stub" /> }))
 vi.mock('@renderer/features/git/GitPanel', () => ({ GitPanel: () => <div data-testid="git-stub" /> }))
@@ -24,6 +28,11 @@ vi.mock('@renderer/features/character/CharacterListPanel', () => ({ CharacterLis
 vi.mock('@renderer/features/voice/VoicePanel', () => ({ VoicePanel: () => <div data-testid="voice-stub" /> }))
 vi.mock('@renderer/features/asset/AssetListPanel', () => ({ AssetListPanel: () => <div data-testid="asset-stub" /> }))
 vi.mock('@renderer/features/ai-panel/AiPanel', () => ({ AiPanel: () => <div data-testid="ai-stub" /> }))
+
+const defaultTestPanelStates = () => ({
+  ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates,
+  project: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates.project, activeSub: 'scripts' as const }
+})
 
 const setGalideMock = (api: {
   openPanel: (args: { panelId: string }) => Promise<unknown>
@@ -38,9 +47,7 @@ const setGalideMock = (api: {
 describe('SideToolWindow 主岛壳', () => {
   beforeEach(() => {
     useUiStore.setState({
-      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-      visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-      activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
+      panelStates: defaultTestPanelStates(),
       floatingPanels: []
     })
     setGalideMock({
@@ -72,6 +79,7 @@ describe('SideToolWindow 主岛壳', () => {
     expect(isMultiSubIsland('character')).toBe(true)
     expect(isMultiSubIsland('git')).toBe(false)
     expect(isMultiSubIsland('ai')).toBe(false)
+    expect(isMultiSubIsland('search')).toBe(false)
   })
 
   it('切 tab → setActiveSubIsland', () => {
@@ -102,7 +110,8 @@ describe('SideToolWindow 主岛壳', () => {
   })
 
   it('关闭按钮 → hideToolWindow', () => {
-    useUiStore.setState({ visiblePerSide: { left: 'outline', right: null, bottom: null } })
+    useUiStore.getState().hideToolWindow('project')
+    useUiStore.getState().showToolWindow('outline')
     render(<SideToolWindow toolWindowId="outline" />)
     fireEvent.click(screen.getByTestId('side-close-outline'))
     expect(useUiStore.getState().visiblePerSide.left).toBeNull()

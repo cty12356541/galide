@@ -1,10 +1,10 @@
 /**
  * workspace-presets — 工作区预设 declarative 默认布局(B2)
  *
- * 三个预设(写作 / 流程 / 评审)各含 dock 可见性、子岛 tab、EditorCore 分栏比例、预览开关。
+ * 三个预设(写作 / 流程 / 评审)各含 panelStates、EditorCore 分栏比例、预览开关。
  * applyWorkspacePreset 在 store 内做 per-preset 快照往返;本模块只提供默认值与类型。
  */
-import type { ToolWindowId, SubIslandId, DockSide, SlotContent } from '../components/workspace/mosaic/panel-registry'
+import type { ToolWindowId, SubIslandId, DockSide } from '../components/workspace/panels/panel-registry'
 
 export type WorkspacePresetId = 'writing' | 'flow' | 'review'
 
@@ -44,30 +44,36 @@ export const WRITING_CENTER_SPLIT: CenterSplitLayout = {
 
 export const DEFAULT_CENTER_SPLIT: CenterSplitLayout = { ...WRITING_CENTER_SPLIT }
 
+export type PanelState = { visible: boolean; dock: DockSide; activeSub: SubIslandId }
+
 export interface WorkspacePresetSnapshot {
-  visiblePerSide: { left: SlotContent | null; right: SlotContent | null; bottom: SlotContent | null }
-  activeSubIsland: Record<ToolWindowId, SubIslandId>
-  dockSide: Record<ToolWindowId, DockSide>
+  panelStates: Record<ToolWindowId, PanelState>
   editorCoreLayout: EditorCoreLayout
   previewOpen: boolean
 }
 
 export type LayoutsByPreset = Partial<Record<WorkspacePresetId, WorkspacePresetSnapshot>>
 
-const BASE_DOCK: Record<ToolWindowId, DockSide> = {
-  project: 'left',
-  git: 'left',
-  outline: 'left',
-  character: 'left',
-  ai: 'right'
+const BASE_PANEL_STATES: Record<ToolWindowId, PanelState> = {
+  project: { visible: false, dock: 'left', activeSub: 'scripts' },
+  git: { visible: false, dock: 'left', activeSub: 'git' },
+  outline: { visible: false, dock: 'left', activeSub: 'outline' },
+  character: { visible: false, dock: 'left', activeSub: 'profiles' },
+  ai: { visible: false, dock: 'right', activeSub: 'ai' },
+  search: { visible: false, dock: 'left', activeSub: 'search' },
+  brain: { visible: false, dock: 'right', activeSub: 'brain' }
 }
 
-const BASE_SUB: Record<ToolWindowId, SubIslandId> = {
-  project: 'scripts',
-  git: 'git',
-  outline: 'outline',
-  character: 'profiles',
-  ai: 'ai'
+const makeSnapshot = (
+  overrides: Partial<Record<ToolWindowId, Partial<PanelState>>>,
+  editorCoreLayout: EditorCoreLayout,
+  previewOpen: boolean
+): WorkspacePresetSnapshot => {
+  const panelStates: Record<ToolWindowId, PanelState> = { ...BASE_PANEL_STATES }
+  for (const [id, patch] of Object.entries(overrides) as [ToolWindowId, Partial<PanelState>][]) {
+    panelStates[id] = { ...panelStates[id]!, ...patch }
+  }
+  return { panelStates, editorCoreLayout, previewOpen }
 }
 
 /** 写作 EditorCore:左列 ~70%,右列场景轨上 / 流程下;展开预览时品字四格 */
@@ -103,40 +109,26 @@ const REVIEW_LAYOUT: EditorCoreLayout = {
 export const DEFAULT_EDITOR_CORE_LAYOUT: EditorCoreLayout = { ...WRITING_LAYOUT }
 
 export const WORKSPACE_PRESET_DEFAULTS: Record<WorkspacePresetId, WorkspacePresetSnapshot> = {
-  writing: {
-    visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-    activeSubIsland: { ...BASE_SUB, project: 'assets' },
-    dockSide: { ...BASE_DOCK },
-    editorCoreLayout: WRITING_LAYOUT,
-    previewOpen: false
-  },
-  flow: {
-    visiblePerSide: { left: 'outline', right: null, bottom: null },
-    activeSubIsland: { ...BASE_SUB, outline: 'outline' },
-    dockSide: { ...BASE_DOCK },
-    editorCoreLayout: FLOW_LAYOUT,
-    previewOpen: false
-  },
-  review: {
-    visiblePerSide: { left: 'git', right: null, bottom: 'ai' },
-    activeSubIsland: { ...BASE_SUB, git: 'git' },
-    dockSide: { ...BASE_DOCK, ai: 'bottom' },
-    editorCoreLayout: REVIEW_LAYOUT,
-    previewOpen: true
-  }
+  writing: makeSnapshot(
+    { project: { visible: true, activeSub: 'assets' }, ai: { visible: true } },
+    WRITING_LAYOUT,
+    false
+  ),
+  flow: makeSnapshot({ outline: { visible: true } }, FLOW_LAYOUT, false),
+  review: makeSnapshot(
+    { git: { visible: true }, ai: { visible: true, dock: 'bottom' } },
+    REVIEW_LAYOUT,
+    true
+  )
 }
 
 /** 从 store 当前态截取可持久化快照 */
 export const captureWorkspaceSnapshot = (state: {
-  visiblePerSide: WorkspacePresetSnapshot['visiblePerSide']
-  activeSubIsland: Record<ToolWindowId, SubIslandId>
-  dockSide: Record<ToolWindowId, DockSide>
+  panelStates: Record<ToolWindowId, PanelState>
   editorCoreLayout: EditorCoreLayout
   previewOpen: boolean
 }): WorkspacePresetSnapshot => ({
-  visiblePerSide: { ...state.visiblePerSide },
-  activeSubIsland: { ...state.activeSubIsland },
-  dockSide: { ...state.dockSide },
+  panelStates: { ...state.panelStates },
   editorCoreLayout: { ...state.editorCoreLayout },
   previewOpen: state.previewOpen
 })

@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { PreferenceEditor } from '../components/PreferenceEditor'
 import { ToggleEditor } from '../components/ToggleEditor'
+import { FormSkeleton } from '../../../components/ui/skeleton'
 import { Button } from '../../../components/ui/button'
 import {
   usePreference,
@@ -34,7 +35,7 @@ export const AdvancedPreferencesPanel = (): JSX.Element => {
     }
   }, [cacheDirQuery.data, draft, update])
 
-  if (!draft) return <div className="text-sm text-text-muted">加载中…</div>
+  if (!draft) return <FormSkeleton />
 
   const onReset = async (): Promise<void> => {
     await resetAll.mutateAsync()

@@ -70,7 +70,7 @@ describe('AiMessageBubble — 正文 Markdown 渲染', () => {
     // 列表 → <li>
     const items = container.querySelectorAll('li')
     expect(items.length).toBe(2)
-    expect(items[0].textContent).toBe('项一')
+    expect(items[0]!.textContent).toBe('项一')
   })
 
   it('streaming=true 时正文逐字出现(非一次性)', () => {

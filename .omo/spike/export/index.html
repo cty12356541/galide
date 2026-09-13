@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Galide Player</title>
+  <style>
+    body { margin: 0; background: #000; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
+    #app { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+    #stage { position: relative; width: 1280px; height: 720px; max-width: 100vw; max-height: 100vh; overflow: hidden; }
+    #bg { position: absolute; inset: 0; background: #1a1a1a center/cover no-repeat; }
+    #sprites { position: absolute; inset: 0; pointer-events: none; }
+    .sprite { position: absolute; bottom: 0; max-height: 85%; object-fit: contain; }
+    .sprite-left { left: 8%; }
+    .sprite-center { left: 50%; transform: translateX(-50%); }
+    .sprite-right { right: 8%; }
+    .dialogue { position: absolute; bottom: 40px; left: 40px; right: 40px; background: rgba(0,0,0,0.7); padding: 24px; border-radius: 8px; min-height: 100px; cursor: pointer; z-index: 2; }
+    .character { color: #a78bfa; font-weight: bold; margin-bottom: 8px; }
+    .text { font-size: 20px; line-height: 1.6; }
+    .choices { position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 12px; z-index: 2; }
+    .choice { background: rgba(167, 139, 250, 0.2); border: 1px solid #a78bfa; padding: 12px 24px; border-radius: 4px; cursor: pointer; }
+    .choice:hover { background: rgba(167, 139, 250, 0.4); }
+    .beat-label { position: absolute; bottom: 40px; left: 40px; right: 40px; padding: 24px; border-radius: 8px; cursor: pointer; z-index: 2; font-family: monospace; }
+    .beat-marker { background: rgba(180, 83, 9, 0.6); border: 1px solid rgba(251, 191, 36, 0.4); }
+    .beat-goto { background: rgba(91, 33, 182, 0.6); border: 1px solid rgba(167, 139, 250, 0.4); }
+    .unsupported { position: absolute; top: 12px; left: 12px; right: 12px; background: rgba(127,29,29,0.8); padding: 8px; border-radius: 4px; font-size: 12px; z-index: 3; }
+    .save-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; z-index: 4; }
+    .save-btn { background: rgba(0,0,0,0.6); border: 1px solid rgba(167,139,250,0.4); color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+    .save-btn:hover { background: rgba(167,139,250,0.3); }
+    .save-toast { position: absolute; top: 44px; right: 12px; background: rgba(6,78,59,0.85); padding: 6px 10px; border-radius: 4px; font-size: 11px; z-index: 4; }
+  </style>
+</head>
+<body>
+  <div id="app"><div id="stage"><div id="bg"></div><div id="sprites"></div>
+    <div class="save-bar" id="save-bar"></div>
+  </div></div>
+  <script>
+    const VM_GRAPH = {"scenes":{"教室·午后":{"id":"教室·午后","background":"assets/backgrounds/classroom.png","bgm":"assets/bgm/gentle_piano.mp3","steps":[{"type":"dialogue","character":"小雪","text":"SPIKE_OK: 今天的樱花,真漂亮呢。","sprite":"assets/sprites/yuki_smile.png","position":"left"},{"type":"dialogue","character":"主角","text":"……是啊。","sprite":"assets/sprites/hero_default.png","position":"right"},{"type":"choice","options":[{"text":"邀请她一起看樱花","target":"樱花树下"}]},{"type":"choice","options":[{"text":"假装没听到","target":"独自回家"}]}]},"樱花树下":{"id":"樱花树下","steps":[{"type":"dialogue","character":"小雪","text":"诶?!一起吗?","sprite":"assets/sprites/hero_default.png","position":"right"}]},"独自回家":{"id":"独自回家","steps":[{"type":"dialogue","character":"主角","text":"……回家吧。","sprite":"assets/sprites/hero_default.png","position":"right"}]}},"markers":{},"sceneOrder":["教室·午后","樱花树下","独自回家"]};
+    const PROJECT_ID = "fixture-project";
+    const MAX_VM_HISTORY = 100;
+
+function pushHistory(state) {
+  const entry = {
+    sceneId: state.sceneId,
+    stepIndex: state.stepIndex,
+    variables: { ...state.variables },
+    ...state.branchQueue !== void 0 ? { branchQueue: state.branchQueue } : {}
+  };
+  const nextHistory = [...state.history ?? [], entry];
+  if (nextHistory.length > MAX_VM_HISTORY) {
+    nextHistory.shift();
+  }
+  return { ...state, history: nextHistory };
+}
+
+function stepBack(state) {
+  const history = state.history ?? [];
+  if (history.length === 0) return state;
+  const entry = history.at(-1);
+  if (!entry) return state;
+  const rest = history.slice(0, -1);
+  return {
+    sceneId: entry.sceneId,
+    stepIndex: entry.stepIndex,
+    variables: entry.variables,
+    ...entry.branchQueue !== void 0 ? { branchQueue: entry.branchQueue } : {},
+    history: rest
+  };
+}
+
+function evaluateValueImpl(expr, vars) {
+  switch (expr.kind) {
+    case "literal":
+      return expr.value;
+    case "var":
+      return vars[expr.name] !== void 0 ? vars[expr.name] : null;
+    case "unary":
+      if (expr.op === "not") return !evaluateConditionImpl(expr.arg, vars);
+      return null;
+    case "binary": {
+      if (expr.op === "and")
+        return evaluateConditionImpl(expr.left, vars) && evaluateConditionImpl(expr.right, vars);
+      if (expr.op === "or")
+        return evaluateConditionImpl(expr.left, vars) || evaluateConditionImpl(expr.right, vars);
+      const l = evaluateValueImpl(expr.left, vars);
+      const r = evaluateValueImpl(expr.right, vars);
+      if (expr.op === "eq") return l === r;
+      if (expr.op === "ne") return l !== r;
+      const ln = Number(l);
+      const rn = Number(r);
+      if (Number.isNaN(ln) || Number.isNaN(rn)) return false;
+      if (expr.op === "lt") return ln < rn;
+      if (expr.op === "le") return ln <= rn;
+      if (expr.op === "gt") return ln > rn;
+      if (expr.op === "ge") return ln >= rn;
+      return false;
+    }
+    default:
+      return null;
+  }
+}
+
+function evaluateConditionImpl(expr, vars) {
+  const v = evaluateValueImpl(expr, vars);
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") return v.length > 0;
+  return false;
+}
+
+function applySetStepImpl(state, step) {
+  const raw = evaluateValueImpl(step.value, state.variables);
+  const vars = { ...state.variables };
+  if (step.op === "set") {
+    if (raw !== null) vars[step.name] = raw;
+  } else {
+    const current = Number(vars[step.name] ?? 0);
+    const delta = Number(raw ?? 0);
+    if (step.op === "add") vars[step.name] = current + delta;
+    else vars[step.name] = current - delta;
+  }
+  return { ...state, variables: vars };
+}
+
+function resolveIfStepImpl(state, step) {
+  for (const branch of step.branches) {
+    if (branch.kind === "else") return branch.steps;
+    if (branch.condition !== void 0 && evaluateConditionImpl(branch.condition, state.variables)) {
+      return branch.steps;
+    }
+  }
+  return [];
+}
+
+function filterChoiceOptionsImpl(options, variables) {
+  return options.filter(
+    (o) => o.condition === void 0 || evaluateConditionImpl(o.condition, variables)
+  );
+}
+
+const applySetStep = applySetStepImpl;
+
+const resolveIfStep = resolveIfStepImpl;
+
+const filterChoiceOptions = filterChoiceOptionsImpl;
+
+function advancePastIf(graph, state) {
+  const scene = graph.scenes[state.sceneId];
+  if (!scene) return state;
+  const step = scene.steps[state.stepIndex];
+  if (step?.type !== "if") return state;
+  const branchSteps = resolveIfStep(state, step);
+  if (branchSteps.length === 0) {
+    return { ...state, stepIndex: state.stepIndex + 1, branchQueue: void 0 };
+  }
+  const [first, ...rest] = branchSteps;
+  if (first?.type === "set") {
+    const next = applySetStep(state, first);
+    if (rest.length === 0) {
+      return { ...next, stepIndex: state.stepIndex + 1, branchQueue: void 0 };
+    }
+    return { ...next, branchQueue: rest };
+  }
+  if (rest.length === 0) {
+    return { ...state, branchQueue: [first] };
+  }
+  return { ...state, branchQueue: branchSteps };
+}
+
+function resolveTargetImpl(graph, target) {
+  if (!target) return null;
+  if (graph.scenes[target]) {
+    return { sceneId: target, stepIndex: 0 };
+  }
+  const marker = graph.markers[target];
+  if (marker) return marker;
+  return null;
+}
+
+function getCurrentStepImpl(graph, state) {
+  if (state.branchQueue && state.branchQueue.length > 0) {
+    return state.branchQueue[0] ?? null;
+  }
+  const scene = graph.scenes[state.sceneId];
+  if (!scene) return null;
+  const step = scene.steps[state.stepIndex] ?? null;
+  if (step?.type === "if") {
+    const branchSteps = resolveIfStep(state, step);
+    if (branchSteps.length === 0) return null;
+    return branchSteps[0] ?? null;
+  }
+  if (step?.type === "choice") {
+    const visible = filterChoiceOptions(step.options, state.variables);
+    if (visible.length === 0) return null;
+    return { type: "choice", options: visible };
+  }
+  return step;
+}
+
+function jumpToTargetImpl(graph, state, target) {
+  const resolved = resolveTargetImpl(graph, target);
+  if (!resolved) {
+    return { ok: false, error: `无效跳转目标: ${target}` };
+  }
+  return {
+    ok: true,
+    state: {
+      ...pushHistory(state),
+      sceneId: resolved.sceneId,
+      stepIndex: resolved.stepIndex,
+      branchQueue: void 0
+    }
+  };
+}
+
+function executeGotoStepImpl(graph, state, step) {
+  return jumpToTargetImpl(graph, state, step.target);
+}
+
+function advanceVmImpl(graph, state) {
+  const scene = graph.scenes[state.sceneId];
+  if (!scene) {
+    return { ok: false, error: `未知场景: ${state.sceneId}` };
+  }
+  let next = pushHistory(state);
+  if (next.branchQueue && next.branchQueue.length > 0) {
+    const [current2, ...remaining] = next.branchQueue;
+    if (current2?.type === "set") {
+      next = applySetStep(next, current2);
+    }
+    if (remaining.length > 0) {
+      return { ok: true, state: { ...next, branchQueue: remaining }, finished: false };
+    }
+    const mainStep = scene.steps[next.stepIndex];
+    if (mainStep?.type === "if") {
+      return {
+        ok: true,
+        state: { ...next, stepIndex: next.stepIndex + 1, branchQueue: void 0 },
+        finished: false
+      };
+    }
+    return { ok: true, state: { ...next, branchQueue: void 0 }, finished: false };
+  }
+  const current = scene.steps[next.stepIndex];
+  if (current?.type === "set") {
+    next = applySetStep(next, current);
+    const nextIndex2 = next.stepIndex + 1;
+    if (nextIndex2 >= scene.steps.length) {
+      return { ok: true, state: { ...next, stepIndex: nextIndex2 }, finished: true };
+    }
+    return { ok: true, state: { ...next, stepIndex: nextIndex2 }, finished: false };
+  }
+  if (current?.type === "if") {
+    const afterIf = advancePastIf(graph, next);
+    if (afterIf.branchQueue && afterIf.branchQueue.length > 0) {
+      return { ok: true, state: afterIf, finished: false };
+    }
+    const nextIndex2 = afterIf.stepIndex;
+    if (nextIndex2 >= scene.steps.length) {
+      return { ok: true, state: afterIf, finished: true };
+    }
+    return { ok: true, state: afterIf, finished: false };
+  }
+  const nextIndex = next.stepIndex + 1;
+  if (nextIndex >= scene.steps.length) {
+    return { ok: true, state: { ...next, stepIndex: nextIndex }, finished: true };
+  }
+  return {
+    ok: true,
+    state: { ...next, stepIndex: nextIndex },
+    finished: false
+  };
+}
+
+const resolveTarget = resolveTargetImpl;
+
+const getCurrentStep = getCurrentStepImpl;
+
+const jumpToTarget = jumpToTargetImpl;
+
+const executeGotoStep = executeGotoStepImpl;
+
+const advanceVm = advanceVmImpl;
+    const VM_SAVE_VERSION = 1;
+
+function serializeVmSaveImpl(state, slot) {
+  return {
+    version: VM_SAVE_VERSION,
+    slot,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    variables: Object.assign({}, state.variables),
+    currentSceneId: state.sceneId,
+    stepIndex: state.stepIndex,
+    ...state.branchQueue !== void 0 ? { branchQueue: state.branchQueue } : {}
+  };
+}
+
+function deserializeVmSaveImpl(file) {
+  if (file.version !== VM_SAVE_VERSION) return null;
+  if (!file.currentSceneId || typeof file.stepIndex !== "number") return null;
+  return {
+    sceneId: file.currentSceneId,
+    stepIndex: file.stepIndex,
+    variables: file.variables || {},
+    ...file.branchQueue !== void 0 ? { branchQueue: file.branchQueue } : {}
+  };
+}
+
+function buildWebSaveKeyImpl(projectId, slot) {
+  return slot !== void 0 ? "galide-save-" + projectId + "-slot-" + slot : "galide-save-" + projectId;
+}
+
+const serializeVmSave = serializeVmSaveImpl;
+
+const deserializeVmSave = deserializeVmSaveImpl;
+
+const buildWebSaveKey = buildWebSaveKeyImpl;
+
+    let vmState = { sceneId: VM_GRAPH.sceneOrder[0] || Object.keys(VM_GRAPH.scenes)[0] || '', stepIndex: 0, variables: {} };
+    let currentSpriteKey = null;
+    let errorBanner = null;
+    let saveToast = null;
+
+    const showSaveToast = (msg) => {
+      const stage = document.getElementById('stage');
+      if (!saveToast) {
+        saveToast = document.createElement('div');
+        saveToast.className = 'save-toast';
+        stage.appendChild(saveToast);
+      }
+      saveToast.textContent = msg;
+      setTimeout(() => { if (saveToast) saveToast.remove(); saveToast = null; }, 2000);
+    };
+
+    const saveToSlot = (slot) => {
+      const key = buildWebSaveKey(PROJECT_ID, slot);
+      const file = serializeVmSave(vmState, slot);
+      try {
+        localStorage.setItem(key, JSON.stringify(file));
+        showSaveToast('已保存到槽 ' + slot);
+      } catch (e) {
+        showError('保存失败: ' + (e && e.message ? e.message : String(e)));
+      }
+    };
+
+    const loadFromSlot = (slot) => {
+      const key = buildWebSaveKey(PROJECT_ID, slot);
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) { showSaveToast('槽 ' + slot + ' 为空'); return; }
+        const parsed = JSON.parse(raw);
+        const restored = deserializeVmSave(parsed);
+        if (!restored) { showError('存档版本不兼容'); return; }
+        vmState = restored;
+        currentSpriteKey = null;
+        render();
+        showSaveToast('已从槽 ' + slot + ' 加载');
+      } catch (e) {
+        showError('加载失败: ' + (e && e.message ? e.message : String(e)));
+      }
+    };
+
+    const initSaveBar = () => {
+      const bar = document.getElementById('save-bar');
+      if (!bar) return;
+      for (let slot = 1; slot <= 3; slot++) {
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'save-btn';
+        saveBtn.textContent = '存' + slot;
+        saveBtn.onclick = () => saveToSlot(slot);
+        bar.appendChild(saveBtn);
+        const loadBtn = document.createElement('button');
+        loadBtn.className = 'save-btn';
+        loadBtn.textContent = '读' + slot;
+        loadBtn.onclick = () => loadFromSlot(slot);
+        bar.appendChild(loadBtn);
+      }
+    };
+
+    const assetUrl = (rel) => rel ? ('assets/' + rel.replace(/^assets\//, '')) : null;
+
+    const positionClass = (pos) => {
+      if (pos === 'left') return 'sprite-left';
+      if (pos === 'right') return 'sprite-right';
+      return 'sprite-center';
+    };
+
+    const showError = (msg) => {
+      const stage = document.getElementById('stage');
+      if (!errorBanner) {
+        errorBanner = document.createElement('div');
+        errorBanner.className = 'unsupported';
+        stage.appendChild(errorBanner);
+      }
+      errorBanner.textContent = msg;
+    };
+
+    const clearError = () => {
+      if (errorBanner) errorBanner.remove();
+      errorBanner = null;
+    };
+
+    const updateBackground = (scene) => {
+      const bg = document.getElementById('bg');
+      if (scene && scene.background) {
+        bg.style.backgroundImage = 'url(' + assetUrl(scene.background) + ')';
+      } else {
+        bg.style.backgroundImage = '';
+      }
+    };
+
+    const updateSprite = (step) => {
+      const layer = document.getElementById('sprites');
+      layer.innerHTML = '';
+      if (!step || step.type !== 'dialogue' || !step.sprite) return;
+      const key = step.sprite + '|' + (step.position || 'center');
+      if (currentSpriteKey === key) return;
+      currentSpriteKey = key;
+      const img = document.createElement('img');
+      img.className = 'sprite ' + positionClass(step.position);
+      img.src = assetUrl(step.sprite);
+      img.alt = step.character;
+      layer.appendChild(img);
+    };
+
+    const render = () => {
+      const stage = document.getElementById('stage');
+      stage.querySelectorAll('.dialogue, .choices, .beat-label').forEach((el) => el.remove());
+      clearError();
+
+      const scene = VM_GRAPH.scenes[vmState.sceneId];
+      if (!scene) return;
+      updateBackground(scene);
+
+      const step = getCurrentStep(VM_GRAPH, vmState);
+      if (!step) {
+        const done = document.createElement('div');
+        done.className = 'dialogue';
+        done.textContent = '场景播放完毕';
+        stage.appendChild(done);
+        return;
+      }
+
+      updateSprite(step);
+
+      if (step.type === 'dialogue') {
+        const d = document.createElement('div');
+        d.className = 'dialogue';
+        const ch = document.createElement('div');
+        ch.className = 'character';
+        ch.textContent = step.character;
+        const tx = document.createElement('div');
+        tx.className = 'text';
+        tx.textContent = step.text;
+        d.appendChild(ch);
+        d.appendChild(tx);
+        d.onclick = () => {
+          const r = advanceVm(VM_GRAPH, vmState);
+          if (r.ok && !r.finished) { vmState = r.state; render(); }
+        };
+        stage.appendChild(d);
+      }
+
+      if (step.type === 'choice') {
+        const c = document.createElement('div');
+        c.className = 'choices';
+        for (const opt of step.options) {
+          const btn = document.createElement('div');
+          btn.className = 'choice';
+          btn.textContent = opt.text;
+          btn.onclick = () => {
+            const jumped = jumpToTarget(VM_GRAPH, vmState, opt.target);
+            if (jumped.ok) { vmState = jumped.state; render(); }
+            else showError(jumped.error);
+          };
+          c.appendChild(btn);
+        }
+        stage.appendChild(c);
+      }
+
+      if (step.type === 'marker') {
+        const m = document.createElement('div');
+        m.className = 'beat-label beat-marker';
+        m.textContent = '标记: ' + step.id + ' (点击继续)';
+        m.onclick = () => {
+          const r = advanceVm(VM_GRAPH, vmState);
+          if (r.ok && !r.finished) { vmState = r.state; render(); }
+        };
+        stage.appendChild(m);
+      }
+
+      if (step.type === 'goto') {
+        const g = document.createElement('div');
+        g.className = 'beat-label beat-goto';
+        g.textContent = '跳转 → ' + step.target + ' (点击执行)';
+        g.onclick = () => {
+          const jumped = executeGotoStep(VM_GRAPH, vmState, step);
+          if (jumped.ok) { vmState = jumped.state; render(); }
+          else showError(jumped.error);
+        };
+        stage.appendChild(g);
+      }
+    };
+
+    initSaveBar();
+    render();
+  </script>
+</body>
+</html>

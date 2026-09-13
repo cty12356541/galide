@@ -1,18 +1,19 @@
 /**
- * App.tsx — Galide 顶层布局(功能即岛 v2:主岛/子岛二级群岛)
+ * App.tsx — Galide 顶层布局(功能即岛 v3:主岛/子岛二级群岛)
  *
  * 设计:
  *   - 3 层顶栏: Menu Bar + Toolbar + Project Tabs
  *   - 主区: ActivityBar | CenterSplit(左槽/编辑器大陆/右槽/底部槽)
  *   - 6 区块 StatusBar
  *
- * 功能即岛 v2(2026-06-19):
- *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 mosaic / 主岛回 dockSide 槽 / 子岛回 tab)
- *   - 状态语义改 dockSide + visiblePerSide + activeSubIsland(见 store)
+ * 功能即岛 v3(2026-07-12):
+ *   - 浮出窗口关闭 → 三分支 restore(编辑器大陆插回 EditorCore / 主岛回 dock 侧槽 / 子岛回 tab)
+ *   - 状态语义扁平化为单一 `panelStates`;`visiblePerSide`/`dockSide`/`activeSubIsland` 为派生字段(见 workspace-store.ts)
  */
 import { useEffect } from 'react'
 import { useUiStore } from '../lib/store'
 import { useAppearanceEffect } from '../lib/ipc/use-appearance-effect'
+import { useAppearancePreferencesEffect } from '../lib/ipc/use-appearance-preferences'
 import { MenuBar } from './MenuBar'
 import { Toolbar } from './Toolbar'
 import { ProjectTabs } from './ProjectTabs'
@@ -25,6 +26,8 @@ import { PreferencesDialog } from '../features/preferences/PreferencesDialog'
 import { ExportDialog } from '../features/export/ExportDialog'
 import { CommitDialog } from '../features/git/CommitDialog'
 import { NewProjectDialog } from '../features/project/NewProjectDialog'
+import { ConfirmDialogHost } from '../components/ui/confirm-dialog'
+import { PromptDialogHost } from '../components/ui/prompt-dialog'
 import { useKeyboardShortcuts } from '../lib/hooks/use-keyboard-shortcuts'
 import { useResolvedShortcutsSync } from '../lib/hooks/use-keyboard-shortcuts'
 import { useScriptSync } from '../lib/hooks/use-script-sync'
@@ -32,13 +35,14 @@ import { useProjectScriptAst } from '../lib/hooks/use-project-script-ast'
 import { useWorkspacePersistence } from '../lib/hooks/use-workspace-persistence'
 import { useAgentDispatch } from '../lib/ipc/use-agent-dispatch'
 import { useCommandHandlers } from '../lib/ipc/use-command-handlers'
+import { useProjectOpened } from '../lib/ipc/use-project-opened'
 import { FloatingPanelHost, isFloatingWindow } from './FloatingPanelHost'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import {
   isToolWindowId,
   isSubIslandId,
   parentOfSubIsland
-} from '../components/workspace/mosaic/panel-registry'
+} from '../components/workspace/panels/panel-registry'
 
 export const App = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
@@ -49,6 +53,7 @@ export const App = (): JSX.Element => {
   const newProjectDialogOpen = useUiStore((s) => s.newProjectDialogOpen)
 
   useAppearanceEffect()
+  useAppearancePreferencesEffect()
   useKeyboardShortcuts()
   useResolvedShortcutsSync()
   useScriptSync()
@@ -56,6 +61,7 @@ export const App = (): JSX.Element => {
   useWorkspacePersistence()
   useAgentDispatch()
   useCommandHandlers()
+  useProjectOpened()
 
   // 浮出窗口关闭 → 同步 store + restore(主岛回 dockSide 槽 / 子岛回 tab)
   useEffect(() => {
@@ -95,6 +101,8 @@ export const App = (): JSX.Element => {
       {projectPath && exportDialogOpen && <ExportDialog />}
       {projectPath && commitDialogOpen && <CommitDialog />}
       {newProjectDialogOpen && <NewProjectDialog />}
+      <ConfirmDialogHost />
+      <PromptDialogHost />
     </div>
   )
 }

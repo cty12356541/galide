@@ -23,10 +23,18 @@ type RuntimeState = {
   characterLayer: Container
   currentBackgroundUrl: string | null
   currentSpriteKey: string | null
+  /** 多角色舞台:角色名 → 立绘 key(url|position),null 表示需重绘 */
+  stageSlots: Map<string, string | null>
   state: PreviewState
 }
 
 const DEFAULT_BG_COLOR = 0x1a1a1a
+
+const splitStageKey = (key: string): [string, SpritePosition] => {
+  const idx = key.lastIndexOf('|')
+  const pos = key.slice(idx + 1)
+  return [key.slice(0, idx), pos === 'left' || pos === 'right' ? pos : 'center']
+}
 
 const positionX = (
   position: SpritePosition,
@@ -70,6 +78,7 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
       characterLayer,
       currentBackgroundUrl: null,
       currentSpriteKey: null,
+      stageSlots: new Map(),
       state: 'idle'
     }
   }
@@ -138,6 +147,55 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
     }
   }
 
+  /**
+   * 多角色舞台同步:以(角色 → 立绘/位置)全量描述刷新立绘层。
+   * 与 computeStageState 的推导结果配合;场景切换时传空数组清场。
+   * key 集合不变则跳过(纹理经 Assets 缓存,重建成本低)。
+   */
+  const setStage = async (
+    entries: ReadonlyArray<{
+      character: string
+      url?: string
+      position?: SpritePosition
+    }>
+  ): Promise<void> => {
+    if (!state) return
+    const { characterLayer, stageSlots } = state
+    const nextKeys = new Map<string, string>()
+    for (const e of entries) {
+      if (!e.url) continue
+      nextKeys.set(e.character, `${e.url}|${e.position ?? 'center'}`)
+    }
+    let unchanged = stageSlots.size === nextKeys.size
+    if (unchanged) {
+      for (const [name, key] of nextKeys) {
+        if (stageSlots.get(name) !== key) {
+          unchanged = false
+          break
+        }
+      }
+    }
+    if (unchanged) return
+    characterLayer.removeChildren()
+    stageSlots.clear()
+    for (const [name, key] of nextKeys) {
+      stageSlots.set(name, key)
+      const [url, pos] = splitStageKey(key)
+      try {
+        const texture: Texture = await Assets.load({ src: url })
+        const sprite = new Sprite(texture)
+        const maxHeight = state.app.renderer.height * 0.85
+        const scale = Math.min(1, maxHeight / sprite.height)
+        sprite.scale = scale
+        sprite.x = positionX(pos, sprite.width * scale, state.app.renderer.width)
+        sprite.y = state.app.renderer.height - sprite.height * scale
+        characterLayer.addChild(sprite)
+      } catch (err) {
+        console.warn(`[galide preview] 立绘加载失败(${name}): ${url}`, err)
+      }
+    }
+  }
+
   const updateScene = (scene: SceneNode | null): Promise<void> => {
     if (!state) return Promise.resolve()
     if (!scene) {
@@ -183,6 +241,7 @@ export const createPreviewRuntime = (options: PreviewOptions = {}) => {
     updateScene,
     setBackground,
     setCharacter,
+    setStage,
     playScene,
     stopScene,
     isMounted,

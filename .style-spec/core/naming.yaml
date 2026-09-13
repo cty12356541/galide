@@ -77,5 +77,4 @@ actions:
   - term: "预览"
     implications:
       - "用于实时预览相关功能"
-      - "如: PreviewCanvas, startPreview(), stopPreview()
-
+      - "如: PreviewCanvas, startPreview(), stopPreview(

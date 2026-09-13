@@ -3,6 +3,7 @@ import { useShortcuts, useSaveShortcuts, useResetShortcuts } from '../../../lib/
 import { useShortcutRecorder } from '../../../lib/ipc/use-shortcut-recorder'
 import { COMMANDS, effectiveShortcut, type CommandId } from '../../../lib/command-registry'
 import { Button } from '../../../components/ui/button'
+import { FormSkeleton } from '../../../components/ui/skeleton'
 import { Pencil, RotateCcw } from 'lucide-react'
 
 export const ShortcutsPreferencesPanel = (): JSX.Element => {
@@ -26,7 +27,7 @@ export const ShortcutsPreferencesPanel = (): JSX.Element => {
     void reset.mutate()
   }
 
-  if (!query.data) return <div className="text-sm text-text-muted">加载中…</div>
+  if (!query.data) return <FormSkeleton />
 
   return (
     <div className="space-y-6 max-w-3xl">

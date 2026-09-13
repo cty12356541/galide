@@ -10,15 +10,8 @@ import { toast } from '../../components/ui/toast'
 
 const DEBOUNCE_MS = 800
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
-
-/** 测试用:清 debounce 计时器 */
-export const resetScriptSaveTimer = (): void => {
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-    debounceTimer = null
-  }
-}
+/** 测试用: 清 debounce 计时器（旧全局兼容，已无全局 timer） */
+export const resetScriptSaveTimer = (): void => {}
 
 export interface UseScriptSaveResult {
   saving: boolean
@@ -32,11 +25,12 @@ export const useScriptSave = (): UseScriptSaveResult => {
   const scriptRef = useRef(script)
   scriptRef.current = script
   const [saving, setSaving] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const flushSave = useCallback(async (): Promise<void> => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-      debounceTimer = null
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
     }
     const s = useUiStore.getState()
     if (!s.scriptDirty || !s.projectPath || !s.activeScriptFile) return
@@ -49,7 +43,7 @@ export const useScriptSave = (): UseScriptSaveResult => {
       )
       if (r && r.ok === true) {
         markScriptSaved()
-      } else if (r && r.ok !== true) {
+      } else if (r && r.ok === false) {
         toast({
           message: r.code === 'COMMIT_FAILED' ? '保存成功,但 git commit 失败' : '保存失败',
           variant: 'error'
@@ -61,9 +55,9 @@ export const useScriptSave = (): UseScriptSaveResult => {
   }, [markScriptSaved])
 
   const scheduleSave = useCallback((): void => {
-    if (debounceTimer) clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(() => {
-      debounceTimer = null
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null
       void flushSave()
     }, DEBOUNCE_MS)
   }, [flushSave])
@@ -71,8 +65,10 @@ export const useScriptSave = (): UseScriptSaveResult => {
   useEffect(() => {
     useUiStore.getState().registerScriptSaveFlush(flushSave)
     return () => {
-      resetScriptSaveTimer()
-      useUiStore.getState().registerScriptSaveFlush(null)
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
     }
   }, [flushSave])
 

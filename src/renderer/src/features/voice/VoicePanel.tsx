@@ -10,6 +10,7 @@ import { useVoice } from '../../lib/ipc/use-voice'
 import { usePreference } from '../../lib/ipc/use-preferences'
 import { useErrorStore } from '../../lib/store'
 import { toast } from '../../components/ui/toast'
+import { useConfirmDialog } from '../../components/ui/confirm-dialog'
 import { cn } from '../../lib/utils'
 import { isTtsUnavailable, ttsUnavailableReason } from './tts-availability'
 import type { VoicePreferences } from '@shared/preferences'
@@ -36,6 +37,7 @@ export const VoicePanel = (): JSX.Element => {
   const projectPath = useUiStore((s) => s.projectPath)
   const voice = useVoice()
   const pushError = useErrorStore((s) => s.push)
+  const { confirm, ConfirmDialog } = useConfirmDialog()
   const voicePrefQuery = usePreference('voice')
   const voicePrefs = voicePrefQuery.data as VoicePreferences | undefined
   const keyQuery = useQuery({
@@ -87,7 +89,8 @@ export const VoicePanel = (): JSX.Element => {
 
   const handleDelete = async (id: string): Promise<void> => {
     if (!projectPath) return
-    if (!window.confirm(`删除语音 ${id}.mp3?`)) return
+    if (!(await confirm({ title: '删除语音', description: `删除语音 ${id}.mp3?`, danger: true })))
+      return
     const r = await voice.delete(projectPath, id)
     if (!r?.ok) {
       pushError({
@@ -216,6 +219,7 @@ export const VoicePanel = (): JSX.Element => {
           )}
         </div>
       </ScrollArea>
+      <ConfirmDialog />
     </div>
   )
 }

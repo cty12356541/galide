@@ -18,14 +18,24 @@ import {
   GitCommit,
   Download,
   PanelLeft,
+  PanelRight,
+  PanelBottom,
   GitBranch,
   List,
   Users,
+  Brain,
   MessageSquare,
   Undo2,
   Redo2,
   XCircle,
   Eye,
+  Search,
+  Save,
+  SunMoon,
+  PenLine,
+  Workflow,
+  SearchCheck,
+  PictureInPicture2,
   type LucideIcon
 } from 'lucide-react'
 
@@ -53,12 +63,23 @@ export type CommandId =
   | 'toggleLeftPanel'
   | 'showGit'
   | 'showOutline'
+  | 'showBrain'
   | 'showCharacter'
   | 'showAi'
   | 'toggleAi'
   | 'togglePreview'
   | 'undo'
   | 'redo'
+  | 'find'
+  | 'saveScript'
+  | 'toggleTheme'
+  | 'presetWriting'
+  | 'presetFlow'
+  | 'presetReview'
+  | 'aiDockLeft'
+  | 'aiDockRight'
+  | 'aiDockBottom'
+  | 'floatAi'
 
 export type CommandDef = {
   id: CommandId
@@ -69,27 +90,59 @@ export type CommandDef = {
   icon: LucideIcon
   /** true = 仅在打开项目时可用(影响菜单/快捷键是否需要 projectPath 守卫) */
   requiresProject?: boolean
+  /** 搜索关键词(中英双语),命令面板模糊匹配用 */
+  keywords?: string[]
 }
 
 /** 命令 → 默认 accelerator + 分类 + 图标(单一真相源) */
 export const COMMANDS: readonly CommandDef[] = [
-  { id: 'commandPalette', label: '命令面板', default: 'Meta+K', category: 'go', icon: Sparkles },
-  { id: 'goToFile', label: '跳转到文件', default: 'Meta+P', category: 'go', icon: FileText },
-  { id: 'openPreferences', label: '偏好设置', default: 'Meta+,', category: 'view', icon: Settings },
+  {
+    id: 'commandPalette',
+    label: '命令面板',
+    default: 'Meta+K',
+    category: 'go',
+    icon: Sparkles,
+    keywords: ['命令面板', 'command palette', 'palette']
+  },
+  {
+    id: 'goToFile',
+    label: '跳转到文件',
+    default: 'Meta+P',
+    category: 'go',
+    icon: FileText,
+    keywords: ['跳转文件', '跳转到文件', '文件', 'go to file', 'open file']
+  },
+  {
+    id: 'openPreferences',
+    label: '偏好设置',
+    default: 'Meta+,',
+    category: 'view',
+    icon: Settings,
+    keywords: ['偏好', '设置', 'preferences', 'settings']
+  },
   {
     id: 'newScriptFile',
     label: '新建剧本文件',
     default: 'Meta+N',
     category: 'file',
-    icon: FilePlus
+    icon: FilePlus,
+    keywords: ['新建剧本', '新建文件', '剧本', 'new script', 'new file']
   },
-  { id: 'newProject', label: '新建项目', default: 'Meta+Shift+N', category: 'project', icon: Plus },
+  {
+    id: 'newProject',
+    label: '新建项目',
+    default: 'Meta+Shift+N',
+    category: 'project',
+    icon: Plus,
+    keywords: ['新建项目', 'new project', 'create project']
+  },
   {
     id: 'openProject',
     label: '打开项目',
     default: 'Meta+O',
     category: 'project',
-    icon: FolderOpen
+    icon: FolderOpen,
+    keywords: ['打开项目', 'open project']
   },
   {
     id: 'closeProject',
@@ -97,7 +150,8 @@ export const COMMANDS: readonly CommandDef[] = [
     default: null,
     category: 'project',
     icon: XCircle,
-    requiresProject: true
+    requiresProject: true,
+    keywords: ['关闭项目', 'close project']
   },
   {
     id: 'commit',
@@ -105,7 +159,8 @@ export const COMMANDS: readonly CommandDef[] = [
     default: 'Meta+Shift+C',
     category: 'file',
     icon: GitCommit,
-    requiresProject: true
+    requiresProject: true,
+    keywords: ['提交', 'git 提交', 'git commit', 'commit']
   },
   {
     id: 'export',
@@ -113,32 +168,65 @@ export const COMMANDS: readonly CommandDef[] = [
     default: 'Meta+E',
     category: 'file',
     icon: Download,
-    requiresProject: true
+    requiresProject: true,
+    keywords: ['导出', '发布', 'export', 'publish']
   },
   {
     id: 'toggleLeftPanel',
     label: '切换左面板',
     default: 'Meta+1',
     category: 'view',
-    icon: PanelLeft
+    icon: PanelLeft,
+    keywords: ['左面板', '项目面板', '侧栏', 'toggle left panel', 'project panel', 'sidebar']
   },
-  { id: 'showGit', label: '显示 Git 面板', default: 'Meta+2', category: 'view', icon: GitBranch },
-  { id: 'showOutline', label: '显示大纲面板', default: 'Meta+3', category: 'view', icon: List },
+  {
+    id: 'showGit',
+    label: '显示 Git 面板',
+    default: 'Meta+2',
+    category: 'view',
+    icon: GitBranch,
+    keywords: ['git', 'git 面板', '版本控制', 'source control']
+  },
+  {
+    id: 'showBrain',
+    label: '显示项目大脑面板',
+    default: 'Meta+6',
+    category: 'view',
+    icon: Brain,
+    keywords: ['大脑', '伏笔', 'brain', 'foreshadowing', '一致性']
+  },
+  {
+    id: 'showOutline',
+    label: '显示大纲面板',
+    default: 'Meta+3',
+    category: 'view',
+    icon: List,
+    keywords: ['大纲', '结构', 'outline', 'structure']
+  },
   {
     id: 'showCharacter',
     label: '显示角色面板',
     default: 'Meta+4',
     category: 'view',
-    icon: Users
+    icon: Users,
+    keywords: ['角色', '角色面板', 'character', 'characters']
   },
-  { id: 'showAi', label: '显示 AI 面板', default: 'Meta+5', category: 'view', icon: MessageSquare },
+  {
+    id: 'showAi',
+    label: '显示 AI 面板',
+    default: 'Meta+5',
+    category: 'view',
+    icon: MessageSquare,
+    keywords: ['ai', 'ai 面板', '助手', 'assistant']
+  },
   {
     id: 'toggleAi',
     label: '切换 AI 助手',
-    default: null,
+    default: 'Meta+L',
     category: 'view',
     icon: MessageSquare,
-    requiresProject: true
+    requiresProject: true,
+    keywords: ['ai 助手', '切换 ai', 'toggle ai', 'assistant', 'copilot']
   },
   {
     id: 'togglePreview',
@@ -146,10 +234,106 @@ export const COMMANDS: readonly CommandDef[] = [
     default: 'F5',
     category: 'view',
     icon: Eye,
-    requiresProject: true
+    requiresProject: true,
+    keywords: ['预览', '运行', 'preview', 'run', 'play', 'f5']
   },
-  { id: 'undo', label: '撤销', default: 'Meta+Z', category: 'edit', icon: Undo2 },
-  { id: 'redo', label: '重做', default: 'Meta+Shift+Z', category: 'edit', icon: Redo2 }
+  {
+    id: 'undo',
+    label: '撤销',
+    default: 'Meta+Z',
+    category: 'edit',
+    icon: Undo2,
+    keywords: ['撤销', 'undo']
+  },
+  {
+    id: 'redo',
+    label: '重做',
+    default: 'Meta+Shift+Z',
+    category: 'edit',
+    icon: Redo2,
+    keywords: ['重做', 'redo']
+  },
+  {
+    id: 'find',
+    label: '查找',
+    default: 'Meta+F',
+    category: 'edit',
+    icon: Search,
+    keywords: ['查找', '搜索', 'find', 'search']
+  },
+  {
+    id: 'saveScript',
+    label: '保存剧本',
+    default: 'Meta+S',
+    category: 'file',
+    icon: Save,
+    requiresProject: true,
+    keywords: ['保存', '保存剧本', 'save', 'save script']
+  },
+  {
+    id: 'toggleTheme',
+    label: '切换主题',
+    default: null,
+    category: 'view',
+    icon: SunMoon,
+    keywords: ['主题', '深色', '浅色', 'theme', 'dark mode', 'light mode']
+  },
+  {
+    id: 'presetWriting',
+    label: '工作区: 写作',
+    default: null,
+    category: 'view',
+    icon: PenLine,
+    keywords: ['工作区', '写作', '布局', 'workspace', 'writing', 'layout']
+  },
+  {
+    id: 'presetFlow',
+    label: '工作区: 流程',
+    default: null,
+    category: 'view',
+    icon: Workflow,
+    keywords: ['工作区', '流程', '布局', 'workspace', 'flow', 'layout']
+  },
+  {
+    id: 'presetReview',
+    label: '工作区: 评审',
+    default: null,
+    category: 'view',
+    icon: SearchCheck,
+    keywords: ['工作区', '评审', '布局', 'workspace', 'review', 'layout']
+  },
+  {
+    id: 'aiDockLeft',
+    label: 'AI 移到左侧',
+    default: null,
+    category: 'view',
+    icon: PanelLeft,
+    keywords: ['ai 左侧', 'ai 停靠', '移动 ai', 'dock left', 'move ai']
+  },
+  {
+    id: 'aiDockRight',
+    label: 'AI 移到右侧',
+    default: null,
+    category: 'view',
+    icon: PanelRight,
+    keywords: ['ai 右侧', 'ai 停靠', '移动 ai', 'dock right', 'move ai']
+  },
+  {
+    id: 'aiDockBottom',
+    label: 'AI 移到底部',
+    default: null,
+    category: 'view',
+    icon: PanelBottom,
+    keywords: ['ai 底部', 'ai 停靠', '移动 ai', 'dock bottom', 'move ai']
+  },
+  {
+    id: 'floatAi',
+    label: 'AI 浮出',
+    default: null,
+    category: 'view',
+    icon: PictureInPicture2,
+    keywords: ['浮出', '独立窗口', 'float', 'detach', 'pop out']
+  }
 ]
 
 export const DEFAULT_SHORTCUTS: Record<CommandId, string | null> = Object.fromEntries(

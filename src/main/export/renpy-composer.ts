@@ -112,6 +112,18 @@ const emitNodes = (
         }
         break
       }
+      case 'stageEntry': {
+        const charVar = toCharacterVar(node.character)
+        const state = node.sprite ? sanitizeRenpyLabel(node.sprite) : 'default'
+        const atPos = renpyPosition(node.position)
+        const at = atPos ? ` at ${atPos}` : ''
+        lines.push(indentLine(level, `show ${charVar} ${state}${at}`))
+        break
+      }
+      case 'stageExit': {
+        lines.push(indentLine(level, `hide ${toCharacterVar(node.character)}`))
+        break
+      }
       case 'set': {
         const val = emitRenpyExpression(node.value)
         const op = node.op === 'set' ? '=' : node.op === 'add' ? '+=' : '-='

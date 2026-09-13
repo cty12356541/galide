@@ -4,6 +4,16 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [Unreleased]
 
+### 新增 — Agent 智能度修复(规划→执行→审查→修复闭环)
+
+- **Agent 编排拓扑(DAG)** — 设计文档见 `docs/agent-architecture.md`;运行时入口为 `src/main/ai/agent/topology.ts`;fan-in、fan-out、双轨 Critic、有预算 retry 边
+- **Critic 修复环** — 确定性可达性审查发现问题后自动注入修复指令并重入 Executor(`maxCriticFix` 可配,默认 1);修复过程不回滚
+- **Headless 平台工具** — `export_project` / `git_commit` / `create_project` / `open_project`(disk 域,main 直接执行);`runExportJob` 与 IPC 共用;`project:createAtPath` headless 建项
+- **计划步进追踪** — Executor 每轮注入「当前计划步骤 N/M」;新增 `plan_progress` step
+- **上下文增强** — 选中场景注入对白摘要;`activeScriptFile` 优先查找;section 内部 token 截断
+- **Agent 偏好** — `maxReplan` / `maxCriticFix` 类型+UI;AgentModePanel 可配步数/重规划/审查修复
+- **UI** — StepView 增强 awaiting_confirm(risk/args/diff 只读)、critic 可达计数、确认步骤高亮;`project:opened` 推送同步 renderer store
+
 ### 新增 — Agent 自主操作能力扩展
 
 - **剧本全 CRUD** — `update_dialogue` / `update_scene_meta` / `delete_node` / `move_node` / `add_choice`;agent 从「只能追加」升级为可改写/删除/重排既有内容,沿用 parse→mutate AST→serialize 往返
@@ -21,6 +31,13 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 - **移除 `ollama` provider 选项** — `AiProvider` 收窄为 `openai` | `claude`;删除 `ollama-provider.ts`、Ollama adapter/归一化、UI 模型列表与默认 baseUrl。本地模型(vLLM / LM Studio / Ollama `/v1` 等)统一经 `openai` provider + 自定义 BaseUrl 接入,agent 工具调用与 chat/测试连接均走 OpenAI 兼容协议。`aiProxy.getConfig` 对存量 `ollama` 配置做迁移(回退 openai + 保留 baseUrl/model)
 - **本地网络映射免 Key** — 新增 `key-resolve`(纯函数,跨 agent 适配器与 provider 共用):无存储 key 但用自定义 BaseUrl(本地映射端点)时用占位符绕过 SDK 必填校验,本地模型可无 key 直接驱动 agent 工具调用与 chat/测试连接;无 key 且官方端点仍抛错。OpenAI/Claude adapter 现均支持 BaseUrl 覆盖(Claude 此前忽略 baseUrl)
+
+### 变更 — 工作区状态扁平化(T14)
+
+- **单一 `panelStates` map 作为 source of truth** — 替换原有的 `dockSide` / `visiblePerSide` / `activeSubIsland` 四字段模型;`visiblePerSide` / `dockSide` / `activeSubIsland` 改为派生字段
+- **移除 `PlaceholderId` 与 `LeftToolWindow`** — `search` 升级为真实但默认隐藏的 `ToolWindowId`;`LeftToolWindow` 组件及其测试删除
+- **持久化兼容旧格式** — `use-workspace-persistence.ts` 仍可读旧版 `dockSide` / `visiblePerSide` / `activeSubIsland` 并自动迁移到 `panelStates`
+- **`workspace-store.ts` 精简至 <100 LOC** — 类型定义抽出到 `workspace-store.types.ts`,派生逻辑集中为 `derive()` / `patchPanels()`
 
 ## [0.6.0] - 2026-06-22
 

@@ -9,6 +9,7 @@ import type {
   EditorPreferences,
   ExportPreferences,
   GitPreferences,
+  ImagePreferences,
   ProjectPreferences,
   Shortcuts,
   VoicePreferences
@@ -27,6 +28,7 @@ type PreferencesShape = {
   export: ExportPreferences
   git: GitPreferences
   project: ProjectPreferences
+  image: ImagePreferences
   advanced: AdvancedPreferences
 }
 
@@ -37,12 +39,21 @@ const DEFAULTS: PreferencesShape = {
     batchConcurrency: 4,
     previewEnabled: false
   },
+  image: {
+    defaultProvider: 'comfyui',
+    baseUrl: 'http://127.0.0.1:8188',
+    width: 1344,
+    height: 768,
+    pollTimeoutMs: 600_000
+  },
   agent: {
     autonomy: 'hybrid',
     topology: 'litePlanExecute',
     maxSteps: 30,
     memoryEnabled: true,
-    memoryEntries: 8
+    memoryEntries: 8,
+    maxReplan: 1,
+    maxCriticFix: 1
   },
   editor: {
     fontSize: 14,

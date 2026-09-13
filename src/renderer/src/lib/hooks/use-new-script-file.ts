@@ -8,6 +8,7 @@
 import { useCallback } from 'react'
 import { useUiStore, useErrorStore } from '../store'
 import { useScript } from '../ipc/use-script'
+import { promptDialog } from '../promise-dialog-store'
 import { toast } from '../../components/ui/toast'
 
 export const useNewScriptFile = (): (() => Promise<void>) => {
@@ -18,7 +19,7 @@ export const useNewScriptFile = (): (() => Promise<void>) => {
 
   return useCallback(async (): Promise<void> => {
     if (!projectPath) return
-    const name = window.prompt('新建剧本文件名', 'chapter2.gal')
+    const name = await promptDialog({ title: '新建剧本文件名', defaultValue: 'chapter2.gal' })
     if (!name) return
     const fileName = name.endsWith('.gal') ? name : `${name}.gal`
     const existing = await script.list(projectPath)

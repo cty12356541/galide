@@ -189,9 +189,9 @@ export const aiTaskQueue = {
     if (idx >= 0) {
       const [removed] = queue.splice(idx, 1)
       activeControllers.delete(taskId)
-      sendStatus(removed.sender, taskId, 'error', 'cancelled')
+      sendStatus(removed!.sender, taskId, 'error', 'cancelled')
       recentTasks = [
-        stripSender({ ...removed, status: 'error' as const, error: 'cancelled' }),
+        stripSender({ ...removed!, status: 'error' as const, error: 'cancelled' }),
         ...recentTasks
       ].slice(0, MAX_RECENT)
       return { ok: true, cancelled: true }
@@ -203,6 +203,8 @@ export const aiTaskQueue = {
 const queue: TaskRecord[] = []
 const activeTasks: Map<string, TaskRecord> = new Map()
 const cancelRequested: Set<string> = new Set()
+/** 超时触发的 abort(与用户取消区分,catch 里据此报 'timeout' 而非 'cancelled') */
+const timedOut: Set<string> = new Set()
 const MAX_RECENT = 50
 let recentTasks: TaskRecord[] = []
 
@@ -250,7 +252,7 @@ const drain = async (): Promise<void> => {
       // 超时兜底:120s 无结束则 abort,防挂死连接永久阻塞并发=1 的队列
       const timeoutTimer = setTimeout(() => {
         if (activeTasks.has(record.taskId)) {
-          cancelRequested.add(record.taskId)
+          timedOut.add(record.taskId)
           activeControllers.get(record.taskId)?.abort()
         }
       }, TASK_TIMEOUT_MS)
@@ -298,9 +300,9 @@ const drain = async (): Promise<void> => {
         const isAbort = err instanceof Error && err.name === 'AbortError'
         record.status = 'error'
         record.error = isAbort
-          ? cancelRequested.has(record.taskId)
-            ? 'cancelled'
-            : 'timeout'
+          ? timedOut.has(record.taskId)
+            ? 'timeout'
+            : 'cancelled'
           : err instanceof Error
             ? err.message
             : String(err)
@@ -308,6 +310,7 @@ const drain = async (): Promise<void> => {
         sendStatus(record.sender, record.taskId, 'error', record.error)
       } finally {
         clearTimeout(timeoutTimer)
+        timedOut.delete(record.taskId)
         // 清理 stream 缓冲器
         const entry = streamBuffers.get(record.taskId)
         if (entry?.timer !== null && entry?.timer !== undefined) {

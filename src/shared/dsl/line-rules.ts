@@ -24,6 +24,8 @@ export type LineType =
   | 'dialogue'
   | 'choice'
   | 'marker'
+  | 'stageEntry'
+  | 'stageExit'
   | 'set'
   | 'if'
   | 'elif'
@@ -64,6 +66,12 @@ export const CHOICE_RE = /^\s*\* ".+"/
 /** 选项行完整捕获: text + 可选 target + 可选 condition */
 export const CHOICE_FULL_RE = /^\s*\* "(.+?)"(?:\s*->\s*(\S+))?(?:\s*\[当:\s*(.+)\])?\s*$/
 
+/** 登场行: `[登场: 名字 | 立绘:asset.png | 位置:left]` / `[enter:...]` */
+export const STAGE_ENTRY_RE = /^\[(登场|enter):.+\]/
+
+/** 退场行: `[退场: 名字]` / `[exit:...]` */
+export const STAGE_EXIT_RE = /^\[(退场|exit):\s*[^\s\]]+\]/
+
 /** 设变量行: `设: name = value` / `设: name += value` / `设: name -= value` */
 export const SET_RE = /^设:\s*\w+\s*(=|\+=|-=)\s*.+/
 
@@ -101,6 +109,8 @@ export const detectLineType = (line: string): LineType => {
   if (BGM_RE.test(line)) return 'bgm'
   if (SPRITE_RE.test(line)) return 'sprite'
   if (GOTO_RE.test(line)) return 'goto'
+  if (STAGE_EXIT_RE.test(line)) return 'stageExit'
+  if (STAGE_ENTRY_RE.test(line)) return 'stageEntry'
   if (IF_END_RE.test(line)) return 'endif'
   if (ELIF_RE.test(line)) return 'elif'
   if (ELSE_RE.test(line)) return 'else'

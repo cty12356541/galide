@@ -77,6 +77,24 @@ describe('context-engine', () => {
     expect(ctx.text).toContain('intro')
   })
 
+  it('选中场景注入对白摘要', async () => {
+    const ctx = await buildContext(
+      { projectPath: '/proj', selectedSceneId: 'intro', activeScriptFile: 'chapter1.gal' },
+      { fs: makeFs(), git: noGit }
+    )
+    expect(ctx.selectedSceneExcerpt).toContain('小雪')
+    expect(ctx.text).toContain('对白摘要')
+    expect(ctx.text).toContain('你好')
+  })
+
+  it('activeScriptFile 优先查找选中场景', async () => {
+    const ctx = await buildContext(
+      { projectPath: '/proj', selectedSceneId: 'intro', activeScriptFile: 'chapter1.gal' },
+      { fs: makeFs(), git: noGit }
+    )
+    expect(ctx.selectedScene?.fileName).toBe('chapter1.gal')
+  })
+
   it('注入 git diff', async () => {
     const git: ContextGit = {
       diff: async () => ({ ok: true, value: '+ 小雪: "新增一行"' })
@@ -111,5 +129,59 @@ describe('context-engine', () => {
     )
     expect(ctx.text).toContain('先前会话')
     expect(ctx.text).toContain('加场景')
+  })
+})
+
+describe('context-engine — 项目大脑注入', () => {
+  const brain = {
+    version: '0.1.0',
+    foreshadowings: [
+      { id: 'f1', description: '怀表停在三点', status: 'planted', updatedAt: 't' }
+    ],
+    relationships: [
+      { id: 'rel-1', characterA: 'koyuki', characterB: 'haru', description: '青梅竹马', stages: [], updatedAt: 't' }
+    ],
+    knowledgeBoundaries: [
+      { id: 'k1', condition: 'route_haru', fact: '小雪的过去', known: false, updatedAt: 't' }
+    ]
+  }
+
+  const makeBrainFs = (): ContextFs => {
+    const vol = Volume.fromJSON({
+      '/proj/.galproj': JSON.stringify(manifest),
+      '/proj/scripts/chapter1.gal': chapter1,
+      '/proj/project-brain.json': JSON.stringify(brain)
+    })
+    const mfs = createFsFromVolume(vol)
+    return {
+      readFile: (p: string) => mfs.promises.readFile(p, 'utf-8') as Promise<string>,
+      readdir: (p: string) => mfs.promises.readdir(p) as Promise<string[]>
+    }
+  }
+
+  it('brain section 注入,含伏笔/关系/知识边界', async () => {
+    const ctx = await buildContext({ projectPath: '/proj' }, { fs: makeBrainFs(), git: noGit })
+    expect(ctx.text).toContain('项目大脑')
+    expect(ctx.text).toContain('怀表停在三点')
+    expect(ctx.text).toContain('koyuki × haru')
+    expect(ctx.text).toContain('route_haru')
+  })
+
+  it('brain 优先级高于角色:预算紧张时先截角色不截 brain', async () => {
+    const tight = await buildContext(
+      { projectPath: '/proj', tokenBudget: 60 },
+      { fs: makeBrainFs(), git: noGit }
+    )
+    expect(tight.truncated).toBe(true)
+    const brainIdx = tight.text.indexOf('项目大脑')
+    const charIdx = tight.text.indexOf('## 角色')
+    if (brainIdx >= 0 && charIdx >= 0) {
+      expect(brainIdx).toBeLessThan(charIdx)
+    }
+  })
+
+  it('无 brain 文件不产生空 section', async () => {
+    const ctx = await buildContext({ projectPath: '/proj' }, { fs: makeFs(), git: noGit })
+    expect(ctx.text).not.toContain('项目大脑')
   })
 })

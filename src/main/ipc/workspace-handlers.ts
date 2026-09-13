@@ -6,8 +6,7 @@
  *  - workspace:focusMain     → 浮出窗口请求聚焦主窗口
  *  - workspace:panelClosed   → 浮出关闭通知(主→渲染)
  *
- * 历史:mosaic 树持久化(read/write)及 WorkspaceLayout 模型已移除
- * (mosaic 引擎不再渲染,布局由 useUiStore 标量 + EditorCore 自管)。
+ * workspaceStore.panelStates 为当前布局 source of truth,EditorCore 自管内部分栏。
  */
 
 import { ipcMain } from 'electron'
@@ -65,7 +64,7 @@ export const registerWorkspaceHandlers = (): void => {
    }
  )
 
-  // 功能即岛 v2:从主窗口按 panelId 收回浮出窗口(主岛/子岛召回)
+  // 功能即岛 v3:从主窗口按 panelId 收回浮出窗口(主岛/子岛召回)
   ipcMain.handle(
     IPC.workspace.closePanel,
     async (_e, args: unknown): Promise<{ ok: true } | { ok: false; error: string; code?: string }> => {
@@ -119,6 +118,7 @@ const FLOATABLE_PANEL_IDS = new Set<string>([
   'outline',
   'character',
   'ai',
+  'search',
   'scripts',
   'assets',
   'profiles',
@@ -134,6 +134,8 @@ type FloatablePanelId =
   | 'outline'
   | 'character'
   | 'ai'
+  | 'search'
+  | 'brain'
   | 'scripts'
   | 'assets'
   | 'profiles'
@@ -183,6 +185,17 @@ export const createFloatingPanelWindow = (
   })
 
   win.on('ready-to-show', () => win.show())
+
+  win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'"
+        ]
+      }
+    })
+  })
 
   // 关闭时通知 owner
   win.on('closed', () => {

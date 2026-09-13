@@ -1,17 +1,16 @@
 /**
- * useUiStore — 功能即岛 v2 dock 模型验证
+ * useUiStore — 功能即岛 v3 panelStates 模型验证
  */
 import { describe, expect, it, beforeEach } from 'vitest'
 import { useUiStore, useErrorStore } from './store'
+import { WORKSPACE_PRESET_DEFAULTS } from './workspace-presets'
 import type { ScriptNode } from '../../../shared/dsl/types'
 
-describe('useUiStore — v2 dock 模型', () => {
+describe('useUiStore — v3 panelStates 模型', () => {
   beforeEach(() => {
     useUiStore.setState({
       workspacePreset: 'writing',
-      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-      visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-      activeSubIsland: { project: 'assets', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
+      panelStates: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates },
       floatingPanels: []
     })
   })
@@ -87,7 +86,14 @@ describe('useUiStore — v2 dock 模型', () => {
     useUiStore.setState({
       projectPath: '/x',
       projectName: 'X',
-      manifest: { name: 'X' } as never
+      manifest: {
+      name: 'X',
+      version: '0.1.0',
+      createdAt: '',
+      updatedAt: '',
+      characters: [],
+      assets: { characters: '', backgrounds: '', bgm: '' }
+    }
     })
     useUiStore.getState().closeProject()
     expect(useUiStore.getState().projectPath).toBeNull()
@@ -256,15 +262,7 @@ describe('useUiStore — B2 workspace presets', () => {
     useUiStore.setState({
       workspacePreset: 'writing',
       layoutsByPreset: {},
-      dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-      visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-      activeSubIsland: {
-        project: 'scripts',
-        git: 'git',
-        outline: 'outline',
-        character: 'profiles',
-        ai: 'ai'
-      },
+      panelStates: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates },
       editorCoreLayout: {
         beat: 72,
         right: 28,

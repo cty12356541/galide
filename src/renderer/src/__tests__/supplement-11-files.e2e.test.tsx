@@ -172,9 +172,9 @@ describe('supplement-11-files: GitPanel', () => {
 })
 
 /**
- * 功能即岛 v2:e2e mount(主岛壳 / ActivityBar / dock 菜单)
+ * 功能即岛 v3:e2e mount(主岛壳 / ActivityBar / dock 菜单)
  */
-describe('supplement-11-files: 功能即岛 v2 主岛壳', () => {
+describe('supplement-11-files: 功能即岛 v3 主岛壳', () => {
   it('ActivityBar mount 不 throw 且含 5 主岛 + 设置', async () => {
     const { ActivityBar } = await import('../components/workspace/ActivityBar')
     render(<ActivityBar />)

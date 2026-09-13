@@ -1,3 +1,4 @@
+import React from 'react'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { MapPin, MessageSquare, Anchor } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -15,7 +16,7 @@ export type MarkerFlowData = {
 
 export type MarkerFlowNode = Node<MarkerFlowData, 'marker'>
 
-export const FlowNode = ({ data, selected }: NodeProps<SceneFlowNode>): JSX.Element => {
+const FlowNodeInner = ({ data, selected }: NodeProps<SceneFlowNode>): JSX.Element => {
   return (
     <div
       className={cn(
@@ -39,7 +40,9 @@ export const FlowNode = ({ data, selected }: NodeProps<SceneFlowNode>): JSX.Elem
   )
 }
 
-export const FlowMarkerNode = ({ data, selected }: NodeProps<MarkerFlowNode>): JSX.Element => (
+export const FlowNode = React.memo(FlowNodeInner)
+
+const FlowMarkerNodeInner = ({ data, selected }: NodeProps<MarkerFlowNode>): JSX.Element => (
   <div
     className={cn(
       'bg-bg-elevated border border-dashed rounded-lg px-2 py-1 min-w-[120px] transition-all',
@@ -54,3 +57,5 @@ export const FlowMarkerNode = ({ data, selected }: NodeProps<MarkerFlowNode>): J
     <Handle type="source" position={Position.Right} className="!w-1.5 !h-1.5" />
   </div>
 )
+
+export const FlowMarkerNode = React.memo(FlowMarkerNodeInner)

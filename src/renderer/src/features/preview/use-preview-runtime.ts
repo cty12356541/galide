@@ -48,7 +48,6 @@ export const usePreviewRuntime = (params: UsePreviewRuntimeParams): void => {
   } = params
 
   // mount-only: projectPath/resolveAsync/voiceApi intentionally omitted
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- remount when sceneEmpty flips
   useEffect(() => {
     if (sceneEmpty) return
     if (!canvasRef.current) return

@@ -23,6 +23,9 @@ import type {
   SetNode,
   SetOp,
   Token
+,
+  StageEntryNode,
+  StageExitNode
 } from './types.js'
 import { tokenize } from './lexer.js'
 
@@ -312,6 +315,39 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
       pushNode(ctx, marker)
       return
     }
+    case 'stageEntry': {
+      const spriteToken = line.find((t) => t.type === 'sprite')
+      const positionToken = line.find((t) => t.type === 'position')
+      const pv = positionToken?.value
+      const position =
+        pv === 'left' || pv === '左'
+          ? 'left'
+          : pv === 'right' || pv === '右'
+            ? 'right'
+            : pv === 'center' || pv === '中'
+              ? 'center'
+              : undefined
+      const node: StageEntryNode = {
+        type: 'stageEntry',
+        character: first.value,
+        line: first.line,
+        column: first.column,
+        ...(spriteToken ? { sprite: spriteToken.value } : {}),
+        ...(position ? { position } : {})
+      }
+      pushNode(ctx, node)
+      return
+    }
+    case 'stageExit': {
+      const node: StageExitNode = {
+        type: 'stageExit',
+        character: first.value,
+        line: first.line,
+        column: first.column
+      }
+      pushNode(ctx, node)
+      return
+    }
     case 'goto': {
       const goto: GotoNode = {
         type: 'goto',
@@ -334,8 +370,19 @@ const buildLineAst = (line: Token[], ctx: ParseCtx): void => {
       }
       return
     }
-    default:
+    default: {
+      // 未知行(如误写成 [设: x = 1] 的括号形式)不静默吞掉 —
+      // 记 warning 诊断,编辑器/critic 可见,创作者能立刻发现
+      if (first.type === 'unknown') {
+        errors.push({
+          message: `无法识别的行(被忽略):「${first.value.slice(0, 40)}」`,
+          line: first.line,
+          column: first.column,
+          severity: 'warning'
+        })
+      }
       return
+    }
   }
 }
 
@@ -383,6 +430,7 @@ export const parse = (source: string): Result<ScriptNode> => {
         if (existing && existing.type === 'scene') {
           if (scene.background !== undefined) existing.background = scene.background
           if (scene.bgm !== undefined) existing.bgm = scene.bgm
+          existing.children.push(...scene.children)
         }
         ctx.pending.currentScene = existing && existing.type === 'scene' ? existing : null
       }
@@ -395,7 +443,7 @@ export const parse = (source: string): Result<ScriptNode> => {
         message: `[若:] (L${frame.node.line}) 缺少 [若终]`,
         line: frame.node.line,
         column: frame.node.column,
-        severity: 'warning'
+        severity: 'error'
       })
       ctx.ifStack.pop()
       if (ctx.pending.currentScene) {

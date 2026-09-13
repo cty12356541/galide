@@ -1,18 +1,19 @@
+/**
+ * CommandPalette — 命令面板(cmdk 双模式:命令 / 跳转到文件)
+ *
+ * T1-4 重构:命令模式列表改为命令注册表(command-registry)驱动,单一真相源:
+ *   - 分组/顺序来自 CATEGORY_ORDER + CATEGORY_LABELS,条目来自 COMMANDS
+ *   - 每行:图标 + 标签 + 快捷键提示(acceleratorLabel(有效 accelerator))
+ *     有效 accelerator 读 store.resolvedShortcuts(= 用户覆盖 ?? 默认,由
+ *     useResolvedShortcutsSync 灌入),与键盘 hook 同源
+ *   - cmdk 搜索经 keywords 匹配注册表 keywords 字段(中英双语)
+ *   - 选中 → dispatchCommand(id) 统一执行路径,随后关闭面板
+ *   - requiresProject 命令在无打开项目时隐藏(与原「项目操作」组守卫一致)
+ * 跳转到文件模式(文件列表 + 场景跳转)保持原样。
+ */
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Plus,
-  FolderOpen,
-  Sun,
-  Moon,
-  MessageSquare,
-  Settings as SettingsIcon,
-  Download,
-  GitCommit,
-  XCircle,
-  FileText,
-  Map
-} from 'lucide-react'
+import { FileText, Map } from 'lucide-react'
 import {
   Command,
   CommandInput,
@@ -21,8 +22,15 @@ import {
   CommandEmpty,
   CommandGroup
 } from '../../components/ui/command'
+import {
+  COMMANDS,
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  COMMAND_LABELS,
+  acceleratorLabel
+} from '../../lib/command-registry'
+import { useCommandDispatcher } from '../../lib/hooks/use-command-dispatcher'
 import { useUiStore } from '../../lib/store'
-import { useProject } from '../../lib/ipc/use-project'
 import { useScript } from '../../lib/ipc/use-script'
 import { collectNodes } from '../../../../shared/dsl/visitor'
 import type { SceneNode } from '../../../../shared/dsl/types'
@@ -30,19 +38,13 @@ import type { SceneNode } from '../../../../shared/dsl/types'
 export const CommandPalette = (): JSX.Element => {
   const toggleCommandPalette = useUiStore((s) => s.toggleCommandPalette)
   const commandPaletteMode = useUiStore((s) => s.commandPaletteMode)
-  const openNewProjectDialog = useUiStore((s) => s.openNewProjectDialog)
-  const theme = useUiStore((s) => s.theme)
-  const setTheme = useUiStore((s) => s.setTheme)
-  const toggleAi = useUiStore((s) => s.toggleAiPanel)
-  const openExport = useUiStore((s) => s.openExportDialog)
-  const openCommit = useUiStore((s) => s.openCommitDialog)
-  const closeProject = useUiStore((s) => s.closeProject)
   const projectPath = useUiStore((s) => s.projectPath)
   const scriptAst = useUiStore((s) => s.scriptAst)
+  const resolvedShortcuts = useUiStore((s) => s.resolvedShortcuts)
   const setActiveScript = useUiStore((s) => s.setActiveScript)
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
-  const project = useProject()
   const script = useScript()
+  const { dispatchCommand } = useCommandDispatcher()
 
   const [files, setFiles] = useState<string[]>([])
   const close = (): void => toggleCommandPalette(false)
@@ -77,37 +79,49 @@ export const CommandPalette = (): JSX.Element => {
         >
           <Command className="border border-border">
             <CommandInput
-              placeholder={fileMode ? '跳转到文件...' : '输入命令或搜索...'}
+              placeholder={fileMode ? `${COMMAND_LABELS.goToFile}...` : '输入命令或搜索...'}
               autoFocus
             />
             <CommandList>
               <CommandEmpty>没有匹配的命令</CommandEmpty>
 
-              {!fileMode && (
-                <CommandGroup heading="项目">
-                  <CommandItem
-                    onSelect={() => {
-                      openNewProjectDialog()
-                      close()
-                    }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>新建项目</span>
-                  </CommandItem>
-                  <CommandItem
-                    onSelect={() => {
-                      void project.open()
-                      close()
-                    }}
-                  >
-                    <FolderOpen className="w-4 h-4" />
-                    <span>打开项目</span>
-                  </CommandItem>
-                </CommandGroup>
-              )}
+              {!fileMode &&
+                CATEGORY_ORDER.map((category) => {
+                  const items = COMMANDS.filter(
+                    (c) => c.category === category && (!c.requiresProject || projectPath)
+                  )
+                  if (items.length === 0) return null
+                  return (
+                    <CommandGroup key={category} heading={CATEGORY_LABELS[category]}>
+                      {items.map((cmd) => {
+                        const Icon = cmd.icon
+                        const hint = acceleratorLabel(resolvedShortcuts[cmd.id])
+                        return (
+                          <CommandItem
+                            key={cmd.id}
+                            value={cmd.label}
+                            keywords={cmd.keywords}
+                            onSelect={() => {
+                              void dispatchCommand(cmd.id)
+                              close()
+                            }}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{cmd.label}</span>
+                            {hint ? (
+                              <span className="ml-auto text-text-muted text-[11px] font-mono">
+                                {hint}
+                              </span>
+                            ) : null}
+                          </CommandItem>
+                        )
+                      })}
+                    </CommandGroup>
+                  )
+                })}
 
               {projectPath && files.length > 0 && (
-                <CommandGroup heading="跳转到文件">
+                <CommandGroup heading={COMMAND_LABELS.goToFile}>
                   {files.map((file) => (
                     <CommandItem
                       key={file}
@@ -139,70 +153,6 @@ export const CommandPalette = (): JSX.Element => {
                       <span>{scene.id}</span>
                     </CommandItem>
                   ))}
-                </CommandGroup>
-              )}
-
-              {!fileMode && (
-                <CommandGroup heading="视图">
-                  <CommandItem
-                    onSelect={() => {
-                      toggleAi()
-                      close()
-                    }}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>切换 AI 助手</span>
-                  </CommandItem>
-                  <CommandItem
-                    onSelect={() => {
-                      setTheme(theme === 'light' ? 'dark' : 'light')
-                      close()
-                    }}
-                  >
-                    {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-                    <span>{theme === 'light' ? '切换到深色主题' : '切换到浅色主题'}</span>
-                  </CommandItem>
-                  <CommandItem
-                    onSelect={() => {
-                      useUiStore.getState().openPreferences()
-                      close()
-                    }}
-                  >
-                    <SettingsIcon className="w-4 h-4" />
-                    <span>偏好设置</span>
-                  </CommandItem>
-                </CommandGroup>
-              )}
-
-              {!fileMode && projectPath && (
-                <CommandGroup heading="项目操作">
-                  <CommandItem
-                    onSelect={() => {
-                      openExport()
-                      close()
-                    }}
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>导出项目…</span>
-                  </CommandItem>
-                  <CommandItem
-                    onSelect={() => {
-                      openCommit()
-                      close()
-                    }}
-                  >
-                    <GitCommit className="w-4 h-4" />
-                    <span>Git 提交…</span>
-                  </CommandItem>
-                  <CommandItem
-                    onSelect={() => {
-                      if (window.confirm('关闭当前项目?未保存改动请先保存。')) closeProject()
-                      close()
-                    }}
-                  >
-                    <XCircle className="w-4 h-4" />
-                    <span>关闭项目</span>
-                  </CommandItem>
                 </CommandGroup>
               )}
             </CommandList>

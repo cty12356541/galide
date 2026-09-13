@@ -1,0 +1,13 @@
+## start
+背景: classroom
+小雪: "先去图书馆吧。"
+[跳转:library]
+
+## library
+背景: library
+小雪: "找到了那本书。"
+[跳转:roof]
+
+## orphan_scene
+背景: roof
+阳: "(没有人到达这个场景)"

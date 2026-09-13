@@ -1,8 +1,8 @@
 /**
- * script-store slice — 剧本编辑态(从 useUiStore 渐进拆出)
- *
- * 通过 createScriptSlice 注入 useUiStore;后续可独立为 useScriptStore。
+ * script-store — 剧本编辑态 Zustand store
  */
+import { createStore } from 'zustand'
+import { useStore } from 'zustand'
 import { parse } from '../../../shared/dsl/parser'
 import { serialize } from '../../../shared/dsl/serializer'
 import type { ParseError, ScriptNode } from '../../../shared/dsl/types'
@@ -43,6 +43,7 @@ export type ScriptSliceActions = {
   closeScriptFile: (fileName: string) => void
   registerScriptSaveFlush: (fn: (() => Promise<void>) | null) => void
   flushPendingScriptSave: () => Promise<void>
+  resetScriptState: () => void
 }
 
 export const scriptSliceInitialState: ScriptSliceState = {
@@ -69,15 +70,11 @@ export const parseToDoc = (
   return { scriptSource: text, scriptAst: result.value, scriptDiagnostics: result.value.errors }
 }
 
-let scriptSaveFlushImpl: (() => Promise<void>) | null = null
+const scriptSaveFlushImpls = new Set<() => Promise<void>>()
 
-type SetFn = (partial: Partial<ScriptSliceState & ScriptSliceActions> | ((s: ScriptSliceState & ScriptSliceActions) => Partial<ScriptSliceState & ScriptSliceActions>)) => void
-type GetFn = () => ScriptSliceState & ScriptSliceActions
+export type ScriptState = ScriptSliceState & ScriptSliceActions
 
-export const createScriptSlice = (
-  set: SetFn,
-  get: GetFn
-): ScriptSliceState & ScriptSliceActions => ({
+export const scriptStore = createStore<ScriptState>((set, get) => ({
   ...scriptSliceInitialState,
 
   setActiveScript: (fileName) => {
@@ -239,10 +236,46 @@ export const createScriptSlice = (
   },
 
   registerScriptSaveFlush: (fn) => {
-    scriptSaveFlushImpl = fn
+    if (fn) {
+      scriptSaveFlushImpls.add(fn)
+    } else {
+      scriptSaveFlushImpls.clear()
+    }
   },
 
   flushPendingScriptSave: async () => {
-    if (scriptSaveFlushImpl) await scriptSaveFlushImpl()
+    for (const fn of [...scriptSaveFlushImpls]) {
+      await fn()
+    }
+  },
+
+  resetScriptState: () =>
+    set({
+      activeScriptFile: 'chapter1.gal',
+      scriptSource: '',
+      scriptAst: null,
+      scriptDiagnostics: [],
+      scriptDirty: false,
+      scriptEditorScrollTarget: null,
+      openFiles: [],
+      fileCache: {},
+      scriptPast: [],
+      scriptFuture: [],
+      selectedSceneId: null
+    })
+}))
+
+export const useScriptStore: {
+  (): ScriptState
+  <U>(selector: (state: ScriptState) => U): U
+  getState: typeof scriptStore.getState
+  setState: typeof scriptStore.setState
+  subscribe: typeof scriptStore.subscribe
+} = Object.assign(
+  <U>(selector?: (state: ScriptState) => U) => useStore(scriptStore, selector!) as U,
+  {
+    getState: scriptStore.getState.bind(scriptStore),
+    setState: scriptStore.setState.bind(scriptStore),
+    subscribe: scriptStore.subscribe.bind(scriptStore)
   }
-})
+)

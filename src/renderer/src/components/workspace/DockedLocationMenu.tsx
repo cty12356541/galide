@@ -1,5 +1,5 @@
 /**
- * DockedLocationMenu — 通用 dock 移动菜单(功能即岛 v2)
+ * DockedLocationMenu — 通用 dock 移动菜单(功能即岛 v3)
  *
  * 从 AiToolWindow 提取为通用件:任意主岛 header 复用。
  * 选项:左侧 / 右侧 / 底部 / 浮出。选侧 = setDockSide + showToolWindow;
@@ -10,7 +10,7 @@ import { MoveRight, MoveDown, MoveLeft, AppWindow } from 'lucide-react'
 import { useUiStore } from '../../lib/store'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { cn } from '../../lib/utils'
-import type { ToolWindowId, DockSide } from './mosaic/panel-registry'
+import type { ToolWindowId, DockSide } from './panels/panel-registry'
 
 export const DockedLocationMenu = ({
   toolWindowId

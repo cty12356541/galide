@@ -27,6 +27,20 @@ beforeEach(() => {
   }
 })
 
+describe('AiInlineEdit — 事件冒泡', () => {
+  it('does not close when clicking inside AI panel', async () => {
+    const parentOnClick = vi.fn()
+    render(
+      <div onClick={parentOnClick}>
+        <AiInlineEdit onClose={() => undefined} content="test content" />
+      </div>
+    )
+    const panel = screen.getByTestId('ai-inline-edit')
+    fireEvent.click(panel)
+    expect(parentOnClick).not.toHaveBeenCalled()
+  })
+})
+
 describe('AiInlineEdit — provider 取自配置', () => {
   it('点击动作时用 getConfig 返回的 provider(claude)而非硬编码 openai', async () => {
     render(<AiInlineEdit onClose={() => undefined} content="第一行\n第二行" />)

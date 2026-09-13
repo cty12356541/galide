@@ -120,6 +120,30 @@ describe('expression evaluator', () => {
   })
 })
 
+describe('tdd-02-expression-not-paren', () => {
+  it('round-trips and with or on right side', () => {
+    const r = parseExpression('a == 1 and (b == 2 or c == 3)')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const out = serializeExpression(r.expr)
+    const r2 = parseExpression(out)
+    expect(r2.ok).toBe(true)
+    if (!r2.ok) return
+    expect(r2.expr).toEqual(r.expr)
+  })
+
+  it('round-trips or with and on right side', () => {
+    const r = parseExpression('a == 1 or (b == 2 and c == 3)')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const out = serializeExpression(r.expr)
+    const r2 = parseExpression(out)
+    expect(r2.ok).toBe(true)
+    if (!r2.ok) return
+    expect(r2.expr).toEqual(r.expr)
+  })
+})
+
 describe('expression serializer round-trip', () => {
   const samples = [
     '42',
@@ -128,7 +152,15 @@ describe('expression serializer round-trip', () => {
     'affinity >= 10',
     'affinity >= 10 and met == true',
     'not flag',
-    '(a == 1 or b == 2) and c'
+    '(a == 1 or b == 2) and c',
+    'a == 1 and (b == 2 or c == 3)',
+    'a == 1 or (b == 2 and c == 3)',
+    'a + b * 2',
+    '(a + b) * 2',
+    'a + b - c',
+    'a * b / c',
+    'a + b * (c - d)',
+    'a > b + 1 and c < d * 2'
   ]
 
   for (const src of samples) {
@@ -143,4 +175,15 @@ describe('expression serializer round-trip', () => {
       expect(r2.expr).toEqual(r.expr)
     })
   }
+
+  it('round-trips not with binary operand', () => {
+    const r = parseExpression('not (a == b)')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const out = serializeExpression(r.expr)
+    const r2 = parseExpression(out)
+    expect(r2.ok).toBe(true)
+    if (!r2.ok) return
+    expect(r2.expr).toEqual(r.expr)
+  })
 })

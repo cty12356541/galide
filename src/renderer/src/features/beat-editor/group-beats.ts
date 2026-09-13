@@ -25,6 +25,7 @@ export const groupBeats = (children: AstNode[]): Beat[] => {
   let i = 0
   while (i < children.length) {
     const node = children[i]
+    if (!node) break
     if (node.type === 'choice') {
       const group: ChoiceNode[] = []
       const start = i

@@ -13,6 +13,7 @@ import { Toolbar } from './Toolbar'
 import { StatusBar } from './StatusBar'
 import { ProjectTabs } from './ProjectTabs'
 import { useUiStore } from '../lib/store'
+import { WORKSPACE_PRESET_DEFAULTS } from '../lib/workspace-presets'
 
 beforeEach(() => {
   useUiStore.setState({
@@ -21,9 +22,7 @@ beforeEach(() => {
     manifest: null,
     activeScriptFile: 'chapter1.gal',
     workspacePreset: 'writing',
-    dockSide: { project: 'left', git: 'left', outline: 'left', character: 'left', ai: 'right' },
-    visiblePerSide: { left: 'project', right: 'ai', bottom: null },
-    activeSubIsland: { project: 'scripts', git: 'git', outline: 'outline', character: 'profiles', ai: 'ai' },
+    panelStates: { ...WORKSPACE_PRESET_DEFAULTS.writing.panelStates },
     theme: 'light',
     preferencesOpen: false,
     commandPaletteOpen: false,
@@ -35,12 +34,13 @@ beforeEach(() => {
 })
 
 describe('MenuBar', () => {
-  it('渲染 5 个菜单(File/Edit/View/Run/Help)', () => {
+  it('渲染 6 个菜单(注册表分类: 项目/文件/编辑/视图/跳转与命令 + 帮助)', () => {
     render(<MenuBar />)
+    expect(screen.getByTestId('menu-project')).toBeTruthy()
     expect(screen.getByTestId('menu-file')).toBeTruthy()
     expect(screen.getByTestId('menu-edit')).toBeTruthy()
     expect(screen.getByTestId('menu-view')).toBeTruthy()
-    expect(screen.getByTestId('menu-run')).toBeTruthy()
+    expect(screen.getByTestId('menu-go')).toBeTruthy()
     expect(screen.getByTestId('menu-help')).toBeTruthy()
   })
 
@@ -83,7 +83,8 @@ describe('StatusBar', () => {
 
   beforeEach(() => {
     (window as unknown as { galide: unknown }).galide = {
-      git: { status: () => Promise.resolve({ initialized: true, current: 'main', files: [] }) }
+      git: { status: () => Promise.resolve({ initialized: true, current: 'main', files: [] }) },
+      ai: { agent: { onStatus: () => () => undefined } }
     }
   })
 

@@ -81,4 +81,20 @@ describe('vm-save', () => {
     const restored = deserializeVmSave(serializeVmSave(state, 1))
     expect(restored?.branchQueue).toEqual(queue)
   })
+
+  it('strips in-memory history from serialized save files', () => {
+    const state: VmState = {
+      sceneId: 's1',
+      stepIndex: 2,
+      variables: {},
+      history: [
+        { sceneId: 's1', stepIndex: 0, variables: {} },
+        { sceneId: 's1', stepIndex: 1, variables: {} }
+      ]
+    }
+    const file = serializeVmSave(state, 1)
+    expect(Object.prototype.hasOwnProperty.call(file, 'history')).toBe(false)
+    const restored = deserializeVmSave(file)
+    expect(restored?.history).toBeUndefined()
+  })
 })

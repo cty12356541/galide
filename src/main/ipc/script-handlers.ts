@@ -15,6 +15,7 @@ import {
 } from './script-service.js'
 import { scriptsDirAbs } from '../../shared/project-layout.js'
 import { mergeScriptAsts } from '../../shared/dsl/merge-scripts.js'
+import { parseCache } from './script-parse-cache.js'
 import {
   assertExportableScripts,
   parseProjectScripts
@@ -134,7 +135,7 @@ export const registerScriptHandlers = (): void => {
       const { asts, failures } = await parseProjectScripts(scriptsDir, {
         readdir: (p) => fs.readdir(p),
         readFile: (p) => fs.readFile(p, 'utf-8')
-      })
+      }, parseCache)
       const galFileCount = asts.length + failures.length
       try {
         assertExportableScripts(asts, failures, galFileCount)

@@ -1,11 +1,14 @@
 import { ipcMain } from 'electron'
 import { promises as fs } from 'node:fs'
+import * as z from 'zod/v4'
 import { IPC } from '../../shared/ipc-channels.js'
 import { parseIpcArgs, PreviewSaveSlotSchema, PreviewLoadSlotSchema } from './schemas/index.js'
 import {
   loadPreviewSlot,
   savePreviewSlot,
   listPreviewSlots,
+  loadPreviewReadState,
+  savePreviewReadState,
   type PreviewFs
 } from './preview-service.js'
 import type { VmState } from '../../shared/preview/runtime-vm.js'
@@ -59,6 +62,30 @@ export const registerPreviewHandlers = (): void => {
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : String(e) }
       }
+    }
+  )
+}
+
+export const registerPreviewReadStateHandlers = (): void => {
+  ipcMain.handle(IPC.preview.loadReadState, async (_e, raw: unknown) => {
+    const args = parseIpcArgs('preview:readState:load', z.object({ projectPath: z.string().min(1) }), raw)
+    return loadPreviewReadState(args.projectPath, fsAdapter)
+  })
+
+  ipcMain.handle(
+    IPC.preview.saveReadState,
+    async (_e, raw: unknown): Promise<{ ok: true } | { ok: false; error: string; code?: string }> => {
+      const args = parseIpcArgs(
+        'preview:readState:save',
+        z.object({
+          projectPath: z.string().min(1),
+          readState: z.object({ readLineIds: z.array(z.string()) })
+        }),
+        raw
+      )
+      const r = await savePreviewReadState(args.projectPath, args.readState, fsAdapter)
+      if (r.ok === false) return { ok: false, error: r.error.message, code: r.error.code }
+      return { ok: true }
     }
   )
 }

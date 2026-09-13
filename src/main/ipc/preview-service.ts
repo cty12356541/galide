@@ -9,7 +9,7 @@ import {
   serializeVmSave,
   type VmSaveFile
 } from '../../shared/preview/vm-save.js'
-import type { VmState } from '../../shared/preview/runtime-vm.js'
+import type { VmState, VmReadState } from '../../shared/preview/runtime-vm.js'
 
 export interface PreviewFs {
   readFile: (path: string) => Promise<string>
@@ -32,6 +32,7 @@ export interface PreviewLoadResult {
 export interface PreviewSlotInfo {
   slot: number
   timestamp: string | null
+  sceneId: string | null
   occupied: boolean
 }
 
@@ -99,10 +100,47 @@ export const listPreviewSlots = async (
     try {
       const raw = await fs.readFile(slotPath(projectPath, slot))
       const parsed = JSON.parse(raw) as VmSaveFile
-      slots.push({ slot, timestamp: parsed.timestamp ?? null, occupied: true })
+      slots.push({ slot, timestamp: parsed.timestamp ?? null, sceneId: parsed.currentSceneId ?? null, occupied: true })
     } catch {
-      slots.push({ slot, timestamp: null, occupied: false })
+      slots.push({ slot, timestamp: null, sceneId: null, occupied: false })
     }
   }
   return slots
+}
+
+const readStatePath = (projectPath: string): string =>
+  join(projectPath, '.galide', 'read-state.json')
+
+const emptyReadState = (): VmReadState => ({ readLineIds: [] })
+
+/** 全局已读记录(跨存档槽);不存在/损坏 → 空 */
+export const loadPreviewReadState = async (
+  projectPath: string,
+  fs: PreviewFs
+): Promise<VmReadState> => {
+  try {
+    const raw = await fs.readFile(readStatePath(projectPath))
+    const parsed = JSON.parse(raw) as VmReadState
+    if (!Array.isArray(parsed.readLineIds)) return emptyReadState()
+    return { readLineIds: parsed.readLineIds.filter((id): id is string => typeof id === 'string') }
+  } catch {
+    return emptyReadState()
+  }
+}
+
+export const savePreviewReadState = async (
+  projectPath: string,
+  readState: VmReadState,
+  fs: PreviewFs
+): Promise<{ ok: true } | { ok: false; error: { code: string; message: string } }> => {
+  try {
+    await fs.mkdir(join(projectPath, '.galide'), { recursive: true })
+    await fs.writeFile(readStatePath(projectPath), JSON.stringify(readState))
+    return { ok: true }
+  } catch (e) {
+    return {
+      ok: false,
+      error: { code: 'READ_STATE_WRITE_FAILED', message: e instanceof Error ? e.message : String(e) }
+    }
+  }
 }

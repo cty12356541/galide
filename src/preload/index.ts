@@ -2,7 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../shared/types'
 import type { ApiKeyProvider } from '../shared/api-key-provider.js'
+import type { ProjectBrain } from '../shared/brain/schema.js'
 import type { Result, ScriptNode, ParseError } from '../shared/dsl/types'
+import type { ScriptReplaceMatch } from '../shared/dsl/replace-in-scripts.js'
 
 type GitStatus = {
   initialized: boolean
@@ -48,6 +50,8 @@ const api = {
   project: {
     create: (name: string): Promise<ProjectOpenResult> =>
       ipcRenderer.invoke(IPC.project.create, name),
+    createAtPath: (req: { name: string; projectPath: string }): Promise<ProjectOpenResult> =>
+      ipcRenderer.invoke(IPC.project.createAtPath, req),
     open: (): Promise<ProjectOpenResult> => ipcRenderer.invoke(IPC.project.open),
     openPath: (projectPath: string): Promise<ProjectOpenResult> =>
       ipcRenderer.invoke(IPC.project.openPath, projectPath),
@@ -57,7 +61,15 @@ const api = {
     recordRecent: (entry: { path: string; name: string }): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke(IPC.project.recent, entry),
     listRecent: (): Promise<{ ok: boolean; items: { path: string; name: string; lastOpened: string }[] }> =>
-      ipcRenderer.invoke(IPC.project.listRecent)
+      ipcRenderer.invoke(IPC.project.listRecent),
+    onOpened: (
+      cb: (payload: { projectPath: string; manifest: ProjectManifest }) => void
+    ): (() => void) => {
+      const handler = (_: unknown, payload: { projectPath: string; manifest: ProjectManifest }): void =>
+        cb(payload)
+      ipcRenderer.on(IPC.project.opened, handler)
+      return () => ipcRenderer.removeListener(IPC.project.opened, handler)
+    }
   },
   script: {
     read: (projectPath: string, fileName: string): Promise<string> =>
@@ -77,6 +89,34 @@ const api = {
       query: string
     ): Promise<{ ok: true; hits: { file: string; line: number; column: number; snippet: string }[] }> =>
       ipcRenderer.invoke(IPC.script.searchProject, projectPath, query),
+    replacePreview: (req: {
+      projectPath: string
+      query: string
+      mode: 'plain' | 'token'
+      regex?: boolean
+    }): Promise<
+      | { ok: true; matches: ScriptReplaceMatch[]; truncated: boolean }
+      | { ok: false; code: string; error: string }
+    > => ipcRenderer.invoke(IPC.script.replacePreview, req),
+    replaceApply: (req: {
+      projectPath: string
+      replacement: string
+      matches: Pick<ScriptReplaceMatch, 'id' | 'file' | 'start' | 'end' | 'matchedText'>[]
+    }): Promise<
+      | {
+          ok: true
+          applied: number
+          conflicts: string[]
+          filesChanged: string[]
+          snapshotRef: string
+        }
+      | { ok: false; code: string; error: string; snapshotRef?: string }
+    > => ipcRenderer.invoke(IPC.script.replaceApply, req),
+    replaceRollback: (req: {
+      projectPath: string
+      snapshotRef: string
+    }): Promise<{ ok: true } | { ok: false; code: string; error: string }> =>
+      ipcRenderer.invoke(IPC.script.replaceRollback, req),
     onChanged: (
       callback: (e: { projectPath: string; fileName: string; source: string }) => void
     ): (() => void) => {
@@ -280,13 +320,22 @@ const api = {
   },
   character: {
     create: (projectPath: string, character: CharacterInput): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.character.create, projectPath, character),
+      ipcRenderer.invoke(IPC.character.create, { projectPath, character }),
     update: (projectPath: string, character: CharacterInput): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.character.update, projectPath, character),
+      ipcRenderer.invoke(IPC.character.update, { projectPath, character }),
     list: (projectPath: string): Promise<CharacterListResult> =>
-      ipcRenderer.invoke(IPC.character.list, projectPath),
+      ipcRenderer.invoke(IPC.character.list, { projectPath }),
     delete: (projectPath: string, id: string): Promise<{ ok: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC.character.delete, projectPath, id)
+      ipcRenderer.invoke(IPC.character.delete, { projectPath, id })
+  },
+  brain: {
+    list: (projectPath: string): Promise<{ ok: boolean; brain?: ProjectBrain; invalid?: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.brain.list, { projectPath }),
+    onBrainChanged: (callback: (payload: { projectPath: string }) => void): (() => void) => {
+      const listener = (_e: unknown, payload: { projectPath: string }): void => callback(payload)
+      ipcRenderer.on(IPC.brain.changed, listener)
+      return () => ipcRenderer.removeListener(IPC.brain.changed, listener)
+    }
   },
   voice: {
     generate: (projectPath: string, lineId: string, text: string, characterId: string): Promise<{ ok: boolean; path?: string; error?: string }> =>
@@ -363,7 +412,18 @@ const api = {
       seed?: number
       baseUrl?: string
     }): Promise<{ ok: boolean; path?: string; seed?: number; code?: string; error?: string }> =>
-      ipcRenderer.invoke(IPC.image.generate, req)
+      ipcRenderer.invoke(IPC.image.generate, req),
+    generateBackground: (req: {
+      projectPath: string
+      name: string
+      prompt: string
+      negativePrompt?: string
+      provider?: 'sd' | 'dalle' | 'comfyui'
+      seed?: number
+      width?: number
+      height?: number
+    }): Promise<{ ok: boolean; path?: string; seed?: number; code?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC.image.generateBackground, req)
   },
 workspace: {
     /** 浮出 panel 到独立 BrowserWindow(编辑器大陆/主岛/可脱离子岛) */
@@ -378,6 +438,8 @@ workspace: {
           | 'outline'
           | 'character'
           | 'ai'
+          | 'search'
+          | 'brain'
           | 'scripts'
           | 'assets'
           | 'profiles'
@@ -399,6 +461,7 @@ workspace: {
             | 'outline'
             | 'character'
             | 'ai'
+            | 'brain'
             | 'scripts'
             | 'assets'
             | 'profiles'
@@ -418,6 +481,7 @@ workspace: {
             | 'outline'
             | 'character'
             | 'ai'
+            | 'brain'
             | 'scripts'
             | 'assets'
             | 'profiles'
@@ -427,7 +491,7 @@ workspace: {
       ipcRenderer.on(IPC.workspace.panelClosed, listener)
       return () => ipcRenderer.removeListener(IPC.workspace.panelClosed, listener)
     },
-    /** 功能即岛 v2:从主窗口按 panelId 收回浮出窗口 */
+    /** 功能即岛 v3:从主窗口按 panelId 收回浮出窗口 */
     closePanel: (
       args: {
         panelId:
@@ -439,6 +503,8 @@ workspace: {
           | 'outline'
           | 'character'
           | 'ai'
+          | 'search'
+          | 'brain'
           | 'scripts'
           | 'assets'
           | 'profiles'
@@ -453,22 +519,29 @@ workspace: {
     saveSlot: (req: {
       projectPath: string
       slot: number
-      state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[] }
+      state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[]; history?: unknown[] }
     }): Promise<{ ok: true; timestamp: string } | { ok: false; error: string; code?: string }> =>
       ipcRenderer.invoke(IPC.preview.saveSlot, req),
     loadSlot: (req: {
       projectPath: string
       slot: number
     }): Promise<
-      | { ok: true; state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[] }; timestamp: string }
+      | { ok: true; state: { sceneId: string; stepIndex: number; variables: Record<string, unknown>; branchQueue?: unknown[]; history?: unknown[] }; timestamp: string }
       | { ok: false; error: string; code?: string }
     > => ipcRenderer.invoke(IPC.preview.loadSlot, req),
     listSlots: (
       projectPath: string
     ): Promise<
-      | { ok: true; slots: { slot: number; timestamp: string | null; occupied: boolean }[] }
+      | { ok: true; slots: { slot: number; timestamp: string | null; sceneId: string | null; occupied: boolean }[] }
       | { ok: false; error: string }
-    > => ipcRenderer.invoke(IPC.preview.listSlots, projectPath)
+    > => ipcRenderer.invoke(IPC.preview.listSlots, projectPath),
+    loadReadState: (projectPath: string): Promise<{ readLineIds: string[] }> =>
+      ipcRenderer.invoke(IPC.preview.loadReadState, { projectPath }),
+    saveReadState: (
+      projectPath: string,
+      readState: { readLineIds: string[] }
+    ): Promise<{ ok: true } | { ok: false; error: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.preview.saveReadState, { projectPath, readState })
   }
 }
 

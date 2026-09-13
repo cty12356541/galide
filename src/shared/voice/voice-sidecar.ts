@@ -9,10 +9,33 @@ export type VoiceSidecarMeta = {
   characterId: string
 }
 
-export const voiceSidecarRelPath = (lineId: string): string => `assets/voice/${lineId}.meta.json`
+/** P0: 防御路径遍历与目录注入 */
+const validateLineId = (lineId: string): void => {
+  if (lineId.length === 0) {
+    throw new Error('lineId must be non-empty')
+  }
+  // 拦截路径遍历、绝对路径、Windows 驱动器、URL 编码、null byte
+  if (
+    lineId.includes('..') ||
+    lineId.includes('\\') ||
+    lineId.includes('/') ||
+    lineId.includes(':') ||
+    lineId.includes('%') ||
+    lineId.includes('\0')
+  ) {
+    throw new Error('lineId contains path traversal')
+  }
+}
 
-export const voiceSidecarAbsPath = (projectPath: string, lineId: string): string =>
-  join(projectPath, voiceSidecarRelPath(lineId))
+export const voiceSidecarRelPath = (lineId: string): string => {
+  validateLineId(lineId)
+  return `assets/voice/${lineId}.meta.json`
+}
+
+export const voiceSidecarAbsPath = (projectPath: string, lineId: string): string => {
+  validateLineId(lineId)
+  return join(projectPath, voiceSidecarRelPath(lineId))
+}
 
 export const parseVoiceSidecar = (raw: string): VoiceSidecarMeta | null => {
   try {

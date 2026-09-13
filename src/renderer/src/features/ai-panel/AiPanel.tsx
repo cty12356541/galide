@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { Send, Sparkles, Clock, Square, ArrowDown } from 'lucide-react'
+import React, { Suspense } from 'react'
+import { Send, Sparkles, Square, ArrowDown } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { EmptyState } from '../../components/ui/empty-state'
+import { PanelSkeleton } from '../../components/ui/skeleton'
 import { ScrollArea } from '../../components/ui/scroll-area'
 import { useErrorStore } from '../../lib/store'
-import { AiErrorBanner } from '../../lib/ai-error-banner'
 import { getGalide } from '../../lib/ipc/galide-safe'
 import { AiShortcutToolbar } from './AiShortcutToolbar'
-import { AiMessageBubble } from './AiMessageBubble'
-import { AgentModePanel } from './AgentModePanel'
+import { AiMessageBubbleWithStatus } from './AiMessageBubbleWithStatus'
 import { useAiConfig, useAiProviders } from '../../lib/ipc/use-ai-task'
 import { useAi } from '../../lib/ipc/use-ai'
 import { toChatMessages } from './chat-history'
+
+const AgentModePanel = React.lazy(() =>
+  import('./AgentModePanel').then((m) => ({ default: m.AgentModePanel }))
+)
 
 type Provider = 'openai' | 'claude'
 
@@ -288,7 +292,9 @@ export const AiPanel = (): JSX.Element => {
         </button>
       </div>
       {mode === 'agent' ? (
-        <AgentModePanel />
+        <Suspense fallback={<PanelSkeleton />}>
+          <AgentModePanel />
+        </Suspense>
       ) : (
         <>
       <AiShortcutToolbar
@@ -380,41 +386,6 @@ export const AiPanel = (): JSX.Element => {
       </div>
         </>
       )}
-    </div>
-  )
-}
-
-const AiMessageBubbleWithStatus = ({ message, provider }: { message: Message; provider: Provider }): JSX.Element => {
-  if (message.role === 'user') {
-    return <AiMessageBubble message={message} provider={provider} />
-  }
-  // 状态文案:
-  //  - pending:任务入队,等 provider 握手 → "连接中..."
-  //  - running:provider 已发首个 token,正在流 → "输出中..."
-  //  - done / error:不显示
-  const statusHint = ((): { icon: JSX.Element; text: string } | null => {
-    if (message.status === 'pending') {
-      return { icon: <Clock className="w-3 h-3" />, text: '连接中...' }
-    }
-    if (message.status === 'running') {
-      return { icon: <Sparkles className="w-3 h-3 animate-pulse" />, text: '输出中...' }
-    }
-    return null
-  })()
-  return (
-    <div className="space-y-1">
-      <AiMessageBubble message={message} provider={provider} />
-      {statusHint && (
-        <div className="flex items-center gap-1 pl-8 text-[10px] text-text-muted">
-          {statusHint.icon}
-          <span>{statusHint.text}</span>
-        </div>
-      )}
-      {message.errorText ? (
-        <div className="pl-8">
-          <AiErrorBanner message={message.errorText} preferencesSection="ai" />
-        </div>
-      ) : null}
     </div>
   )
 }

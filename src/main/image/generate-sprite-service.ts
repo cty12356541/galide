@@ -3,7 +3,8 @@
  */
 import { promises as fs } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { imageProxy } from '../ai/image/image-proxy.js'
+import { generateImage, type ImageProvider } from '../ai/image/image-proxy.js'
+import { getPreference } from '../preferences/preferences-store.js'
 import { patchCharacterSpriteSet } from '../manifest/character-sprite.js'
 import { readGalproj } from '../manifest/project-manifest.js'
 
@@ -12,7 +13,7 @@ export type GenerateSpriteInput = {
   characterId: string
   state: string
   prompt?: string
-  provider?: 'sd' | 'dalle' | 'comfyui'
+  provider?: ImageProvider
   seed?: number
   baseUrl?: string
 }
@@ -35,13 +36,21 @@ export const generateSpriteService = async (
     return { ok: false, code: 'NO_PROMPT', error: 'prompt 不能为空' }
   }
 
-  const provider = input.provider ?? 'sd'
-  const gen = await imageProxy.generate({
-    provider,
-    prompt,
-    seed: input.seed,
-    baseUrl: input.baseUrl
-  })
+  const prefs = getPreference('image')
+  const provider = input.provider ?? prefs.defaultProvider
+  const pollIntervalMs = 1000
+  const maxPollAttempts = Math.max(1, Math.ceil(prefs.pollTimeoutMs / pollIntervalMs))
+  const gen = await generateImage(
+    {
+      provider,
+      prompt,
+      seed: input.seed,
+      baseUrl: input.baseUrl ?? prefs.baseUrl,
+      width: prefs.width,
+      height: prefs.height
+    },
+    { maxPollAttempts, pollIntervalMs }
+  )
   if (gen.ok === false) {
     return { ok: false, code: gen.code, error: gen.message }
   }

@@ -12,6 +12,7 @@
  * 复用原则: 跨 handler 共享的 schema 集中导出;handler 私有 schema 与 handler 同文件。
  */
 import * as z from 'zod/v4'
+import { MAX_REPLACE_MATCHES } from '../../../shared/dsl/replace-in-scripts.js'
 
 export const IpcSchemaErrorName = 'IpcSchemaError' as const
 
@@ -81,7 +82,11 @@ export const VoicePreferencesSchema = z.object({
 export const AgentPreferencesSchema = z.object({
   autonomy: z.enum(['copilot', 'hybrid', 'autonomous']),
   topology: z.enum(['singleReact', 'litePlanExecute', 'planExecuteCritic']),
-  maxSteps: z.number().int().min(1).max(64)
+  maxSteps: z.number().int().min(1).max(64),
+  memoryEnabled: z.boolean(),
+  memoryEntries: z.number().int().min(1).max(50),
+  maxReplan: z.number().int().min(0).max(3),
+  maxCriticFix: z.number().int().min(0).max(3)
 })
 
 export const ExportPreferencesSchema = z.object({
@@ -239,6 +244,10 @@ export const CharacterListSchema = z.object({
   projectPath: z.string().min(1)
 })
 
+export const BrainListSchema = z.object({
+  projectPath: z.string().min(1)
+})
+
 export const CharacterDeleteSchema = z.object({
   projectPath: z.string().min(1),
   id: z.string().min(1)
@@ -246,9 +255,24 @@ export const CharacterDeleteSchema = z.object({
 
 // =================== Voice ===================
 
+/** P0: lineId 防路径遍历 — 统一校验规则 */
+export const LineIdSchema = z
+  .string()
+  .min(1, 'lineId must be non-empty')
+  .refine(
+    (id) =>
+      !id.includes('..') &&
+      !id.includes('\\') &&
+      !id.includes('/') &&
+      !id.includes(':') &&
+      !id.includes('%') &&
+      !id.includes('\0'),
+    { message: 'lineId contains path traversal' }
+  )
+
 export const VoiceGenerateSchema = z.object({
   projectPath: z.string().min(1),
-  lineId: z.string().min(1),
+  lineId: LineIdSchema,
   text: z.string().min(1),
   characterId: z.string().min(1)
 })
@@ -265,7 +289,7 @@ export const VoiceListSchema = z.object({
 
 export const VoiceDeleteSchema = z.object({
   projectPath: z.string().min(1),
-  lineId: z.string().min(1)
+  lineId: LineIdSchema
 })
 
 // =================== Git ===================
@@ -331,6 +355,20 @@ export const ImageGenerateSchema = z.object({
   baseUrl: z.string().optional()
 })
 
+export const ImageGenerateBackgroundSchema = z.object({
+  projectPath: z.string().min(1),
+  name: z
+    .string()
+    .min(1)
+    .regex(/^[a-zA-Z0-9_-]+$/, 'name 只能包含字母、数字、下划线、连字符'),
+  prompt: z.string().min(1),
+  negativePrompt: z.string().optional(),
+  provider: z.enum(['sd', 'dalle', 'comfyui']).optional(),
+  seed: z.number().int().optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional()
+})
+
 export const ScriptParseProjectSchema = z.object({
   projectPath: z.string().min(1)
 })
@@ -338,6 +376,40 @@ export const ScriptParseProjectSchema = z.object({
 export const ScriptSearchProjectSchema = z.object({
   projectPath: z.string().min(1),
   query: z.string()
+})
+
+// =================== Script Replace ===================
+
+export const ScriptReplaceModeSchema = z.enum(['plain', 'token'])
+
+export const ScriptReplacePreviewSchema = z.object({
+  projectPath: z.string().min(1),
+  query: z.string().min(1),
+  mode: ScriptReplaceModeSchema,
+  regex: z.boolean().optional()
+})
+
+/**
+ * apply 回传的确认匹配 — 必须是 preview 产物的精确子集:
+ * file 走 .gal 白名单(防路径穿越),区间 int>=0,matchedText 非空(stale 校验依据)。
+ */
+export const ScriptReplaceMatchSchema = z.object({
+  id: z.string().min(1),
+  file: ScriptFileNameSchema,
+  start: z.number().int().min(0),
+  end: z.number().int().min(0),
+  matchedText: z.string().min(1)
+})
+
+export const ScriptReplaceApplySchema = z.object({
+  projectPath: z.string().min(1),
+  replacement: z.string(),
+  matches: z.array(ScriptReplaceMatchSchema).min(1).max(MAX_REPLACE_MATCHES)
+})
+
+export const ScriptReplaceRollbackSchema = z.object({
+  projectPath: z.string().min(1),
+  snapshotRef: z.string().min(1)
 })
 
 export const AssetResolveSchema = z.object({
@@ -352,12 +424,21 @@ export const DialogChooseDirectorySchema = z.object({
   defaultPath: z.string().optional()
 })
 
+export const StoreKeySchema = z.enum([
+  'aiConfig',
+  'recentProjects',
+  'shortcuts',
+  'workspacePreset',
+  'panelLayout',
+  'activeEditor'
+])
+
 export const StoreGetSchema = z.object({
-  key: z.string().min(1)
+  key: StoreKeySchema
 })
 
 export const StoreSetSchema = z.object({
-  key: z.string().min(1),
+  key: StoreKeySchema,
   value: z.unknown()
 })
 
@@ -368,16 +449,24 @@ export const ExportTargetSchema = z.enum(['web', 'renpy', 'ink', 'json', 'electr
 export const ExportRequestSchema = z.object({
   projectPath: z.string().min(1),
   target: ExportTargetSchema,
-  outputPath: z.string().min(1)
+  outputPath: z.string().min(1).refine(
+    (p) => !p.includes('..'),
+    { message: 'outputPath must not contain path traversal (..)' }
+  )
 })
 
 export const ExportCancelSchema = z.object({
   jobId: z.string().min(1)
 })
 
+export const CreateProjectAtPathSchema = z.object({
+  name: z.string().min(1).max(80),
+  projectPath: z.string().min(1)
+})
+
 // =================== 浮出 panel (PR3-A) ===================
 
-/** 浮出 id 全集 — 编辑器大陆(3)+ 主岛(5)+ 可脱离子岛(4: scripts/assets/profiles/voice) */
+/** 浮出 id 全集 — 编辑器大陆(3)+ 主岛(6)+ 可脱离子岛(4: scripts/assets/profiles/voice) */
 export const OpenPanelIdSchema = z.enum([
   'script-editor',
   'flow-view',
@@ -387,6 +476,8 @@ export const OpenPanelIdSchema = z.enum([
   'outline',
   'character',
   'ai',
+  'search',
+  'brain',
   'scripts',
   'assets',
   'profiles',
@@ -416,11 +507,19 @@ export const AgentStartSchema = z.object({
 
 // =================== Preview save/load ===================
 
-export const VmStateSchema = z.object({
+export const VmHistoryEntrySchema = z.object({
   sceneId: z.string(),
   stepIndex: z.number().int().min(0),
   variables: z.record(z.string(), z.unknown()),
   branchQueue: z.array(z.unknown()).optional()
+})
+
+export const VmStateSchema = z.object({
+  sceneId: z.string(),
+  stepIndex: z.number().int().min(0),
+  variables: z.record(z.string(), z.unknown()),
+  branchQueue: z.array(z.unknown()).optional(),
+  history: z.array(VmHistoryEntrySchema).optional()
 })
 
 export const PreviewSaveSlotSchema = z.object({

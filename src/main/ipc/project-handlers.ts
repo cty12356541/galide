@@ -1,12 +1,13 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { promises as fs } from 'node:fs'
-import { join } from 'node:path'
+import { join, isAbsolute } from 'node:path'
 import { IPC } from '../../shared/ipc-channels.js'
 import type { ProjectManifest, ProjectOpenResult } from '../../shared/types.js'
 import { getStore } from '../store/store.js'
 import { gitService } from '../git/git-service.js'
 import { getPreference } from '../preferences/preferences-store.js'
 import { parseManifest } from '../../shared/manifest-schema.js'
+import { CreateProjectAtPathSchema, parseIpcArgs } from './schemas/index.js'
 import {
   createProject,
   type ProjectFs,
@@ -32,7 +33,8 @@ const fsAdapter: ProjectFs = {
     } catch {
       return false
     }
-  }
+  },
+  readdir: (path) => fs.readdir(path)
 }
 
 const gitAdapter: ProjectGit = {
@@ -53,7 +55,37 @@ const writeManifest = async (projectPath: string, manifest: ProjectManifest): Pr
   await fs.writeFile(join(projectPath, '.galproj'), JSON.stringify(manifest, null, 2))
 }
 
+// =================== tdd-07-security-openproject ===================
+
+const SECURITY_ERROR = {
+  EMPTY_PATH: 'project path must not be empty',
+  PATH_TRAVERSAL: 'project path contains path traversal (..)',
+  CONTROL_CHARACTERS: 'project path contains control characters',
+  NOT_ABSOLUTE: 'project path must be absolute'
+} as const
+
+const validateProjectPath = (projectPath: string): { ok: true } | { ok: false; error: string } => {
+  if (projectPath.length === 0) {
+    return { ok: false, error: SECURITY_ERROR.EMPTY_PATH }
+  }
+  if (projectPath.includes('..')) {
+    return { ok: false, error: SECURITY_ERROR.PATH_TRAVERSAL }
+  }
+  if (/[\x00-\x1f]/.test(projectPath)) {
+    return { ok: false, error: SECURITY_ERROR.CONTROL_CHARACTERS }
+  }
+  if (!isAbsolute(projectPath)) {
+    return { ok: false, error: SECURITY_ERROR.NOT_ABSOLUTE }
+  }
+  return { ok: true }
+}
+
 const openProjectAtPath = async (projectPath: string): Promise<ProjectOpenResult> => {
+  const validation = validateProjectPath(projectPath)
+  if (validation.ok !== true) {
+    return { ok: false, error: `[galide] ${validation.error}` }
+  }
+
   try {
     const manifest = await readManifest(projectPath)
     return { ok: true, projectPath, manifest }
@@ -62,6 +94,10 @@ const openProjectAtPath = async (projectPath: string): Promise<ProjectOpenResult
     return { ok: false, error: message }
   }
 }
+
+export const projectFsAdapter = fsAdapter
+export const projectGitAdapter = gitAdapter
+export { openProjectAtPath }
 
 export const registerProjectHandlers = (): void => {
   ipcMain.handle(IPC.project.create, async (_e, name: string): Promise<ProjectOpenResult> => {
@@ -87,6 +123,28 @@ export const registerProjectHandlers = (): void => {
     }
     return { ok: false, error: r.error.message }
   })
+
+  ipcMain.handle(
+    IPC.project.createAtPath,
+    async (_e, req: { name: string; projectPath: string }): Promise<ProjectOpenResult> => {
+      try {
+        const validated = parseIpcArgs('project:createAtPath', CreateProjectAtPathSchema, req)
+        const r = await createProject(validated.name, {
+          fs: fsAdapter,
+          git: gitAdapter,
+          dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
+          gitPrefs: getPreference('git')
+        }, { projectPath: validated.projectPath })
+        if (r.ok === true) {
+          return { ok: true, projectPath: r.value.projectPath, manifest: r.value.manifest }
+        }
+        return { ok: false, error: r.error.message }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        return { ok: false, error: message }
+      }
+    }
+  )
 
   ipcMain.handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
     const win = BrowserWindow.getFocusedWindow()

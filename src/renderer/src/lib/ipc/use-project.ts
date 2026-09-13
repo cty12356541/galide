@@ -1,8 +1,7 @@
 import { useCallback } from 'react'
 import { useErrorStore } from '../store'
 import type { ProjectManifest } from '../../../../shared/types'
-import { useUiStore } from '../store'
-
+import { useOpenProject } from '../project-coordinator'
 
 const wrap = async <T>(
   source: string,
@@ -21,7 +20,7 @@ const wrap = async <T>(
 }
 
 export const useProject = () => {
-  const setProject = useUiStore((s) => s.setProject)
+  const setProject = useOpenProject()
 
   return {
     create: useCallback(

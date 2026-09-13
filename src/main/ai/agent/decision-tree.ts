@@ -59,6 +59,13 @@ export const analyzeReachability = (ast: ScriptNode): ReachabilityReport => {
     }
   }
 
+  // marker → 所属场景:跳到场景内 marker 运行时会进入该场景,
+  // 可达性必须沿 owner 场景继续传播(否则经由 marker 进入的场景被误判不可达)
+  const markerOwner = new Map<string, string>()
+  for (const s of scenes) {
+    for (const m of collectNodes(s, isMarker)) markerOwner.set(m.id, s.id)
+  }
+
   const entry = scenes[0]?.id ?? null
   const reachable = new Set<string>()
   if (entry) {
@@ -67,6 +74,9 @@ export const analyzeReachability = (ast: ScriptNode): ReachabilityReport => {
       const id = queue.shift() as string
       if (reachable.has(id)) continue
       reachable.add(id)
+      // 场景 id 本身可能就是一个被指向的 marker:同时激活其 owner 场景的出边
+      const owner = markerOwner.get(id)
+      if (owner && !reachable.has(owner)) queue.push(owner)
       for (const next of adjacency.get(id) ?? []) {
         if (allIds.has(next) && !reachable.has(next)) queue.push(next)
       }
@@ -80,4 +90,20 @@ export const analyzeReachability = (ast: ScriptNode): ReachabilityReport => {
     unreachable,
     danglingTargets: dangling
   }
+}
+
+/** 是否存在需修复的可达性问题 */
+export const hasReachabilityIssues = (r: ReachabilityReport): boolean =>
+  r.unreachable.length > 0 || r.danglingTargets.length > 0
+
+/** 格式化可达性问题,供 critic-fix 注入 convo */
+export const formatReachabilityIssues = (r: ReachabilityReport): string => {
+  const lines: string[] = []
+  if (r.unreachable.length > 0) lines.push(`不可达节点: ${r.unreachable.join(', ')}`)
+  if (r.danglingTargets.length > 0) {
+    lines.push(
+      `悬空跳转: ${r.danglingTargets.map((d) => `${d.from}→${d.target}`).join(', ')}`
+    )
+  }
+  return lines.join('\n')
 }

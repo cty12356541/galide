@@ -18,6 +18,7 @@ vi.mock('@renderer/features/preview/PreviewCanvas', () => ({
   PreviewCanvas: () => <div data-testid="preview-stub" />
 }))
 vi.mock('@renderer/features/flow-view/FlowView', () => ({
+  default: () => <div data-testid="flow-stub" />,
   FlowView: () => <div data-testid="flow-stub" />
 }))
 vi.mock('@renderer/features/script-editor/ScriptEditor', () => ({

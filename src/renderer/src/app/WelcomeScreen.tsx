@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, FolderOpen, FileText, Sparkles, Clock, BookOpen } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, FolderOpen, FileText, Sparkles, Clock, BookOpen, X, FolderPlus, PenLine, Play } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import {
@@ -12,16 +12,70 @@ import {
   DialogTitle
 } from '../components/ui/dialog'
 import { useProject } from '../lib/ipc/use-project'
+import { useSampleProject } from '../lib/ipc/use-sample-project'
 import { useRecentProjects } from '../lib/ipc/use-recent-projects'
 import { useErrorStore } from '../lib/store'
+
+const TUTORIAL_SEEN_KEY = 'galide:tutorialSeen'
+
+const hasSeenTutorial = (): boolean => {
+  if (typeof window === 'undefined') return true
+  return window.localStorage.getItem(TUTORIAL_SEEN_KEY) === 'true'
+}
+
+const markTutorialSeen = (): void => {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(TUTORIAL_SEEN_KEY, 'true')
+}
+
+const tutorialSteps = [
+  {
+    icon: FolderPlus,
+    title: '创建项目',
+    description: '新建或打开一个 Galide 项目,所有剧本以 .gal 文件存放在 scripts/ 目录。'
+  },
+  {
+    icon: PenLine,
+    title: '编写剧本',
+    description: '用 scene、dialogue、choice、goto 等 DSL 语句书写你的决策树故事。'
+  },
+  {
+    icon: Play,
+    title: '预览导出',
+    description: '在 PixiJS 预览中试玩,并一键导出为 Web / Ren\'Py / Ink 等格式。'
+  }
+]
 
 export const WelcomeScreen = (): JSX.Element => {
   const [showNew, setShowNew] = useState(false)
   const [name, setName] = useState('我的 Galgame')
   const [busy, setBusy] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
   const project = useProject()
+  const sampleProject = useSampleProject()
   const { recent, openRecent } = useRecentProjects()
   const pushError = useErrorStore((s) => s.push)
+
+  useEffect(() => {
+    if (!hasSeenTutorial()) {
+      setShowTutorial(true)
+    }
+  }, [])
+
+  const handleSkipTutorial = (): void => {
+    markTutorialSeen()
+    setShowTutorial(false)
+  }
+
+  const handleCreateSample = async (): Promise<void> => {
+    if (busy || sampleProject.busy) return
+    setBusy(true)
+    try {
+      await sampleProject.create()
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const handleNew = async (): Promise<void> => {
     if (busy) return
@@ -93,8 +147,7 @@ export const WelcomeScreen = (): JSX.Element => {
           </div>
           <h1 className="text-5xl font-semibold tracking-tight mb-4 text-text">Galide</h1>
           <p className="text-lg text-text-muted leading-relaxed mb-8">
-            文字游戏,是语言意义选项的决策树。<br />
-            打开 AI 协作,书写你的故事。
+            打开galide和ai合作书写你的故事
           </p>
           <div className="flex flex-col gap-3 max-w-sm">
             <Button size="lg" onClick={() => setShowNew(true)} disabled={busy} className="justify-start">
@@ -104,6 +157,17 @@ export const WelcomeScreen = (): JSX.Element => {
             <Button size="lg" variant="secondary" onClick={handleOpen} disabled={busy} className="justify-start">
               <FolderOpen className="w-4 h-4" />
               打开项目
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => void handleCreateSample()}
+              disabled={busy || sampleProject.busy}
+              className="justify-start"
+              data-testid="welcome-open-sample"
+            >
+              <BookOpen className="w-4 h-4" />
+              打开示例项目
             </Button>
           </div>
         </motion.div>
@@ -176,6 +240,70 @@ export const WelcomeScreen = (): JSX.Element => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AnimatePresence>
+        {showTutorial && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-black/5"
+            data-testid="tutorial-overlay"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="pointer-events-auto w-full max-w-md mx-4 bg-surface border border-border rounded-2xl shadow-2xl p-6"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-text">新手引导</h2>
+                  <p className="text-sm text-text-muted">3 个步骤快速上手 Galide</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSkipTutorial}
+                  aria-label="跳过引导"
+                  data-testid="tutorial-skip"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                {tutorialSteps.map((step, index) => {
+                  const Icon = step.icon
+                  return (
+                    <div
+                      key={step.title}
+                      className="flex items-start gap-3 p-3 rounded-xl bg-bg-elevated/50 border border-border"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-accent-soft flex items-center justify-center shrink-0">
+                        <Icon className="w-4 h-4 text-accent" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-accent">{index + 1}</span>
+                          <h3 className="text-sm font-medium text-text">{step.title}</h3>
+                        </div>
+                        <p className="text-xs text-text-muted leading-relaxed mt-1">{step.description}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <Button onClick={handleSkipTutorial} className="w-full" data-testid="tutorial-skip-primary">
+                跳过
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

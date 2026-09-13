@@ -18,6 +18,7 @@ export type ProjectError =
   | { code: 'WRITE_FAILED'; message: string }
   | { code: 'GIT_INIT_FAILED'; message: string }
   | { code: 'GIT_COMMIT_FAILED'; message: string }
+  | { code: 'DIR_NOT_EMPTY'; message: string }
 
 export type ProjectFs = {
   mkdir: (path: string, opts: { recursive: boolean }) => Promise<void>
@@ -25,6 +26,7 @@ export type ProjectFs = {
   readFile: (path: string) => Promise<string>
   rm: (path: string, opts: { recursive: boolean; force: boolean }) => Promise<void>
   exists: (path: string) => Promise<boolean>
+  readdir: (path: string) => Promise<string[]>
 }
 
 export type ProjectGit = {
@@ -47,7 +49,6 @@ const sanitizeName = (raw: unknown): Result<string, ProjectError> => {
     return { ok: false, error: { code: 'INVALID_NAME', message: 'project name must not be empty' } }
   }
   // 控制字符 / NUL 防御
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f]/.test(trimmed)) {
     return { ok: false, error: { code: 'INVALID_NAME', message: 'project name contains control characters' } }
   }
@@ -82,20 +83,47 @@ export type CreateProjectSuccess = {
   manifest: ProjectManifest
 }
 
+export type CreateProjectOptions = {
+  /** headless: 跳过目录选择器,直接使用此路径 */
+  projectPath?: string
+}
+
 export const createProject = async (
   rawName: string,
-  deps: CreateProjectDeps
+  deps: CreateProjectDeps,
+  options?: CreateProjectOptions
 ): Promise<Result<CreateProjectSuccess, ProjectError>> => {
   const name = sanitizeName(rawName)
   if (name.ok !== true) return name
 
-  const dialogResult = await deps.dialog.showOpenDialog()
-  if (dialogResult.canceled || dialogResult.filePaths.length === 0) {
-    return { ok: false, error: { code: 'CANCELED', message: 'user canceled directory picker' } }
-  }
-  const projectPath = dialogResult.filePaths[0]!
-  if (!projectPath) {
-    return { ok: false, error: { code: 'CANCELED', message: 'no directory selected' } }
+  let projectPath: string
+  if (options?.projectPath) {
+    projectPath = options.projectPath
+    const exists = await deps.fs.exists(projectPath)
+    if (exists) {
+      const entries = await deps.fs.readdir(projectPath)
+      if (entries.length > 0) {
+        return {
+          ok: false,
+          error: { code: 'DIR_NOT_EMPTY', message: `目录非空,无法创建项目: ${projectPath}` }
+        }
+      }
+    } else {
+      try {
+        await deps.fs.mkdir(projectPath, { recursive: true })
+      } catch (e) {
+        return { ok: false, error: { code: 'MKDIR_FAILED', message: eMessage(e) } }
+      }
+    }
+  } else {
+    const dialogResult = await deps.dialog.showOpenDialog()
+    if (dialogResult.canceled || dialogResult.filePaths.length === 0) {
+      return { ok: false, error: { code: 'CANCELED', message: 'user canceled directory picker' } }
+    }
+    projectPath = dialogResult.filePaths[0]!
+    if (!projectPath) {
+      return { ok: false, error: { code: 'CANCELED', message: 'no directory selected' } }
+    }
   }
 
   try {

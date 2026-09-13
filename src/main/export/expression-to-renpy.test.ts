@@ -2,7 +2,7 @@
  * gal 表达式 AST → Ren'Py Python 表达式 — 独立单元测试
  */
 import { describe, expect, it } from 'vitest'
-import { parseExpression } from '../../shared/dsl/expression.js'
+import { parseExpression, type Expression } from '../../shared/dsl/expression.js'
 import { emitRenpyExpression } from './expression-to-renpy.js'
 
 describe('emitRenpyExpression', () => {
@@ -62,5 +62,17 @@ describe('emitRenpyExpression', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(emitRenpyExpression(r.expr)).toBe('(a == 1 or b == 2) and c')
+  })
+
+  it('throws on unsupported expression kind', () => {
+    const fakeExpr = { kind: 'unknown' } as unknown as Expression
+    expect(() => emitRenpyExpression(fakeExpr)).toThrow()
+  })
+
+  it('maps arithmetic operators', () => {
+    const r = parseExpression('score + 5')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(emitRenpyExpression(r.expr)).toBe('score + 5')
   })
 })
