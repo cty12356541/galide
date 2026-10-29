@@ -133,7 +133,7 @@ importers:
         version: 4.4.3
       zustand:
         specifier: ^5.0.0
-        version: 5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
+        version: 5.0.14(@types/react@19.2.17)(react@19.2.7)
     devDependencies:
       '@codemirror/commands':
         specifier: ^6.5.0
@@ -147,9 +147,6 @@ importers:
       '@electron-toolkit/utils':
         specifier: ^3.0.0
         version: 3.0.0(electron@35.7.5)
-      '@rollup/rollup-darwin-arm64':
-        specifier: ^4.61.1
-        version: 4.61.1
       '@testing-library/jest-dom':
         specifier: ^6.5.0
         version: 6.9.1
@@ -1380,6 +1377,7 @@ packages:
 
   '@rollup/rollup-darwin-arm64@4.61.1':
     resolution: {integrity: sha512-0F1L/Z3Eqv8mT2n3dCpeO8GcTvHvVqkP5/t6DMsn0KzhYVcg+s7Ncl5DS8qjKYEeio6Az0Gt6nyBORay5qIlCA==}
+    cpu: [arm64]
     os: [darwin]
 
   '@rollup/rollup-darwin-x64@4.61.1':
@@ -5438,7 +5436,8 @@ snapshots:
   '@rollup/rollup-android-arm64@4.61.1':
     optional: true
 
-  '@rollup/rollup-darwin-arm64@4.61.1': {}
+  '@rollup/rollup-darwin-arm64@4.61.1':
+    optional: true
 
   '@rollup/rollup-darwin-x64@4.61.1':
     optional: true
@@ -8753,10 +8752,9 @@ snapshots:
       '@types/react': 19.2.17
       react: 19.2.7
 
-  zustand@5.0.14(@types/react@19.2.17)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7)):
+  zustand@5.0.14(@types/react@19.2.17)(react@19.2.7):
     optionalDependencies:
       '@types/react': 19.2.17
       react: 19.2.7
-      use-sync-external-store: 1.6.0(react@19.2.7)
 
   zwitch@2.0.4: {}
