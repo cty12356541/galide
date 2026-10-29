@@ -48,3 +48,13 @@
 - 机制确认:apply 先 gitService.snapshot(复用 agent 安全闸),失败带 snapshotRef 可 rollback;token 模式负向测试齐(散文"艾艾子今天去了艾河边"3 处全不命中,plain 对照命中)
 - T3-4 首派超时(疑死于 live Electron smoke),重派 bg_ca8dfbab:收窄为 composer+模板+静态测试,live smoke 改 env-gated(GALIDE_E2E_ELECTRON=1)由我最后跑
 - 教训:让 worker 在 macOS GUI 跑 Electron  smoke 风险高(可能挂起);env-gated + orchestrator 收尾更稳
+
+## 全部完成 ✅ (2026-07-19)
+- T3-4 ✅:ElectronDesktopComposer(组合 WebComposer),shell 模板(404 catch/traversal guard/persist:galgame),ExportDialog 解锁,99 导出测试;live smoke(GALIDE_E2E_ELECTRON=1)真实 Electron 6/6 通过:首场景台词/failedRequests 空/localStorage/fetch 200
+- T4-1 ✅:test_scene.ts 删除;.worktrees 全部已注册,零删除
+- T4-2 ✅:useAgentActivity 绑定 ai:agent:status 真实事件流(running/error/idle),禁假启发式,7 测试
+- T4-3 ✅:README React 19、腐化数字改 CI 表述
+- 提交链:580f781(基线)→c150b06(P1)→25aeece(P2)→869672f(P3,39 文件+3519)→6f78ea4(P4)
+- 终态:112 文件/866 测试;glyph 扫描仅注释;window.prompt/confirm 0;README 腐化串 0
+- 收尾事故:wrap-up worker 截断时把 P3/P4 混合暂存,用 git reset 重新分批(不触碰工作树);personal-homepage/(用户无关目录)全程未碰
+- 已知遗留:工作区有 .playwright-mcp/、qa2-hero.jpeg 等历史 QA 残留(非本次产出,留给用户处置);命令面板内选"跳转到文件"会关闭面板(⌘P 正常),待产品决策

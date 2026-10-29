@@ -18,7 +18,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "prepare": "husky",
-    "eval:agent": "vitest run --config vitest.eval.config.ts"
+    "eval:agent": "vitest run --config vitest.eval.config.ts",
+    "bench": "node scripts/bench/run.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

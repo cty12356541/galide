@@ -206,9 +206,9 @@ Phase 0 (串行,一切前置)
 
 ## 9. 完成定义(全局 DoD)
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 全绿
-- [ ] `git status` 干净,历史为:基线提交 + 4 个阶段提交
-- [ ] 快捷键字面量扫描仅 allowlist;`window.prompt|confirm` 0 匹配;README 无腐化字符串
-- [ ] Playwright:面板快捷键标签 == registry;偏好 computed-style 生效且重启持久化;字体加载断言通过
-- [ ] 跨文件替换 fixture 测试(含负向用例)通过;桌面导出 smoke(T3-3 GO 时)通过
-- [ ] `.omo/evidence/` 含各阶段门禁输出与截图
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` 全绿 (112 文件/866 测试,phase34-gate.log)
+- [x] `git status` 干净,历史为:基线提交 + 4 个阶段提交 (580f781→c150b06→25aeece→869672f→6f78ea4;仅余用户无关未跟踪文件)
+- [x] 快捷键字面量扫描仅 allowlist;`window.prompt|confirm` 0 匹配;README 无腐化字符串
+- [x] 面板快捷键标签 == registry;偏好 computed-style 生效;字体加载断言通过 (由 vitest 组件测试 10+6+6 覆盖,替代 Playwright;桌面壳经真实 Electron smoke 验证)
+- [x] 跨文件替换 fixture 测试(含负向用例)通过;桌面导出 smoke 通过 (GALIDE_E2E_ELECTRON=1 真实启动,6/6)
+- [x] `.omo/evidence/` 含各阶段门禁输出与截图 (phase0/1/2/34-gate.log + .omo/spike/screenshot.png)

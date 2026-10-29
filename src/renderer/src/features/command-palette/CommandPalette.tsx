@@ -62,6 +62,10 @@ export const CommandPalette = (): JSX.Element => {
     scriptAst != null ? collectNodes(scriptAst, (n): n is SceneNode => n.type === 'scene') : []
   const fileMode = commandPaletteMode === 'file'
 
+  // goToFile 是「自指」模式切换命令:dispatcher 会重开面板为 file 模式,
+  // 此处若照常 close() 会把它刚设的状态撤销。其余命令保持 dispatch-then-close。
+  const shouldCloseAfterDispatch = (id: string): boolean => id !== 'goToFile'
+
   return (
     <AnimatePresence>
       <motion.div
@@ -103,7 +107,7 @@ export const CommandPalette = (): JSX.Element => {
                             keywords={cmd.keywords}
                             onSelect={() => {
                               void dispatchCommand(cmd.id)
-                              close()
+                              if (shouldCloseAfterDispatch(cmd.id)) close()
                             }}
                           >
                             <Icon className="w-4 h-4" />

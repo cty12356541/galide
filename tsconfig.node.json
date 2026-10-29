@@ -11,6 +11,7 @@
     "src/shared/**/*",
     "scripts/**/*",
     "electron.vite.config.ts",
-    "vitest.eval.config.ts"
+    "vitest.eval.config.ts",
+    "vitest.bench.config.ts"
   ]
 }

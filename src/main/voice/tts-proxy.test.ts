@@ -81,7 +81,9 @@ describe('tts-proxy — mock 合成', () => {
     expect(r.ok).toBe(true)
     if (r.ok === true) {
       expect(r.path.startsWith(tmpdir())).toBe(true)
-      expect(r.path).not.toMatch(/^\/tmp\//)
+      if (tmpdir() !== '/tmp') {
+        expect(r.path).not.toMatch(/^\/tmp\//)
+      }
     }
     expect(written[0]?.startsWith(tmpdir())).toBe(true)
   })

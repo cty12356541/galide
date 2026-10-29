@@ -85,6 +85,35 @@ describe('CommandPalette — T1-4', () => {
     expect(useUiStore.getState().commandPaletteOpen).toBe(false)
   })
 
+  it('选中「跳转到文件」→ dispatch 且面板保持打开并切到 file 模式', () => {
+    // 模拟真实 dispatcher 的 goToFile handler(openGoToFile:open=true + mode='file')
+    mocks.dispatch.mockImplementation((id: string) => {
+      if (id === 'goToFile') {
+        useUiStore.setState({ commandPaletteOpen: true, commandPaletteMode: 'file' })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    render(<CommandPalette />)
+    fireEvent.click(screen.getByText(COMMANDS.find((c) => c.id === 'goToFile')!.label))
+    expect(mocks.dispatch).toHaveBeenCalledWith('goToFile')
+    expect(useUiStore.getState().commandPaletteOpen).toBe(true)
+    expect(useUiStore.getState().commandPaletteMode).toBe('file')
+  })
+
+  it('选中「命令面板」(⌘K 自命令)→ toggle-close,最终面板关闭', () => {
+    // 模拟真实 dispatcher 的 commandPalette handler(toggleCommandPalette:已开则关)
+    mocks.dispatch.mockImplementation((id: string) => {
+      if (id === 'commandPalette') {
+        useUiStore.setState({ commandPaletteOpen: false })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    render(<CommandPalette />)
+    fireEvent.click(screen.getByText(COMMANDS.find((c) => c.id === 'commandPalette')!.label))
+    expect(mocks.dispatch).toHaveBeenCalledWith('commandPalette')
+    expect(useUiStore.getState().commandPaletteOpen).toBe(false)
+  })
+
   it('无打开项目时隐藏 requiresProject 命令', () => {
     useUiStore.setState({ projectPath: null })
     render(<CommandPalette />)

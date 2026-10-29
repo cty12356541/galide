@@ -1,14 +1,32 @@
 {
   "schema_version": 2,
-  "active_work_id": "v06-hardening-authoring-power-ba446cc2",
+  "active_work_id": "v07-debugger-dock-bench",
   "works": {
     "v06-hardening-authoring-power-ba446cc2": {
       "work_id": "v06-hardening-authoring-power-ba446cc2",
       "active_plan": "/Users/lipunima/projects/galide/.omo/plans/v06-hardening-authoring-power.md",
       "plan_name": "v06-hardening-authoring-power",
-      "status": "active",
+      "status": "completed",
       "started_at": "2026-07-18T04:13:31.402Z",
-      "updated_at": "2026-07-18T04:13:31.402Z",
+      "updated_at": "2026-07-19T15:24:54.239Z",
+      "session_ids": [
+        "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa"
+      ],
+      "session_origins": {
+        "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa": "direct"
+      },
+      "agent": "sisyphus",
+      "task_sessions": {},
+      "ended_at": "2026-07-19T15:24:54.239Z",
+      "elapsed_ms": 126682837
+    },
+    "v07-debugger-dock-bench": {
+      "work_id": "v07-debugger-dock-bench",
+      "active_plan": "/Users/lipunima/projects/galide/.omo/plans/v07-debugger-dock-bench.md",
+      "plan_name": "v07-debugger-dock-bench",
+      "status": "active",
+      "started_at": "2026-07-19T15:40:00.000Z",
+      "updated_at": "2026-07-19T15:40:00.000Z",
       "session_ids": [
         "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa"
       ],
@@ -19,17 +37,17 @@
       "task_sessions": {}
     }
   },
-  "active_plan": "/Users/lipunima/projects/galide/.omo/plans/v06-hardening-authoring-power.md",
-  "started_at": "2026-07-18T04:13:31.402Z",
+  "active_plan": "/Users/lipunima/projects/galide/.omo/plans/v07-debugger-dock-bench.md",
+  "started_at": "2026-07-19T15:40:00.000Z",
   "status": "active",
-  "updated_at": "2026-07-18T04:13:31.402Z",
+  "updated_at": "2026-07-19T15:40:00.000Z",
   "session_ids": [
     "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa"
   ],
   "session_origins": {
     "opencode:ses_08fb5d0cbffeck84KQJnAbFMAa": "direct"
   },
-  "plan_name": "v06-hardening-authoring-power",
+  "plan_name": "v07-debugger-dock-bench",
   "task_sessions": {},
   "agent": "sisyphus"
 }

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-29T14:12:20.929Z",
+  "nodeVersion": "v26.3.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "seed": 20260719,
+  "benchmarks": {
+    "parse10kLines": {
+      "name": "万行 .gal parse + 诊断",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 8.812,
+      "p95": 13.457,
+      "mean": 9.386,
+      "min": 7.503,
+      "max": 13.457,
+      "meta": {
+        "lineCount": 10007,
+        "topLevelNodes": 358
+      }
+    },
+    "vmAdvance1000Steps": {
+      "name": "runtime-vm 推进 1000 节点",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 0.168,
+      "p95": 0.798,
+      "mean": 0.224,
+      "min": 0.142,
+      "max": 0.798,
+      "meta": {
+        "stepsAdvanced": 1000
+      }
+    },
+    "webExportMediumProject": {
+      "name": "Web 导出 (中型项目 5×1000 行)",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 2.316,
+      "p95": 2.948,
+      "mean": 2.321,
+      "min": 1.906,
+      "max": 2.948,
+      "meta": {
+        "files": 5
+      }
+    },
+    "mergedAst10x1000Lines": {
+      "name": "merged AST 构建 (10×1000 行)",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 8.05,
+      "p95": 12.143,
+      "mean": 8.177,
+      "min": 7.214,
+      "max": 12.143,
+      "meta": {
+        "files": 10,
+        "mergedNodes": 379
+      }
+    }
+  }
+}
