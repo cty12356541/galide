@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useErrorStore } from '../store'
 import type { Result, ScriptNode, ParseError } from '../../../../shared/dsl/types'
 
@@ -58,22 +58,53 @@ const wrapWrite = async (
   }
 }
 
-export const useScript = () => {
-  return {
-    read: useCallback(
-      (projectPath: string, fileName: string) =>
-        wrap('script:read', () => window.galide.script.read(projectPath, fileName)),
-      []
-    ),
-    write: useCallback(
-      (projectPath: string, fileName: string, content: string) =>
-        wrapWrite(() => window.galide.script.write(projectPath, fileName, content)),
-      []
-    ),
-    parse: useCallback((source: string) => wrapParse(source), []),
-    list: useCallback(
-      (projectPath: string) => wrap('script:list', () => window.galide.script.list(projectPath)),
-      []
-    )
+const wrapDelete = async (
+  fn: () => Promise<WriteResult>
+): Promise<{ ok: true } | { ok: false; code?: string; error: string }> => {
+  try {
+    const r = await fn()
+    if (r.ok) return { ok: true }
+    useErrorStore.getState().push({
+      code: r.code === 'INVALID_FILENAME' ? 'INVALID_FILENAME' : 'DELETE_FAILED',
+      message: r.error ?? 'unknown',
+      source: 'script:delete'
+    })
+    return { ok: false, code: r.code, error: r.error ?? 'unknown' }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    useErrorStore.getState().push({
+      code: 'IPC_ERROR',
+      message,
+      source: 'script:delete'
+    })
+    return { ok: false, error: message }
   }
+}
+
+export const useScript = () => {
+  const read = useCallback(
+    (projectPath: string, fileName: string) =>
+      wrap('script:read', () => window.galide.script.read(projectPath, fileName)),
+    []
+  )
+  const write = useCallback(
+    (projectPath: string, fileName: string, content: string) =>
+      wrapWrite(() => window.galide.script.write(projectPath, fileName, content)),
+    []
+  )
+  const del = useCallback(
+    (projectPath: string, fileName: string) =>
+      wrapDelete(() => window.galide.script.delete(projectPath, fileName)),
+    []
+  )
+  const parse = useCallback((source: string) => wrapParse(source), [])
+  const list = useCallback(
+    (projectPath: string) => wrap('script:list', () => window.galide.script.list(projectPath)),
+    []
+  )
+
+  return useMemo(
+    () => ({ read, write, delete: del, parse, list }),
+    [read, write, del, parse, list]
+  )
 }

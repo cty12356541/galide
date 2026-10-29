@@ -25,10 +25,12 @@ import {
   ScriptReplaceRollbackSchema
 } from './schemas/index.js'
 
+import { readDirRecursive, writeFileEnsureDir } from '../fs-readdir-recursive.js'
+
 const fsAdapter: ReplaceFs = {
   readFile: (path) => fs.readFile(path, 'utf-8'),
-  writeFile: (path, content) => fs.writeFile(path, content, 'utf-8'),
-  readDir: (path) => fs.readdir(path)
+  writeFile: (path, content) => writeFileEnsureDir(path, content),
+  readDir: (path) => readDirRecursive(path)
 }
 
 const gitAdapter: ReplaceGit = {

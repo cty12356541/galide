@@ -7,6 +7,7 @@
  *
  * 规约: core/patterns.yaml:56-60 (Result<T, E> 而非抛异常)
  */
+import { dirname } from 'node:path'
 import type { Result } from '../../shared/dsl/types.js'
 import {
   GAL_FILE_NAME_RE,
@@ -22,12 +23,15 @@ export type ScriptError =
   | { code: 'INVALID_FILENAME'; message: string }
   | { code: 'READ_FAILED'; message: string }
   | { code: 'WRITE_FAILED'; message: string }
+  | { code: 'DELETE_FAILED'; message: string }
   | { code: 'COMMIT_FAILED'; message: string }
 
 export type ScriptFs = {
   readFile: (path: string) => Promise<string>
   writeFile: (path: string, content: string) => Promise<void>
   readDir: (path: string) => Promise<string[]>
+  unlink?: (path: string) => Promise<void>
+  mkdir?: (path: string) => Promise<void>
 }
 
 export type ScriptGit = {
@@ -85,7 +89,7 @@ export const readScript = async (
 }
 
 export type ScriptWriteDeps = {
-  fs: Pick<ScriptFs, 'writeFile'>
+  fs: Pick<ScriptFs, 'writeFile' | 'mkdir'>
   git: ScriptGit
   gitPrefs: GitPreferences
 }
@@ -100,6 +104,9 @@ export const writeScript = async (
   if (v.ok !== true) return v
   const absPath = galScriptAbs(projectPath, fileName)
   try {
+    if (fileName.includes('/') && deps.fs.mkdir) {
+      await deps.fs.mkdir(dirname(absPath))
+    }
     await deps.fs.writeFile(absPath, content)
   } catch (e) {
     return errOf({ code: 'WRITE_FAILED', message: eMessage(e) })
@@ -108,6 +115,36 @@ export const writeScript = async (
   if (deps.gitPrefs.autoCommitOnSave) {
     const relPath = galScriptRel(fileName)
     const r = await deps.git.addAndCommit(projectPath, [relPath], `update: ${fileName}`)
+    if (r.ok !== true) {
+      return errOf({ code: 'COMMIT_FAILED', message: `${r.error.code}: ${r.error.message}` })
+    }
+  }
+  return { ok: true, value: undefined }
+}
+
+export type ScriptDeleteDeps = {
+  fs: Pick<ScriptFs, 'unlink'> & { unlink: (path: string) => Promise<void> }
+  git: ScriptGit
+  gitPrefs: GitPreferences
+}
+
+export const deleteScript = async (
+  projectPath: string,
+  fileName: string,
+  deps: ScriptDeleteDeps
+): Promise<Result<void, ScriptError>> => {
+  const v = validateFileName(fileName)
+  if (v.ok !== true) return v
+  const absPath = galScriptAbs(projectPath, fileName)
+  try {
+    await deps.fs.unlink(absPath)
+  } catch (e) {
+    return errOf({ code: 'DELETE_FAILED', message: eMessage(e) })
+  }
+  parseCache.invalidate(absPath)
+  if (deps.gitPrefs.autoCommitOnSave) {
+    const relPath = galScriptRel(fileName)
+    const r = await deps.git.addAndCommit(projectPath, [relPath], `delete: ${fileName}`)
     if (r.ok !== true) {
       return errOf({ code: 'COMMIT_FAILED', message: `${r.error.code}: ${r.error.message}` })
     }
@@ -126,7 +163,13 @@ export const listScripts = async (
   const dir = scriptsDirAbs(projectPath)
   try {
     const files = await deps.fs.readDir(dir)
-    return { ok: true, value: files.filter((f) => isGalScriptFileName(f)) }
+    return {
+      ok: true,
+      value: files
+        .map((f) => f.replace(/\\/g, '/'))
+        .filter((f) => isGalScriptFileName(f))
+        .sort()
+    }
   } catch (e) {
     if (eHasCode(e, 'ENOENT')) return { ok: true, value: [] }
     return errOf({ code: 'READ_FAILED', message: eMessage(e) })

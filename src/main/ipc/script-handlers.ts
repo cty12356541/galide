@@ -9,6 +9,7 @@ import { getPreference } from '../preferences/preferences-store.js'
 import {
   readScript,
   writeScript,
+  deleteScript,
   listScripts,
   type ScriptFs,
   type ScriptGit
@@ -25,6 +26,7 @@ import { broadcastScriptChanged } from './script-broadcast.js'
 import {
   ipcSchemaFailure,
   parseIpcArgs,
+  ScriptDeleteSchema,
   ScriptListSchema,
   ScriptParseProjectSchema,
   ScriptParseSchema,
@@ -33,16 +35,19 @@ import {
   ScriptWriteSchema
 } from './schemas/index.js'
 import { searchProjectScripts } from '../../shared/dsl/search-project-scripts.js'
+import { readDirRecursive, writeFileEnsureDir } from '../fs-readdir-recursive.js'
 
 /**
  * P1 修复:
  * - 把 fs / git 依赖通过接口注入 service,本文件只做 IPC 薄壳。
  * - service 层已含 fileName 白名单 + write/commit 错误处理。
  */
-const fsAdapter: ScriptFs = {
+const fsAdapter: ScriptFs & { unlink: (path: string) => Promise<void> } = {
   readFile: (path) => fs.readFile(path, 'utf-8'),
-  writeFile: (path, content) => fs.writeFile(path, content, 'utf-8'),
-  readDir: (path) => fs.readdir(path)
+  writeFile: (path, content) => writeFileEnsureDir(path, content),
+  readDir: (path) => readDirRecursive(path),
+  unlink: (path) => fs.unlink(path),
+  mkdir: (path) => fs.mkdir(path, { recursive: true }).then(() => undefined)
 }
 
 const gitAdapter: ScriptGit = {
@@ -96,6 +101,34 @@ export const registerScriptHandlers = (): void => {
   )
 
   ipcMain.handle(
+    IPC.script.delete,
+    async (
+      e,
+      projectPath: string,
+      fileName: string
+    ): Promise<{ ok: boolean; error?: string; code?: string }> => {
+      try {
+        const args = parseIpcArgs('script:delete', ScriptDeleteSchema, { projectPath, fileName })
+        const r = await deleteScript(args.projectPath, args.fileName, {
+          fs: fsAdapter,
+          git: gitAdapter,
+          gitPrefs: getPreference('git')
+        })
+        if (r.ok !== true) return { ok: false, error: r.error.message, code: r.error.code }
+        broadcastScriptChanged(
+          { projectPath: args.projectPath, fileName: args.fileName, source: '' },
+          { excludeSenderId: e.sender.id }
+        )
+        return { ok: true }
+      } catch (err) {
+        const fail = ipcSchemaFailure(err)
+        if (fail.code === 'SCHEMA_FAILED') return fail
+        throw err
+      }
+    }
+  )
+
+  ipcMain.handle(
     IPC.script.parse,
     async (_e, source: string): Promise<Result<ScriptNode, ParseError[]>> => {
       try {
@@ -133,7 +166,7 @@ export const registerScriptHandlers = (): void => {
       const args = parseIpcArgs('script:parseProject', ScriptParseProjectSchema, { projectPath })
       const scriptsDir = scriptsDirAbs(args.projectPath)
       const { asts, failures } = await parseProjectScripts(scriptsDir, {
-        readdir: (p) => fs.readdir(p),
+        readdir: (p) => readDirRecursive(p),
         readFile: (p) => fs.readFile(p, 'utf-8')
       }, parseCache)
       const galFileCount = asts.length + failures.length
@@ -160,7 +193,7 @@ export const registerScriptHandlers = (): void => {
         query
       })
       const hits = await searchProjectScripts(scriptsDirAbs(args.projectPath), args.query, {
-        readdir: (p) => fs.readdir(p),
+        readdir: (p) => readDirRecursive(p),
         readFile: (p) => fs.readFile(p, 'utf-8')
       })
       return { ok: true as const, hits }

@@ -76,6 +76,8 @@ const api = {
       ipcRenderer.invoke(IPC.script.read, projectPath, fileName),
     write: (projectPath: string, fileName: string, content: string): Promise<{ ok: boolean; error?: string; code?: string }> =>
       ipcRenderer.invoke(IPC.script.write, projectPath, fileName, content),
+    delete: (projectPath: string, fileName: string): Promise<{ ok: boolean; error?: string; code?: string }> =>
+      ipcRenderer.invoke(IPC.script.delete, projectPath, fileName),
     parse: (source: string): Promise<Result<ScriptNode, ParseError[]>> =>
       ipcRenderer.invoke(IPC.script.parse, source),
     list: (projectPath: string): Promise<string[]> =>

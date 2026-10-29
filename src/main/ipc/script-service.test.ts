@@ -8,6 +8,7 @@ import {
   validateFileName,
   readScript,
   writeScript,
+  deleteScript,
   listScripts,
   type ScriptFs,
   type ScriptGit
@@ -23,10 +24,11 @@ const baseGitPrefs: GitPreferences = {
   initialCommitMessage: 'initial'
 }
 
-const makeFs = (overrides: Partial<ScriptFs> = {}): ScriptFs => ({
+const makeFs = (overrides: Partial<ScriptFs> = {}): ScriptFs & { unlink: (path: string) => Promise<void> } => ({
   readFile: async () => '',
   writeFile: async () => undefined,
   readDir: async () => [],
+  unlink: async () => undefined,
   ...overrides
 })
 
@@ -50,21 +52,25 @@ describe('validateFileName', () => {
     expect(validateFileName('ch_01-intro.gal')).toEqual({ ok: true, value: 'ch_01-intro.gal' })
   })
 
+  it('accepts nested subdirectories under scripts/', () => {
+    expect(validateFileName('subdir/file.gal')).toEqual({ ok: true, value: 'subdir/file.gal' })
+    expect(validateFileName('act1/part2/ch_01.gal')).toEqual({
+      ok: true,
+      value: 'act1/part2/ch_01.gal'
+    })
+  })
+
   it('rejects empty string', () => {
     const r = validateFileName('')
     expect(r.ok).toBe(false)
   })
 
-  it('rejects path traversal', () => {
-    const r = validateFileName('../etc/passwd.gal')
-    expect(r.ok).toBe(false)
-    if (r.ok !== true) expect(r.error.code).toBe('INVALID_FILENAME')
-  })
-
-  it('rejects subdirectory', () => {
-    const r = validateFileName('subdir/file.gal')
-    expect(r.ok).toBe(false)
-    if (r.ok !== true) expect(r.error.code).toBe('INVALID_FILENAME')
+  it('rejects path traversal and redundant scripts/ prefix', () => {
+    for (const bad of ['../etc/passwd.gal', 'act1/../evil.gal', 'scripts/ch1.gal', 'act1\\ch1.gal']) {
+      const r = validateFileName(bad)
+      expect(r.ok).toBe(false)
+      if (r.ok !== true) expect(r.error.code).toBe('INVALID_FILENAME')
+    }
   })
 
   it('rejects non-.gal extension', () => {
@@ -77,9 +83,10 @@ describe('validateFileName', () => {
     expect(r.ok).toBe(false)
   })
 
-  it('rejects leading dot (hidden file)', () => {
-    const r = validateFileName('.gitignore.gal')
-    expect(r.ok).toBe(false)
+  it('rejects leading dot (hidden file or hidden directory)', () => {
+    expect(validateFileName('.gitignore.gal').ok).toBe(false)
+    expect(validateFileName('act1/.hidden.gal').ok).toBe(false)
+    expect(validateFileName('.hidden/ch1.gal').ok).toBe(false)
   })
 })
 
@@ -135,6 +142,28 @@ describe('writeScript', () => {
     expect(git.calls).toHaveLength(1)
     expect(git.calls[0]?.files).toEqual(['scripts/a.gal'])
     expect(git.calls[0]?.msg).toBe('update: a.gal')
+  })
+
+  it('creates parent directory when writing nested subdirectory script', async () => {
+    const mkdirs: string[] = []
+    const written: string[] = []
+    const fs = makeFs({
+      mkdir: async (dir) => {
+        mkdirs.push(dir)
+      },
+      writeFile: async (path) => {
+        written.push(path)
+      }
+    })
+    const git = makeGit()
+    const r = await writeScript('/proj', 'act1/ch1.gal', '## s1\n', {
+      fs,
+      git,
+      gitPrefs: baseGitPrefs
+    })
+    expect(r.ok).toBe(true)
+    expect(mkdirs).toEqual(['/proj/scripts/act1'])
+    expect(written).toEqual(['/proj/scripts/act1/ch1.gal'])
   })
 
   it('writes file but skips commit when autoCommitOnSave=false', async () => {
@@ -203,13 +232,69 @@ describe('writeScript', () => {
   })
 })
 
-describe('listScripts', () => {
-  it('returns only top-level .gal files', async () => {
+describe('deleteScript', () => {
+  it('deletes file and commits when autoCommitOnSave=true', async () => {
+    const unlinked: string[] = []
     const fs = makeFs({
-      readDir: async () => ['a.gal', 'b.gal', 'README.md', 'sub']
+      unlink: async (path) => {
+        unlinked.push(path)
+      }
+    })
+    const git = makeGit()
+    const r = await deleteScript('/proj', 'act1/ch1.gal', {
+      fs,
+      git,
+      gitPrefs: { ...baseGitPrefs, autoCommitOnSave: true }
+    })
+    expect(r.ok).toBe(true)
+    expect(unlinked).toEqual(['/proj/scripts/act1/ch1.gal'])
+    expect(git.calls).toHaveLength(1)
+    expect(git.calls[0]?.files).toEqual(['scripts/act1/ch1.gal'])
+    expect(git.calls[0]?.msg).toBe('delete: act1/ch1.gal')
+  })
+
+  it('rejects path traversal without touching unlink', async () => {
+    let touched = false
+    const fs = makeFs({
+      unlink: async () => {
+        touched = true
+      }
+    })
+    const git = makeGit()
+    const r = await deleteScript('/proj', '../evil.gal', {
+      fs,
+      git,
+      gitPrefs: baseGitPrefs
+    })
+    expect(r.ok).toBe(false)
+    if (r.ok !== true) expect(r.error.code).toBe('INVALID_FILENAME')
+    expect(touched).toBe(false)
+  })
+
+  it('returns DELETE_FAILED when unlink throws', async () => {
+    const fs = makeFs({
+      unlink: async () => {
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' })
+      }
+    })
+    const git = makeGit()
+    const r = await deleteScript('/proj', 'a.gal', {
+      fs,
+      git,
+      gitPrefs: baseGitPrefs
+    })
+    expect(r.ok).toBe(false)
+    if (r.ok !== true) expect(r.error.code).toBe('DELETE_FAILED')
+  })
+})
+
+describe('listScripts', () => {
+  it('returns flat and nested .gal files sorted and normalized', async () => {
+    const fs = makeFs({
+      readDir: async () => ['b.gal', 'act1\\ch1.gal', 'a.gal', 'README.md', 'sub']
     })
     const r = await listScripts('/proj', { fs })
-    expect(r).toEqual({ ok: true, value: ['a.gal', 'b.gal'] })
+    expect(r).toEqual({ ok: true, value: ['a.gal', 'act1/ch1.gal', 'b.gal'] })
   })
 
   it('returns empty array when scripts/ does not exist', async () => {

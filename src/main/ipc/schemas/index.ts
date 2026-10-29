@@ -174,7 +174,10 @@ export const AiKeyProviderSchema = z.object({
 export const ScriptFileNameSchema = z
   .string()
   .min(1)
-  .regex(/^[A-Za-z0-9_-]+\.gal$/, 'fileName must match [A-Za-z0-9_-]+.gal')
+  .regex(
+    /^(?!scripts\/)(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_-]+\.gal$/,
+    'fileName must match ([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+.gal'
+  )
 
 export const ScriptReadSchema = z.object({
   projectPath: z.string().min(1),
@@ -185,6 +188,11 @@ export const ScriptWriteSchema = z.object({
   projectPath: z.string().min(1),
   fileName: ScriptFileNameSchema,
   content: z.string()
+})
+
+export const ScriptDeleteSchema = z.object({
+  projectPath: z.string().min(1),
+  fileName: ScriptFileNameSchema
 })
 
 export const ScriptListSchema = z.object({

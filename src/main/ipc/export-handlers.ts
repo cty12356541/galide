@@ -4,6 +4,7 @@ import { IPC } from '../../shared/ipc-channels.js'
 import type { ExportProgress, ExportRequest } from '../../shared/types.js'
 import { runExportJob } from '../export/run-export-job.js'
 import { ExportCancelSchema, ExportRequestSchema, ipcSchemaFailure, parseIpcArgs } from './schemas/index.js'
+import { readDirRecursive } from '../fs-readdir-recursive.js'
 
 /**
  * 规约: layers/main-process/conventions.yaml:34-37
@@ -36,7 +37,7 @@ export const registerExportHandlers = (): void => {
         }
         const result = await runExportJob(validated, {
           fs: {
-            readdir: (p) => fs.readdir(p),
+            readdir: (p) => readDirRecursive(p),
             readFile: (p) => fs.readFile(p, 'utf-8'),
             mkdir: (p, o) => fs.mkdir(p, o).then(() => undefined)
           },

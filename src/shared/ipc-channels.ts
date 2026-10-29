@@ -24,6 +24,7 @@ export const IPC = {
     replaceRollback: 'script:replaceRollback',
     read: 'script:read',
     write: 'script:write',
+    delete: 'script:delete',
     list: 'script:list',
     /** P0b: 脚本写盘后广播给所有窗口(跨窗口真相源同步) */
     changed: 'script:changed'

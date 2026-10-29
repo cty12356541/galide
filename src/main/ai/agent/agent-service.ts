@@ -28,6 +28,7 @@ import {
 } from '../../ipc/brain-broadcast.js'
 import { formatParseFailures, parseProjectScripts } from '../../export/parse-project-scripts.js'
 import { mergeScriptAsts } from '../../../shared/dsl/merge-scripts.js'
+import { readDirRecursive, writeFileEnsureDir } from '../../fs-readdir-recursive.js'
 import type { AiProvider } from '../types.js'
 import type { ToolDispatch } from './types.js'
 
@@ -192,7 +193,7 @@ const drain = async (): Promise<void> => {
        {
          fs: {
            readFile: (p) => fs.readFile(p, 'utf-8'),
-           readdir: (p) => fs.readdir(p)
+           readdir: (p) => readDirRecursive(p)
          },
          git: {
            diff: (pp) => gitService.diff(pp, '')
@@ -226,11 +227,11 @@ const drain = async (): Promise<void> => {
           writeFile: createBrainBroadcastingWriteFile(
             () => runtime.getProjectPath(),
             createBroadcastingWriteFile(() => runtime.getProjectPath(), (p, c) =>
-              fs.writeFile(p, c, 'utf-8')
+              writeFileEnsureDir(p, c)
             ),
             createBrainNotifier(item.sender)
           ),
-          readdir: (p: string) => fs.readdir(p)
+          readdir: (p: string) => readDirRecursive(p)
         },
         dispatch: createDispatch(item.sender),
         onProjectOpened: async (payload) => {
@@ -265,7 +266,7 @@ const drain = async (): Promise<void> => {
           loadScriptAst: async () => {
             // 全项目 merged AST:跨文件跳转对可达性 critic 可见
             const projectFs = {
-              readdir: (p: string) => fs.readdir(p),
+              readdir: (p: string) => readDirRecursive(p),
               readFile: (p: string) => fs.readFile(p, 'utf-8')
             }
             const { asts } = await parseProjectScripts(
@@ -276,7 +277,7 @@ const drain = async (): Promise<void> => {
           },
           loadParseFailures: async () => {
             const projectFs = {
-              readdir: (p: string) => fs.readdir(p),
+              readdir: (p: string) => readDirRecursive(p),
               readFile: (p: string) => fs.readFile(p, 'utf-8')
             }
             const { failures } = await parseProjectScripts(
