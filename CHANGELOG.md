@@ -4,6 +4,22 @@ Galide 的版本变更日志。遵循 [Keep a Changelog](https://keepachangelog.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-29
+
+### 新增 — VM 领域调试器、文件树嵌套删除、面板拖拽停靠与基准套件
+
+- **VM 领域调试器(Phase 2)** — `src/shared/preview/vm-debugger.ts` 新增零默认开销的 `createVmDebugger` 原语(marker 断点表、`getVariables` 变量快照、`watch` 变更订阅、`enter/step/continue`);预览区集成 `PreviewDebugBar`(继续 / 单步 / 停止 + 断点命中横幅)、`PreviewDebugPanel`(自定义变量监视 + 全变量折叠表 + 900ms 变更闪变高亮)以及 `SceneRail` / `OutlinePanel` marker 断点红点(持久化至 `localStorage`)
+- **剧本文件树子目录嵌套 + 删除启用 + Radix ContextMenu(Phase 1)** — `ScriptFileTree` 支持 `scripts/` 多级子目录折叠树形渲染;打通 `script:delete` IPC + Zod Schema + Preload + `useScript` 全链路并接入 `useConfirmDialog` 危险确认(移除全部“暂未启用”死胡同);封装 `@radix-ui/react-context-menu` 替换手搓右键菜单,补齐键盘导航、焦点管理与视口防溢出
+- **原生 HTML5 面板拖拽停靠(Phase 3)** — 零第三方重依赖实现 `SideToolWindow` 与 `PanelHeader` 原生拖拽,`DockDropOverlay` 提供左 / 右 / 底 / 独立浮出四槽高亮热区并与 `DockedLocationMenu` 共用单一 `migrateToolWindowLocation` 状态迁移入口;双向拦截编辑器核心大陆与工具槽之间的非法投放并统一执行 `MAX_FLOATING_PANELS = 5` 浮出上限
+- **确定性性能基准套件与回归报告(Phase 0 / Phase 2)** — 新增 `scripts/bench/run.mjs`(`pnpm bench`),覆盖万行 `.gal` 解析、VM 1000 步推进、Web 导出、10×1000 行合并 AST 四个纯 Node 可重复基准;产出 `.omo/bench/baseline.json` 与 `.omo/bench/after-debugger.json`,实测引入调试器后 `vmAdvance1000Steps` p50 `0.168ms → 0.166ms`(-1.19%,零热路径退化)
+- **架构决策与扩展 API 规范(Phase 0 / Phase 4)** — 新增 `docs/decisions/i18n.md`(确立 `.gal` DSL 永久中文与 UI 按客观证据触发的二阶段 i18n 策略)与 `docs/extension-api.md`(盘点全部 37 个内建 Agent 工具,冻结 `ExtensionToolDefinition` / `ScopedProjectFs` / 外部扩展信任钳制 / 宿主保留平台命令闸门与端到端示例)
+
+### 修复
+
+- **命令面板 `goToFile` 切模式保持开启(Phase 0)** — 修复在命令面板内选择「跳转到文件」时误触发 `dispatch-then-close` 直接关闭面板的问题
+- **主进程浮出白名单补齐 `brain`(Phase 3)** — `workspace-handlers.ts` 的 `FLOATABLE_PANEL_IDS` 补齐 `'brain'`,与渲染端 `panel-registry.ts` 完全对齐
+- **跨平台测试与仓库卫生** — `.gitignore` 排除 `.pnpm-store/`;修复 `tts-proxy.test.ts` 在 Linux CI `/tmp` 环境下的 `os.tmpdir()` 前缀冲突断言
+
 ### 新增 — Agent 智能度修复(规划→执行→审查→修复闭环)
 
 - **Agent 编排拓扑(DAG)** — 设计文档见 `docs/agent-architecture.md`;运行时入口为 `src/main/ai/agent/topology.ts`;fan-in、fan-out、双轨 Critic、有预算 retry 边

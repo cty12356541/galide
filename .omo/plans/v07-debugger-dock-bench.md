@@ -111,9 +111,9 @@
 
 ## 完成定义(全局 DoD)
 
-- [ ] 四门禁全绿,阶段提交链清晰
-- [ ] 基准 baseline.json + after-debugger.json 存在,VM 退化 ≤20%
-- [ ] 面板内 goToFile 行为正确;文件树嵌套+删除可用;ContextMenu 键盘可达
-- [ ] VM 断点/变量监视测试齐备;调试 UI 符合 visual-tokens
-- [ ] 拖拽停靠双通道(拖拽+菜单)一致语义,非法 drop 被拒
-- [ ] docs/decisions/i18n.md 与 docs/extension-api.md 落地
+- [x] 四门禁全绿,阶段提交链清晰
+- [x] 基准 baseline.json + after-debugger.json 存在,VM 退化 ≤20%
+- [x] 面板内 goToFile 行为正确;文件树嵌套+删除可用;ContextMenu 键盘可达
+- [x] VM 断点/变量监视测试齐备;调试 UI 符合 visual-tokens
+- [x] 拖拽停靠双通道(拖拽+菜单)一致语义,非法 drop 被拒
+- [x] docs/decisions/i18n.md 与 docs/extension-api.md 落地
