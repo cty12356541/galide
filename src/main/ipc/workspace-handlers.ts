@@ -119,6 +119,7 @@ const FLOATABLE_PANEL_IDS = new Set<string>([
   'character',
   'ai',
   'search',
+  'brain',
   'scripts',
   'assets',
   'profiles',

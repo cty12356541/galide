@@ -497,6 +497,7 @@ export const PreviewCanvas = (): JSX.Element => {
         title="预览"
         icon={Play}
         size="lg"
+        draggablePanelId="preview-canvas"
         actions={
           <div className="flex items-center gap-2">
             {sceneId ? <span className="text-[12px] font-mono text-text-muted">{sceneId}</span> : null}

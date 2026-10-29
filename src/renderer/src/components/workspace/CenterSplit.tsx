@@ -12,6 +12,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useUiStore } from '../../lib/store'
 import { SideToolWindow } from './SideToolWindow'
 import { EditorCore } from './EditorCore'
+import { DockDropOverlay } from './DockDropOverlay'
 import { DEFAULT_CENTER_SPLIT } from '../../lib/workspace-presets'
 import { isToolWindowId, type ToolWindowId } from './panels/panel-registry'
 
@@ -101,31 +102,35 @@ export const CenterSplit = (): JSX.Element => {
   // 有底部槽:垂直 [中区行 | 底部]
   if (showBottom) {
     return (
-      <PanelGroup direction="vertical" autoSaveId="galide-center-bottom.v2" className="flex-1 min-h-0 gap-3">
-        <Panel defaultSize={DEFAULT_CENTER_SPLIT.bottomMain} minSize={30}>
-          <CenterRow
-            showLeft={showLeft}
-            showRight={showRight}
-            leftContent={leftContent}
-            rightContent={rightContent}
-          />
-        </Panel>
-        <PanelResizeHandle className="h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1" />
-        <Panel defaultSize={DEFAULT_CENTER_SPLIT.bottomPanel} minSize={15} maxSize={60} collapsible>
-          {renderSlot(bottomContent)}
-        </Panel>
-      </PanelGroup>
+      <div className="relative flex-1 min-h-0 flex flex-col" data-testid="center-split">
+        <PanelGroup direction="vertical" autoSaveId="galide-center-bottom.v2" className="flex-1 min-h-0 gap-3">
+          <Panel defaultSize={DEFAULT_CENTER_SPLIT.bottomMain} minSize={30}>
+            <CenterRow
+              showLeft={showLeft}
+              showRight={showRight}
+              leftContent={leftContent}
+              rightContent={rightContent}
+            />
+          </Panel>
+          <PanelResizeHandle className="h-1.5 rounded-full bg-border hover:bg-accent transition-colors mx-1" />
+          <Panel defaultSize={DEFAULT_CENTER_SPLIT.bottomPanel} minSize={15} maxSize={60} collapsible>
+            {renderSlot(bottomContent)}
+          </Panel>
+        </PanelGroup>
+        <DockDropOverlay />
+      </div>
     )
   }
 
   return (
-    <div className="flex-1 min-h-0">
+    <div className="relative flex-1 min-h-0" data-testid="center-split">
       <CenterRow
         showLeft={showLeft}
         showRight={showRight}
         leftContent={leftContent}
         rightContent={rightContent}
       />
+      <DockDropOverlay />
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '../ui/tabs'
 import { BeatCardEditor } from '../../features/beat-editor/BeatCardEditor'
 import { ScriptEditor } from '../../features/script-editor/ScriptEditor'
 import { useUiStore } from '../../lib/store'
+import { panelDndStore, writePanelDragData } from './panel-dnd'
 
 export const EditorSurfaceTabs = (): JSX.Element => {
   const editorSurface = useUiStore((s) => s.editorSurface)
@@ -26,7 +27,19 @@ export const EditorSurfaceTabs = (): JSX.Element => {
 
   return (
     <div className="h-full flex flex-col bg-surface overflow-hidden rounded-xl" data-testid="editor-surface-tabs">
-      <div className="h-9 flex items-center justify-between px-2 border-b border-border bg-bg-elevated flex-shrink-0">
+      <div
+        draggable
+        onDragStart={(e) => {
+          writePanelDragData(e.dataTransfer, 'script-editor')
+          panelDndStore.getState().startDrag('script-editor')
+        }}
+        onDragEnd={() => {
+          panelDndStore.getState().endDrag()
+        }}
+        data-testid="editor-surface-header"
+        data-draggable-panel="script-editor"
+        className="h-9 flex items-center justify-between px-2 border-b border-border bg-bg-elevated flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
+      >
         <Tabs value={editorSurface} onValueChange={handleSurfaceChange}>
           <TabsList className="h-8 bg-bg p-0.5">
             <TabsTrigger value="cards" className="h-7 px-2.5 text-[12px] gap-1.5" data-testid="surface-tab-cards">

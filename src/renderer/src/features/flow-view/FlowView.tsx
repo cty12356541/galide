@@ -155,6 +155,7 @@ const FlowView = (): JSX.Element => {
         title="剧情决策树"
         icon={GitBranch}
         size="lg"
+        draggablePanelId="flow-view"
         actions={
           <>
             <span className="text-[11px] text-text-muted">

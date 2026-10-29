@@ -1,9 +1,8 @@
 /**
  * DockedLocationMenu — 通用 dock 移动菜单(功能即岛 v3)
  *
- * 从 AiToolWindow 提取为通用件:任意主岛 header 复用。
- * 选项:左侧 / 右侧 / 底部 / 浮出。选侧 = setDockSide + showToolWindow;
- * 选浮出 = usePanelFloat(toolWindowId)。
+ * 与 HTML5 拖拽停靠共用 migrateToolWindowLocation(双通道一致语义):
+ * 选项:左侧 / 右侧 / 底部 / 浮出。
  */
 import { useState } from 'react'
 import { MoveRight, MoveDown, MoveLeft, AppWindow } from 'lucide-react'
@@ -11,6 +10,7 @@ import { useUiStore } from '../../lib/store'
 import { usePanelFloat } from '../../lib/hooks/use-panel-float'
 import { cn } from '../../lib/utils'
 import type { ToolWindowId, DockSide } from './panels/panel-registry'
+import { migrateToolWindowLocation } from './panel-dnd'
 
 export const DockedLocationMenu = ({
   toolWindowId
@@ -19,8 +19,6 @@ export const DockedLocationMenu = ({
 }): JSX.Element => {
   const [open, setOpen] = useState(false)
   const dockSide = useUiStore((s) => s.dockSide[toolWindowId])
-  const setDockSide = useUiStore((s) => s.setDockSide)
-  const showToolWindow = useUiStore((s) => s.showToolWindow)
   const float = usePanelFloat()
 
   const opts: { id: DockSide | 'floating'; label: string; icon: typeof MoveRight }[] = [
@@ -31,12 +29,7 @@ export const DockedLocationMenu = ({
   ]
 
   const choose = (id: DockSide | 'floating'): void => {
-    if (id === 'floating') {
-      float(toolWindowId)
-    } else {
-      setDockSide(toolWindowId, id)
-      showToolWindow(toolWindowId)
-    }
+    migrateToolWindowLocation(toolWindowId, id, float)
     setOpen(false)
   }
 

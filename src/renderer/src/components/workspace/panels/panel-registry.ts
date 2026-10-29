@@ -193,6 +193,9 @@ export const isFloatableSubIsland = (id: string): boolean => {
 
 // =================== 浮出内容分发 ===================
 
+/** 同时浮出独立窗口的最大上限(与 main 端 workspace-handlers MAX_FLOATING 保持一致) */
+export const MAX_FLOATING_PANELS = 5
+
 /** 可浮出的 id 全集(主岛 + 多子岛子岛 + 编辑器大陆) */
 export const FLOATABLE_IDS: readonly string[] = [
   ...EDITOR_DOCS,
