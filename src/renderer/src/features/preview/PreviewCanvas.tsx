@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Play, Box } from 'lucide-react'
+import { Play, Box, Bug } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { useUiStore, useErrorStore } from '../../lib/store'
 import { useShallow } from 'zustand/react/shallow'
@@ -7,18 +7,20 @@ import { useAsset } from '../../lib/ipc/use-asset'
 import type { SceneNode } from '../../../../shared/dsl/types'
 import type { PlaybackStep } from '../../../../shared/preview/playback-timeline'
 import {
-  advanceVm,
   buildVmGraph,
   buildBacklog,
+  createVmDebugger,
   createVmState,
   dialogueLineId,
-  executeGotoStep,
   getCurrentStep,
   getCurrentScene,
+  getVariables,
   isRead,
   jumpToTarget,
   markRead,
   stepBack,
+  type VmBreakpointHit,
+  type VmDebugger,
   type VmGraph,
   type VmState,
   type VmReadState
@@ -41,6 +43,10 @@ import { usePreviewSkipRead } from './usePreviewSkipRead'
 import { PreviewBacklogPanel } from './PreviewBacklogPanel'
 import { PreviewSlotBar } from './PreviewSlotBar'
 import { PreviewPlaybackBar } from './PreviewPlaybackBar'
+import { PreviewDebugBar } from './PreviewDebugBar'
+import { PreviewDebugPanel } from './PreviewDebugPanel'
+import { useDebugStore } from './debug-store'
+import { cn } from '../../lib/utils'
 
 const resolveAssetUrl = async (
   resolveAsync: (projectPath: string, relPath: string) => Promise<{ ok: boolean; dataUrl?: string }>,
@@ -53,7 +59,15 @@ const resolveAssetUrl = async (
 }
 
 export const PreviewCanvas = (): JSX.Element => {
-  const { scriptAst, projectMergedAst, projectParseError, manifest, selectedSceneId, projectPath, resolvedShortcuts } = useUiStore(
+  const {
+    scriptAst,
+    projectMergedAst,
+    projectParseError,
+    manifest,
+    selectedSceneId,
+    projectPath,
+    resolvedShortcuts
+  } = useUiStore(
     useShallow((s) => ({
       scriptAst: s.scriptAst,
       projectMergedAst: s.projectMergedAst,
@@ -61,11 +75,10 @@ export const PreviewCanvas = (): JSX.Element => {
       manifest: s.manifest,
       selectedSceneId: s.selectedSceneId,
       projectPath: s.projectPath,
-      resolvedShortcuts: s.resolvedShortcuts,
+      resolvedShortcuts: s.resolvedShortcuts
     }))
   )
   const viewAst = projectMergedAst ?? scriptAst
-  // 空场景提示的 ⌘N 展示标签:与菜单/工具条同一消费模式(注册表派生,不硬编码字形)
   const newScriptFileHint = acceleratorLabel(
     resolvedShortcuts['newScriptFile'] ?? effectiveShortcut('newScriptFile', undefined)
   )
@@ -75,14 +88,56 @@ export const PreviewCanvas = (): JSX.Element => {
   const voicePrefsQuery = usePreference('voice')
   const voiceApi = useVoice()
   const pushError = useErrorStore((s) => s.push)
-  const previewTtsEnabled = (voicePrefsQuery.data as { previewEnabled?: boolean } | null | undefined)?.previewEnabled === true
+  const previewTtsEnabled =
+    (voicePrefsQuery.data as { previewEnabled?: boolean } | null | undefined)?.previewEnabled ===
+    true
+
+  const breakpoints = useDebugStore((s) => s.breakpoints)
+  const debugPanelOpen = useDebugStore((s) => s.panelOpen)
+  const setDebugPanelOpen = useDebugStore((s) => s.setPanelOpen)
+  const toggleDebugPanelOpen = useDebugStore((s) => s.togglePanelOpen)
 
   const [saveNote, setSaveNote] = useState<string | null>(null)
   const [backlogOpen, setBacklogOpen] = useState(false)
   const [vmState, setVmState] = useState<VmState | null>(null)
+  const [pausedAt, setPausedAt] = useState<VmBreakpointHit | null>(null)
+  const [changedKeys, setChangedKeys] = useState<Set<string>>(() => new Set())
   const [runtimeState, setRuntimeState] = useState<PreviewState>('idle')
   const [unsupportedNote, setUnsupportedNote] = useState<string | null>(null)
   const [slots, setSlots] = useState<PreviewSlotInfo[]>([])
+
+  const vmDebuggerRef = useRef<VmDebugger | null>(null)
+  if (!vmDebuggerRef.current) {
+    vmDebuggerRef.current = createVmDebugger({ breakpoints })
+  }
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // 同步断点表至 VM 调试器
+  useEffect(() => {
+    vmDebuggerRef.current?.setBreakpoints(breakpoints)
+    if (pausedAt && !breakpoints.includes(pausedAt.markerId)) {
+      vmDebuggerRef.current?.clearPause()
+      setPausedAt(null)
+    }
+  }, [breakpoints, pausedAt])
+
+  // 订阅变量 watch 回调:变更时触发闪变高亮
+  useEffect(() => {
+    const dbg = vmDebuggerRef.current
+    if (!dbg) return
+    const unsub = dbg.watch((_vars, changes) => {
+      if (changes.length === 0) return
+      setChangedKeys(new Set(changes.map((c) => c.key)))
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+      flashTimerRef.current = setTimeout(() => {
+        setChangedKeys(new Set())
+      }, 900)
+    })
+    return () => {
+      unsub()
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    }
+  }, [])
 
   const { audioRef, voiceRef, muted, setMuted, volume, setVolume } = usePreviewAudio()
   const { readState: loadedReadState, saveReadState } = usePreviewRead(projectPath)
@@ -119,11 +174,23 @@ export const PreviewCanvas = (): JSX.Element => {
     return getCurrentStep(vmGraph, vmState)
   }, [vmGraph, vmState])
 
+  const variablesSnapshot = useMemo<Record<string, unknown>>(
+    () => (vmState ? getVariables(vmState) : {}),
+    [vmState]
+  )
+
   useEffect(() => {
     if (!vmGraph || !scene?.id) return
-    setVmState(createVmState(vmGraph, scene.id))
-    setUnsupportedNote(null)
-  }, [vmGraph, scene?.id])
+    const dbg = vmDebuggerRef.current
+    if (!dbg) return
+    const entered = dbg.enter(vmGraph, createVmState(vmGraph, scene.id))
+    setVmState(entered.state)
+    setPausedAt(entered.pausedAt)
+    if (entered.pausedAt) {
+      setDebugPanelOpen(true)
+    }
+    setUnsupportedNote(entered.ok ? null : entered.error)
+  }, [vmGraph, scene?.id, setDebugPanelOpen])
 
   usePreviewRuntime({
     canvasRef,
@@ -135,8 +202,8 @@ export const PreviewCanvas = (): JSX.Element => {
     projectPath,
     resolveAsync,
     voiceApi: {
-      generate: async (projectPath, lineId, text, characterId) => {
-        const result = await voiceApi.generate(projectPath, lineId, text, characterId)
+      generate: async (projPath, lineId, text, characterId) => {
+        const result = await voiceApi.generate(projPath, lineId, text, characterId)
         return result ?? { ok: false, error: 'Voice API returned undefined' }
       }
     },
@@ -178,13 +245,6 @@ export const PreviewCanvas = (): JSX.Element => {
     void voiceRef.current?.playDialogue(lineId, currentStep.text, characterId)
   }, [currentStep, previewTtsEnabled, vmState, sceneId, resolveCharacterId, voiceRef])
 
-  useEffect(() => {
-    if ((currentStep?.type !== 'set' && currentStep?.type !== 'stage') || !vmGraph || !vmState)
-      return
-    const result = advanceVm(vmGraph, vmState)
-    if (result.ok) setVmState(result.state)
-  }, [currentStep, vmGraph, vmState])
-
   // 已读标记:对白展示即记为已读并持久化(全局,跨存档槽)
   useEffect(() => {
     if (currentStep?.type !== 'dialogue' || !sceneId) return
@@ -195,39 +255,60 @@ export const PreviewCanvas = (): JSX.Element => {
     void saveReadState(next)
   }, [currentStep, sceneId, readState, saveReadState])
 
-  const advance = useCallback((): void => {
-    if (!vmGraph || !vmState) return
-    const step = getCurrentStep(vmGraph, vmState)
-    if (step?.type === 'goto') {
-      const jumped = executeGotoStep(vmGraph, vmState, step)
-      if (jumped.ok) {
-        setVmState(jumped.state)
-        setUnsupportedNote(null)
-      } else if (jumped.ok === false) {
-        setUnsupportedNote(jumped.error)
+  const applyDebugResult = useCallback(
+    (res: ReturnType<VmDebugger['step']>): void => {
+      setVmState(res.state)
+      setPausedAt(res.pausedAt)
+      if (res.state.sceneId && res.state.sceneId !== selectedSceneId) {
+        setSelectedSceneId(res.state.sceneId)
       }
-      return
-    }
-    const result = advanceVm(vmGraph, vmState)
-    if (result.ok) {
-      // finished 也更新:最后一步点完显示"场景播放完毕",而非卡在最后一帧
-      setVmState(result.state)
-    }
-  }, [vmGraph, vmState])
+      if (res.pausedAt) {
+        setDebugPanelOpen(true)
+      }
+      setUnsupportedNote(res.ok ? null : res.error)
+    },
+    [selectedSceneId, setSelectedSceneId, setDebugPanelOpen]
+  )
+
+  const advance = useCallback((): void => {
+    if (!vmGraph || !vmState || !vmDebuggerRef.current) return
+    const res = vmDebuggerRef.current.step(vmGraph, vmState)
+    applyDebugResult(res)
+  }, [vmGraph, vmState, applyDebugResult])
+
+  const handleDebugContinue = useCallback((): void => {
+    if (!vmGraph || !vmState || !vmDebuggerRef.current) return
+    const res = vmDebuggerRef.current.continue(vmGraph, vmState)
+    applyDebugResult(res)
+  }, [vmGraph, vmState, applyDebugResult])
+
+  const handleDebugStep = useCallback((): void => {
+    if (!vmGraph || !vmState || !vmDebuggerRef.current) return
+    const res = vmDebuggerRef.current.step(vmGraph, vmState)
+    applyDebugResult(res)
+  }, [vmGraph, vmState, applyDebugResult])
+
+  const handleDebugStop = useCallback((): void => {
+    if (!vmGraph || !scene?.id || !vmDebuggerRef.current) return
+    vmDebuggerRef.current.clearPause()
+    const entered = vmDebuggerRef.current.enter(vmGraph, createVmState(vmGraph, scene.id))
+    setVmState(entered.state)
+    setPausedAt(entered.pausedAt)
+    setUnsupportedNote(entered.ok ? null : entered.error)
+  }, [vmGraph, scene?.id])
 
   const jump = useCallback(
     (target: string): void => {
-      if (!vmGraph || !vmState) return
+      if (!vmGraph || !vmState || !vmDebuggerRef.current) return
       const jumped = jumpToTarget(vmGraph, vmState, target)
       if (jumped.ok) {
-        setVmState(jumped.state)
-        setSelectedSceneId(jumped.state.sceneId)
-        setUnsupportedNote(null)
+        const entered = vmDebuggerRef.current.enter(vmGraph, jumped.state)
+        applyDebugResult(entered)
       } else if (jumped.ok === false) {
         setUnsupportedNote(jumped.error)
       }
     },
-    [vmGraph, vmState, setSelectedSceneId]
+    [vmGraph, vmState, applyDebugResult]
   )
 
   const togglePlay = (): void => {
@@ -264,6 +345,8 @@ export const PreviewCanvas = (): JSX.Element => {
     async (slot: number): Promise<void> => {
       const r = await loadSlot(slot)
       if (r.ok && r.state) {
+        vmDebuggerRef.current?.clearPause()
+        setPausedAt(null)
         setVmState(r.state)
         setSelectedSceneId(r.state.sceneId)
         setUnsupportedNote(null)
@@ -281,6 +364,8 @@ export const PreviewCanvas = (): JSX.Element => {
     if (!vmState) return
     const restored = stepBack(vmState)
     if (restored === vmState) return
+    vmDebuggerRef.current?.clearPause()
+    setPausedAt(null)
     setVmState(restored)
     setSelectedSceneId(restored.sceneId)
     setUnsupportedNote(null)
@@ -291,16 +376,25 @@ export const PreviewCanvas = (): JSX.Element => {
     void refreshSlots()
   }, [projectPath, refreshSlots])
 
+  const effectiveAutoStep = pausedAt ? null : currentStep
   const { autoPlay, setAutoPlay, canAutoPlay, speedIndex, cycleSpeed } = usePreviewAutoPlay({
     advance,
-    currentStep
+    currentStep: effectiveAutoStep
   })
   const { skipRead, setSkipRead } = usePreviewSkipRead({
     advance,
-    currentStep,
+    currentStep: effectiveAutoStep,
     readState,
     sceneId
   })
+
+  // 命中断点时立即中断自动播放与快进跳过
+  useEffect(() => {
+    if (!pausedAt) return
+    if (autoPlay) setAutoPlay(false)
+    if (skipRead) setSkipRead(false)
+  }, [pausedAt, autoPlay, skipRead, setAutoPlay, setSkipRead])
+
   const backlogEntries = useMemo(
     () => (vmGraph && vmState ? buildBacklog(vmGraph, vmState) : []),
     [vmGraph, vmState]
@@ -312,6 +406,9 @@ export const PreviewCanvas = (): JSX.Element => {
   useEffect(() => {
     if (autoPlay && skipRead) setSkipRead(false)
   }, [autoPlay, skipRead, setSkipRead])
+
+  const showDebugBar =
+    !sceneEmpty && (debugPanelOpen || breakpoints.length > 0 || pausedAt !== null)
 
   const renderStepOverlay = (): JSX.Element | null => {
     if (!currentStep) {
@@ -332,7 +429,9 @@ export const PreviewCanvas = (): JSX.Element => {
             onClick={advance}
             className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md p-3 rounded-xl cursor-pointer z-10"
           >
-            <div className="text-accent-soft text-[13px] font-medium mb-1">{currentStep.character}</div>
+            <div className="text-accent-soft text-[13px] font-medium mb-1">
+              {currentStep.character}
+            </div>
             <div className="text-white text-sm leading-relaxed">{currentStep.text}</div>
           </motion.div>
         )
@@ -363,9 +462,13 @@ export const PreviewCanvas = (): JSX.Element => {
             onClick={advance}
             className="absolute bottom-3 left-3 right-3 bg-amber-900/60 backdrop-blur-md p-3 rounded-xl cursor-pointer z-10 border border-amber-500/30"
           >
-            <div className="text-amber-200 text-[11px] font-mono uppercase tracking-wide mb-1">标记点</div>
+            <div className="text-amber-200 text-[11px] font-mono uppercase tracking-wide mb-1">
+              标记点
+            </div>
             <div className="text-white text-sm font-mono">{currentStep.id}</div>
-            <div className="text-amber-200/70 text-[11px] mt-1">点击继续</div>
+            <div className="text-amber-200/70 text-[11px] mt-1">
+              {pausedAt ? '断点已暂停 · 点击继续或单步' : '点击继续'}
+            </div>
           </motion.div>
         )
       case 'goto':
@@ -376,7 +479,9 @@ export const PreviewCanvas = (): JSX.Element => {
             onClick={advance}
             className="absolute bottom-3 left-3 right-3 bg-violet-900/60 backdrop-blur-md p-3 rounded-xl cursor-pointer z-10 border border-violet-500/30"
           >
-            <div className="text-violet-200 text-[11px] font-mono uppercase tracking-wide mb-1">跳转</div>
+            <div className="text-violet-200 text-[11px] font-mono uppercase tracking-wide mb-1">
+              跳转
+            </div>
             <div className="text-white text-sm font-mono">→ {currentStep.target}</div>
             <div className="text-violet-200/70 text-[11px] mt-1">点击执行跳转</div>
           </motion.div>
@@ -387,77 +492,130 @@ export const PreviewCanvas = (): JSX.Element => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-bg">
+    <div className="h-full flex flex-col bg-bg min-h-0">
       <PanelHeader
         title="预览"
         icon={Play}
         size="lg"
-        actions={sceneId ? <span className="text-[12px] font-mono text-text-muted">{sceneId}</span> : null}
+        actions={
+          <div className="flex items-center gap-2">
+            {sceneId ? <span className="text-[12px] font-mono text-text-muted">{sceneId}</span> : null}
+            <button
+              type="button"
+              onClick={toggleDebugPanelOpen}
+              aria-pressed={debugPanelOpen}
+              data-testid="preview-debug-toggle"
+              title="切换调试器与变量监视面板"
+              className={cn(
+                'h-7 px-2 rounded-md border text-[12px] flex items-center gap-1 transition-colors',
+                debugPanelOpen || pausedAt
+                  ? 'bg-accent-soft border-accent/40 text-accent font-medium'
+                  : 'bg-surface border-border text-text-muted hover:text-text hover:bg-bg-elevated'
+              )}
+            >
+              <Bug className="w-3.5 h-3.5" />
+              <span>调试</span>
+              {breakpoints.length > 0 ? (
+                <span className="px-1 rounded bg-danger-soft text-danger font-mono text-[10px]">
+                  {breakpoints.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        }
       />
       {projectParseError ? (
         <ProjectParseErrorBanner error={projectParseError} testId="preview-parse-error-banner" />
       ) : null}
+      {showDebugBar ? (
+        <PreviewDebugBar
+          pausedAt={pausedAt}
+          breakpointCount={breakpoints.length}
+          canContinue={currentStep !== null && currentStep.type !== 'choice'}
+          canStep={currentStep !== null && currentStep.type !== 'choice'}
+          onContinue={handleDebugContinue}
+          onStep={handleDebugStep}
+          onStop={handleDebugStop}
+        />
+      ) : null}
       {sceneEmpty ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-canvas gap-3 text-text-muted" data-testid="preview-empty">
+        <div
+          className="flex-1 flex flex-col items-center justify-center bg-canvas gap-3 text-text-muted"
+          data-testid="preview-empty"
+        >
           <Box className="w-16 h-16 opacity-20" />
           <div className="text-sm font-medium text-text">暂无场景</div>
           <div className="text-xs text-text-muted">在编辑器中写 [scene ...] 块</div>
           <div className="text-[11px] text-text-muted opacity-70 mt-1">
             或按{' '}
-            <kbd className="px-1.5 py-0.5 bg-bg-elevated border border-border rounded text-[10px] font-mono">{newScriptFileHint}</kbd>{' '}
+            <kbd className="px-1.5 py-0.5 bg-bg-elevated border border-border rounded text-[10px] font-mono">
+              {newScriptFileHint}
+            </kbd>{' '}
             新建脚本文件
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-[640px] aspect-video rounded-xl overflow-hidden shadow-md bg-gradient-to-br from-bg-elevated to-bg border border-border">
-            <SpriteLayer
-              canvasRef={canvasRef}
-              runtimeRef={runtimeRef}
-              vmGraph={vmGraph}
-              vmState={vmState}
-              viewAst={viewAst}
-              projectPath={projectPath}
-              resolveAsync={resolveAsync}
-            />
-            <div className="absolute top-3 left-3 px-2 py-0.5 bg-surface/80 backdrop-blur rounded-md text-[11px] font-mono text-text-muted z-10 border border-border">
-              {sceneId ?? '—'}
-            </div>
-            <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
-              <PreviewSlotBar slots={slots} onSave={handleSave} onLoad={handleLoad} />
-              <PreviewPlaybackBar
-                muted={muted}
-                setMuted={setMuted}
-                volume={volume}
-                setVolume={setVolume}
-                runtimeState={runtimeState}
-                onTogglePlay={togglePlay}
-                canStepBack={(vmState?.history?.length ?? 0) > 0}
-                onStepBack={handleStepBack}
-                autoPlay={autoPlay}
-                setAutoPlay={setAutoPlay}
-                canAutoPlay={canAutoPlay}
-                speedLabel={AUTO_PLAY_SPEED_LABELS[speedIndex] ?? '中'}
-                onCycleSpeed={cycleSpeed}
-                backlogOpen={backlogOpen}
-                onToggleBacklog={() => setBacklogOpen((v) => !v)}
-                hasBacklog={backlogEntries.length > 0}
-                skipRead={skipRead}
-                setSkipRead={setSkipRead}
-                canSkipRead={backlogEntries.length > 0}
+        <div className="flex-1 min-h-0 flex">
+          <div className="flex-1 min-w-0 flex items-center justify-center p-4">
+            <div className="relative w-full max-w-[640px] aspect-video rounded-xl overflow-hidden shadow-md bg-gradient-to-br from-bg-elevated to-bg border border-border">
+              <SpriteLayer
+                canvasRef={canvasRef}
+                runtimeRef={runtimeRef}
+                vmGraph={vmGraph}
+                vmState={vmState}
+                viewAst={viewAst}
+                projectPath={projectPath}
+                resolveAsync={resolveAsync}
               />
+              <div className="absolute top-3 left-3 px-2 py-0.5 bg-surface/80 backdrop-blur rounded-md text-[11px] font-mono text-text-muted z-10 border border-border">
+                {sceneId ?? '—'}
+              </div>
+              <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                <PreviewSlotBar slots={slots} onSave={handleSave} onLoad={handleLoad} />
+                <PreviewPlaybackBar
+                  muted={muted}
+                  setMuted={setMuted}
+                  volume={volume}
+                  setVolume={setVolume}
+                  runtimeState={runtimeState}
+                  onTogglePlay={togglePlay}
+                  canStepBack={(vmState?.history?.length ?? 0) > 0}
+                  onStepBack={handleStepBack}
+                  autoPlay={autoPlay}
+                  setAutoPlay={setAutoPlay}
+                  canAutoPlay={canAutoPlay}
+                  speedLabel={AUTO_PLAY_SPEED_LABELS[speedIndex] ?? '中'}
+                  onCycleSpeed={cycleSpeed}
+                  backlogOpen={backlogOpen}
+                  onToggleBacklog={() => setBacklogOpen((v) => !v)}
+                  hasBacklog={backlogEntries.length > 0}
+                  skipRead={skipRead}
+                  setSkipRead={setSkipRead}
+                  canSkipRead={backlogEntries.length > 0}
+                />
+              </div>
+              {saveNote && (
+                <div className="absolute top-12 right-3 px-2 py-1 bg-emerald-900/70 text-emerald-100 text-[11px] rounded z-10">
+                  {saveNote}
+                </div>
+              )}
+              {unsupportedNote && (
+                <div className="absolute top-12 left-3 right-3 px-2 py-1 bg-red-900/70 text-red-100 text-[11px] rounded z-10">
+                  {unsupportedNote}
+                </div>
+              )}
+              {renderStepOverlay()}
+              {backlogOpen ? (
+                <PreviewBacklogPanel
+                  entries={backlogEntries}
+                  onClose={() => setBacklogOpen(false)}
+                />
+              ) : null}
             </div>
-            {saveNote && (
-              <div className="absolute top-12 right-3 px-2 py-1 bg-emerald-900/70 text-emerald-100 text-[11px] rounded z-10">{saveNote}</div>
-            )}
-            {unsupportedNote && (
-              <div className="absolute top-12 left-3 right-3 px-2 py-1 bg-red-900/70 text-red-100 text-[11px] rounded z-10">{unsupportedNote}</div>
-            )}
-            {renderStepOverlay()}
-            {backlogOpen ? (
-              <PreviewBacklogPanel entries={backlogEntries} onClose={() => setBacklogOpen(false)} />
-            ) : null}
           </div>
+          {debugPanelOpen ? (
+            <PreviewDebugPanel variables={variablesSnapshot} changedKeys={changedKeys} />
+          ) : null}
         </div>
       )}
     </div>

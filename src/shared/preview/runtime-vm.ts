@@ -93,6 +93,23 @@ export {
   MAX_READ_LINE_IDS
 }
 export type { VmBacklogEntry, VmReadState, VmStageSlot } from './runtime-vm-player.js'
+export {
+  MAX_DEBUG_CONTINUE_STEPS,
+  createVmDebugger,
+  diffVariables,
+  getVariables,
+  matchBreakpoint,
+  settleSilentSteps
+} from './vm-debugger'
+export type {
+  CreateVmDebuggerOptions,
+  VmBreakpointHit,
+  VmDebugStepResult,
+  VmDebugStopReason,
+  VmDebugger,
+  VmVariableChange,
+  VmVariableWatchCallback
+} from './vm-debugger'
 
 /** Build a framework-agnostic playback graph from Script AST. */
 export const buildVmGraph = (ast: ScriptNode): VmGraph => {

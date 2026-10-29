@@ -1,15 +1,16 @@
 /**
  * OutlinePanel — 大纲视图(SideToolWindow 内容区)
  *
- * 场景列表从 merged/script AST 派生;角色从 manifest 派生。
- * 侧栏较窄:场景 / 角色上下叠放(非左右并列);外层主岛 header 由 SideToolWindow 提供。
+ * 场景列表与 marker 锚点从 merged/script AST 派生;角色从 manifest 派生。
+ * marker 行支持点击 gutter 或右键切换 VM 调试断点(红点标识,持久化至 localStorage)。
  */
 import { useMemo } from 'react'
 import { useUiStore } from '../../lib/store'
-import { ListTree, User, MapPin } from 'lucide-react'
+import { ListTree, User, MapPin, Flag } from 'lucide-react'
 import { PanelHeader } from '../../components/ui/panel-header'
 import { EmptyState } from '../../components/ui/empty-state'
 import { extractOutlineScenes } from './outline-scenes'
+import { useDebugStore } from '../preview/debug-store'
 import { cn } from '../../lib/utils'
 
 export const OutlinePanel = (): JSX.Element => {
@@ -22,6 +23,8 @@ export const OutlinePanel = (): JSX.Element => {
   const setSelectedSceneId = useUiStore((s) => s.setSelectedSceneId)
   const selectedCharacterId = useUiStore((s) => s.selectedCharacterId)
   const openCharacterFromOutline = useUiStore((s) => s.openCharacterFromOutline)
+  const breakpoints = useDebugStore((s) => s.breakpoints)
+  const toggleBreakpoint = useDebugStore((s) => s.toggleBreakpoint)
 
   const scenes = useMemo(() => extractOutlineScenes(viewAst), [viewAst])
 
@@ -50,21 +53,66 @@ export const OutlinePanel = (): JSX.Element => {
             scenes.map((s) => {
               const active = s.id === selectedSceneId
               return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSelectedSceneId(s.id)}
-                  data-testid={`outline-scene-${s.id}`}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors',
-                    active ? 'bg-accent-soft text-accent' : 'hover:bg-bg-elevated'
-                  )}
-                >
-                  <span className="text-[10px] font-mono text-text-muted w-6 text-right shrink-0">
-                    {s.line}
-                  </span>
-                  <span className="text-[12px] truncate">{s.id}</span>
-                </button>
+                <div key={s.id} className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSceneId(s.id)}
+                    data-testid={`outline-scene-${s.id}`}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors',
+                      active ? 'bg-accent-soft text-accent' : 'hover:bg-bg-elevated'
+                    )}
+                  >
+                    <span className="text-[10px] font-mono text-text-muted w-6 text-right shrink-0">
+                      {s.line}
+                    </span>
+                    <span className="text-[12px] truncate">{s.id}</span>
+                  </button>
+                  {s.markers.map((m) => {
+                    const hasBp = breakpoints.includes(m.id)
+                    return (
+                      <div
+                        key={`${s.id}:${m.id}:${m.line}`}
+                        data-testid={`outline-marker-${m.id}`}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          toggleBreakpoint(m.id)
+                        }}
+                        className={cn(
+                          'group/marker flex items-center gap-1.5 pl-6 pr-2 py-1 rounded-md text-[11px] transition-colors',
+                          hasBp
+                            ? 'bg-danger-soft text-danger'
+                            : 'text-text-muted hover:bg-bg-elevated hover:text-text'
+                        )}
+                      >
+                        <button
+                          type="button"
+                          aria-label={hasBp ? `移除断点 ${m.id}` : `设置断点 ${m.id}`}
+                          aria-pressed={hasBp}
+                          data-testid={`outline-bp-${m.id}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleBreakpoint(m.id)
+                          }}
+                          title={hasBp ? `移除断点: ${m.id}` : `点击设置断点: ${m.id}`}
+                          className="w-4 h-4 flex items-center justify-center shrink-0 rounded-full"
+                        >
+                          <span
+                            className={cn(
+                              'w-2 h-2 rounded-full transition-all',
+                              hasBp
+                                ? 'bg-danger ring-2 ring-danger/30'
+                                : 'border border-text-muted/50 opacity-50 group-hover/marker:opacity-100'
+                            )}
+                          />
+                        </button>
+                        <Flag className="w-2.5 h-2.5 shrink-0 opacity-70" />
+                        <span className="font-mono truncate flex-1">{m.id}</span>
+                        <span className="text-[10px] font-mono opacity-60 shrink-0">L{m.line}</span>
+                      </div>
+                    )
+                  })}
+                </div>
               )
             })
           )}

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-29T14:35:06.697Z",
+  "nodeVersion": "v26.3.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "seed": 20260719,
+  "benchmarks": {
+    "parse10kLines": {
+      "name": "万行 .gal parse + 诊断",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 8.789,
+      "p95": 11.436,
+      "mean": 9.019,
+      "min": 7.813,
+      "max": 11.436,
+      "meta": {
+        "lineCount": 10007,
+        "topLevelNodes": 358
+      }
+    },
+    "vmAdvance1000Steps": {
+      "name": "runtime-vm 推进 1000 节点",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 0.166,
+      "p95": 0.597,
+      "mean": 0.204,
+      "min": 0.155,
+      "max": 0.597,
+      "meta": {
+        "stepsAdvanced": 1000
+      }
+    },
+    "webExportMediumProject": {
+      "name": "Web 导出 (中型项目 5×1000 行)",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 2.154,
+      "p95": 2.886,
+      "mean": 2.229,
+      "min": 1.921,
+      "max": 2.886,
+      "meta": {
+        "files": 5
+      }
+    },
+    "mergedAst10x1000Lines": {
+      "name": "merged AST 构建 (10×1000 行)",
+      "unit": "ms",
+      "iterations": 15,
+      "p50": 8.156,
+      "p95": 9.945,
+      "mean": 8.14,
+      "min": 7.371,
+      "max": 9.945,
+      "meta": {
+        "files": 10,
+        "mergedNodes": 379
+      }
+    }
+  },
+  "baselineFile": ".omo/bench/baseline.json",
+  "comparison": [
+    {
+      "key": "parse10kLines",
+      "baselineP50": 8.812,
+      "currentP50": 8.789,
+      "deltaP50Pct": -0.261,
+      "baselineP95": 13.457,
+      "currentP95": 11.436,
+      "deltaP95Pct": -15.018
+    },
+    {
+      "key": "vmAdvance1000Steps",
+      "baselineP50": 0.168,
+      "currentP50": 0.166,
+      "deltaP50Pct": -1.19,
+      "baselineP95": 0.798,
+      "currentP95": 0.597,
+      "deltaP95Pct": -25.188
+    },
+    {
+      "key": "webExportMediumProject",
+      "baselineP50": 2.316,
+      "currentP50": 2.154,
+      "deltaP50Pct": -6.995,
+      "baselineP95": 2.948,
+      "currentP95": 2.886,
+      "deltaP95Pct": -2.103
+    },
+    {
+      "key": "mergedAst10x1000Lines",
+      "baselineP50": 8.05,
+      "currentP50": 8.156,
+      "deltaP50Pct": 1.317,
+      "baselineP95": 12.143,
+      "currentP95": 9.945,
+      "deltaP95Pct": -18.101
+    }
+  ]
+}
